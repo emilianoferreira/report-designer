@@ -3,7 +3,10 @@
     "allow": [
       "Bash(npm --version)",
       "Bash(npx @angular/cli@18 new zureo-report-designer --directory=. --routing --style=scss --standalone --skip-git --skip-tests --ssr=false --package-manager=npm)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npm list:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
