@@ -1,0 +1,140 @@
+<!-- Design Canvas - A4 page with sections, rulers, and grid -->
+<div class="canvas-container">
+
+  <!-- ─── Toolbar ─── -->
+  <div class="canvas-toolbar">
+    <div class="toolbar-group">
+      <button class="toolbar-btn" (click)="zoomOut()" title="Alejar">
+        <span>−</span>
+      </button>
+      <span class="zoom-label">{{ (zoom * 100) | number:'1.0-0' }}%</span>
+      <button class="toolbar-btn" (click)="zoomIn()" title="Acercar">
+        <span>+</span>
+      </button>
+      <button class="toolbar-btn" (click)="resetZoom()" title="100%">
+        <span>1:1</span>
+      </button>
+    </div>
+    <div class="toolbar-group">
+      <button
+        class="toolbar-btn"
+        [class.active]="showGrid"
+        (click)="toggleGrid()"
+        title="Grilla"
+      >
+        <span>⊞</span> Grilla
+      </button>
+      <button
+        class="toolbar-btn"
+        [class.active]="snapEnabled"
+        (click)="toggleSnap()"
+        title="Snap a grilla"
+      >
+        <span>⊡</span> Snap
+      </button>
+    </div>
+  </div>
+
+  <!-- ─── Scroll area ─── -->
+  <div class="canvas-scroll-area">
+
+    <!-- ─── Horizontal Ruler ─── -->
+    <div class="ruler ruler-horizontal" [style.width.px]="pageWidthPx * zoom + 30">
+      <div class="ruler-offset"></div>
+      <div class="ruler-track" [style.transform]="'scaleX(' + zoom + ')'">
+        @for (mark of horizontalMarks; track mark) {
+          <div
+            class="ruler-mark"
+            [class.major]="mark % 10 === 0"
+            [style.left.px]="mmToPx(mark)"
+          >
+            @if (mark % 10 === 0) {
+              <span class="ruler-label">{{ mark }}</span>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="canvas-body">
+      <!-- ─── Vertical Ruler ─── -->
+      <div class="ruler ruler-vertical" [style.height.px]="pageHeightPx * zoom">
+        <div class="ruler-track" [style.transform]="'scaleY(' + zoom + ')'">
+          @for (mark of verticalMarks; track mark) {
+            <div
+              class="ruler-mark"
+              [class.major]="mark % 10 === 0"
+              [style.top.px]="mmToPx(mark)"
+            >
+              @if (mark % 10 === 0) {
+                <span class="ruler-label">{{ mark }}</span>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- ─── Page Surface ─── -->
+      <div
+        #canvasPage
+        class="canvas-page"
+        [style.width.px]="pageWidthPx"
+        [style.height.px]="pageHeightPx"
+        [style.transform]="'scale(' + zoom + ')'"
+        [style.transform-origin]="'top left'"
+        (click)="onCanvasClick($event)"
+      >
+        <!-- Grid overlay -->
+        @if (showGrid) {
+          <div
+            class="grid-overlay"
+            [style.background-size]="mmToPx(gridSizeMm) + 'px ' + mmToPx(gridSizeMm) + 'px'"
+          ></div>
+        }
+
+        <!-- Margins visual -->
+        <div
+          class="margin-indicator"
+          [style.top.px]="mmToPx(template.page.margins.top)"
+          [style.left.px]="mmToPx(template.page.margins.left)"
+          [style.right.px]="mmToPx(template.page.margins.right)"
+          [style.bottom.px]="mmToPx(template.page.margins.bottom)"
+        ></div>
+
+        <!-- ─── Sections ─── -->
+        @for (sectionKey of ['header', 'detail', 'footer']; track sectionKey) {
+          <div
+            class="section-area"
+            [class.active]="isSectionActive($any(sectionKey))"
+            [style.height.px]="getSectionHeightPx($any(sectionKey))"
+            (dragover)="onDragOver($event)"
+            (drop)="onDrop($event, $any(sectionKey))"
+          >
+            <!-- Section label -->
+            <div
+              class="section-label"
+              (click)="onSectionLabelClick($any(sectionKey))"
+            >
+              {{ getSectionLabel($any(sectionKey)) }}
+            </div>
+
+            <!-- Section body - elements go here -->
+            <div class="section-body">
+              @for (element of getSectionElements($any(sectionKey)); track trackByElementId($index, element)) {
+                <app-element-renderer
+                  [element]="element"
+                  [selected]="isElementSelected(element.id)"
+                  [sectionKey]="$any(sectionKey)"
+                  (elementSelected)="onElementSelected($event)"
+                />
+              }
+            </div>
+
+            <!-- Section divider -->
+            <div class="section-divider"></div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>

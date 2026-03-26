@@ -1,0 +1,292 @@
+<!-- Properties Panel - Edit selected element properties -->
+<div class="properties-panel">
+  @if (selectedElement) {
+    <!-- Element header -->
+    <div class="panel-header">
+      <span class="element-type-badge">{{ elementTypeLabel }}</span>
+      <div class="panel-actions">
+        <button class="action-btn" (click)="duplicateElement()" title="Duplicar">⧉</button>
+        <button class="action-btn" (click)="toggleLock()" [title]="locked ? 'Desbloquear' : 'Bloquear'">
+          {{ locked ? '🔒' : '🔓' }}
+        </button>
+        <button class="action-btn danger" (click)="deleteElement()" title="Eliminar">✕</button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button
+        class="tab"
+        [class.active]="activeTab === 'general'"
+        (click)="setTab('general')"
+      >General</button>
+      <button
+        class="tab"
+        [class.active]="activeTab === 'style'"
+        (click)="setTab('style')"
+      >Estilo</button>
+      <button
+        class="tab"
+        [class.active]="activeTab === 'data'"
+        (click)="setTab('data')"
+      >Datos</button>
+    </div>
+
+    <!-- ─── General Tab ─── -->
+    @if (activeTab === 'general') {
+      <div class="tab-content">
+        <!-- Name -->
+        <div class="field-group">
+          <label class="field-label">Nombre</label>
+          <input
+            type="text"
+            class="field-input"
+            [(ngModel)]="name"
+            (blur)="onFieldChange()"
+          />
+        </div>
+
+        <!-- Position -->
+        <div class="field-row">
+          <div class="field-group half">
+            <label class="field-label">X (mm)</label>
+            <input
+              type="number"
+              class="field-input"
+              [(ngModel)]="posX"
+              (blur)="onFieldChange()"
+              step="0.5"
+            />
+          </div>
+          <div class="field-group half">
+            <label class="field-label">Y (mm)</label>
+            <input
+              type="number"
+              class="field-input"
+              [(ngModel)]="posY"
+              (blur)="onFieldChange()"
+              step="0.5"
+            />
+          </div>
+        </div>
+
+        <!-- Size -->
+        <div class="field-row">
+          <div class="field-group half">
+            <label class="field-label">Ancho (mm)</label>
+            <input
+              type="number"
+              class="field-input"
+              [(ngModel)]="width"
+              (blur)="onFieldChange()"
+              step="0.5"
+              min="1"
+            />
+          </div>
+          <div class="field-group half">
+            <label class="field-label">Alto (mm)</label>
+            <input
+              type="number"
+              class="field-input"
+              [(ngModel)]="height"
+              (blur)="onFieldChange()"
+              step="0.5"
+              min="1"
+            />
+          </div>
+        </div>
+
+        <!-- Z-Index & Layer -->
+        <div class="field-group">
+          <label class="field-label">Capa (Z-Index)</label>
+          <div class="field-row compact">
+            <input
+              type="number"
+              class="field-input"
+              [(ngModel)]="zIndex"
+              (blur)="onFieldChange()"
+            />
+            <button class="small-btn" (click)="bringToFront()" title="Al frente">↑</button>
+            <button class="small-btn" (click)="sendToBack()" title="Al fondo">↓</button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ─── Style Tab ─── -->
+    @if (activeTab === 'style') {
+      <div class="tab-content">
+        <!-- Font Family -->
+        @if (selectedElement.type !== 'line' && selectedElement.type !== 'rectangle' && selectedElement.type !== 'image') {
+          <div class="field-group">
+            <label class="field-label">Fuente</label>
+            <select
+              class="field-input"
+              [(ngModel)]="fontFamily"
+              (change)="onFieldChange()"
+            >
+              @for (font of fontFamilies; track font) {
+                <option [value]="font">{{ font }}</option>
+              }
+            </select>
+          </div>
+
+          <!-- Font Size & Style -->
+          <div class="field-row">
+            <div class="field-group half">
+              <label class="field-label">Tamaño</label>
+              <select
+                class="field-input"
+                [(ngModel)]="fontSize"
+                (change)="onFieldChange()"
+              >
+                @for (size of fontSizes; track size) {
+                  <option [value]="size">{{ size }}pt</option>
+                }
+              </select>
+            </div>
+            <div class="field-group half">
+              <label class="field-label">Color</label>
+              <input
+                type="color"
+                class="field-input color-input"
+                [(ngModel)]="fontColor"
+                (change)="onFieldChange()"
+              />
+            </div>
+          </div>
+
+          <!-- Bold / Italic -->
+          <div class="field-group">
+            <label class="field-label">Estilo</label>
+            <div class="button-group">
+              <button
+                class="style-btn"
+                [class.active]="fontWeight === 'bold'"
+                (click)="toggleBold()"
+              ><strong>N</strong></button>
+              <button
+                class="style-btn"
+                [class.active]="fontStyle === 'italic'"
+                (click)="toggleItalic()"
+              ><em>I</em></button>
+            </div>
+          </div>
+
+          <!-- Text Alignment -->
+          <div class="field-group">
+            <label class="field-label">Alineación</label>
+            <div class="button-group">
+              <button class="style-btn" [class.active]="textAlign === 'left'" (click)="setAlignment('left')">≡←</button>
+              <button class="style-btn" [class.active]="textAlign === 'center'" (click)="setAlignment('center')">≡↔</button>
+              <button class="style-btn" [class.active]="textAlign === 'right'" (click)="setAlignment('right')">≡→</button>
+              <button class="style-btn" [class.active]="textAlign === 'justify'" (click)="setAlignment('justify')">≡≡</button>
+            </div>
+          </div>
+        }
+
+        <!-- Background Color -->
+        <div class="field-group">
+          <label class="field-label">Fondo</label>
+          <div class="field-row compact">
+            <input
+              type="color"
+              class="field-input color-input"
+              [(ngModel)]="backgroundColor"
+              (change)="onFieldChange()"
+            />
+            <button class="small-btn" (click)="backgroundColor = ''; onFieldChange()" title="Sin fondo">✕</button>
+          </div>
+        </div>
+
+        <!-- Opacity -->
+        <div class="field-group">
+          <label class="field-label">Opacidad</label>
+          <div class="field-row compact">
+            <input
+              type="range"
+              class="field-range"
+              [(ngModel)]="opacity"
+              (input)="onFieldChange()"
+              min="0"
+              max="1"
+              step="0.05"
+            />
+            <span class="range-value">{{ (opacity * 100) | number:'1.0-0' }}%</span>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ─── Data Tab ─── -->
+    @if (activeTab === 'data') {
+      <div class="tab-content">
+        @if (selectedElement.type === 'text') {
+          <div class="field-group">
+            <label class="field-label">Contenido</label>
+            <textarea
+              class="field-input field-textarea"
+              [(ngModel)]="textContent"
+              (blur)="onFieldChange()"
+              rows="3"
+            ></textarea>
+          </div>
+        }
+
+        @if (selectedElement.type === 'dataField') {
+          <div class="field-group">
+            <label class="field-label">Origen de datos</label>
+            <input
+              type="text"
+              class="field-input mono"
+              [(ngModel)]="bindingSource"
+              (blur)="onFieldChange()"
+              placeholder="ej: invoice.customerName"
+            />
+            <span class="field-hint">Ruta al campo en el objeto de datos</span>
+          </div>
+        }
+
+        @if (selectedElement.type === 'formula') {
+          <div class="field-group">
+            <label class="field-label">Expresión</label>
+            <textarea
+              class="field-input field-textarea mono"
+              [(ngModel)]="formulaExpression"
+              (blur)="onFieldChange()"
+              rows="2"
+              placeholder="ej: invoice.subtotal * 0.21"
+            ></textarea>
+            <span class="field-hint">Expresión matemática o de datos</span>
+          </div>
+        }
+
+        @if (selectedElement.type === 'image') {
+          <div class="field-group">
+            <label class="field-label">URL de imagen</label>
+            <input
+              type="text"
+              class="field-input"
+              [(ngModel)]="imageUrl"
+              (blur)="onFieldChange()"
+              placeholder="https://..."
+            />
+          </div>
+        }
+
+        @if (selectedElement.type !== 'text' && selectedElement.type !== 'dataField' && selectedElement.type !== 'formula' && selectedElement.type !== 'image') {
+          <div class="empty-state">
+            <p>Este tipo de elemento no tiene propiedades de datos editables.</p>
+          </div>
+        }
+      </div>
+    }
+  } @else {
+    <!-- No selection -->
+    <div class="no-selection">
+      <div class="no-selection-icon">⊡</div>
+      <p>Seleccioná un elemento en el lienzo para ver sus propiedades.</p>
+      <p class="hint">Arrastrá herramientas desde el panel izquierdo al lienzo.</p>
+    </div>
+  }
+</div>

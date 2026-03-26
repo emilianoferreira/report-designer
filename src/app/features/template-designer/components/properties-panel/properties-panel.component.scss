@@ -1,0 +1,270 @@
+/**
+ * Properties Panel Styles
+ * Right sidebar with element property editing
+ */
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.properties-panel {
+  padding: 0;
+  font-size: 12px;
+}
+
+// ─── Header ───
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+
+.element-type-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1565c0;
+  background: #e3f2fd;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.panel-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.action-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  padding: 0;
+
+  &:hover {
+    background: #f5f5f5;
+  }
+
+  &.danger:hover {
+    background: #ffebee;
+    border-color: #ef9a9a;
+    color: #c62828;
+  }
+}
+
+// ─── Tabs ───
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.tab {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  background: none;
+  font-size: 11px;
+  font-weight: 500;
+  color: #757575;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+
+  &:hover {
+    color: #424242;
+    background: #fafafa;
+  }
+
+  &.active {
+    color: #1976d2;
+    border-bottom-color: #1976d2;
+  }
+}
+
+// ─── Tab Content ───
+.tab-content {
+  padding: 12px;
+}
+
+// ─── Field Groups ───
+.field-group {
+  margin-bottom: 12px;
+
+  &.half {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.field-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #757575;
+  margin-bottom: 4px;
+}
+
+.field-input {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #333;
+  background: #fff;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+
+  &:focus {
+    outline: none;
+    border-color: #2196f3;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+  }
+
+  &.mono {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 11px;
+  }
+}
+
+.field-textarea {
+  resize: vertical;
+  min-height: 48px;
+  line-height: 1.4;
+}
+
+.field-hint {
+  display: block;
+  font-size: 10px;
+  color: #9e9e9e;
+  margin-top: 2px;
+}
+
+// ─── Field Row ───
+.field-row {
+  display: flex;
+  gap: 8px;
+
+  &.compact {
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+// ─── Color Input ───
+.color-input {
+  width: 40px;
+  height: 28px;
+  padding: 2px;
+  cursor: pointer;
+}
+
+// ─── Range Input ───
+.field-range {
+  flex: 1;
+  cursor: pointer;
+}
+
+.range-value {
+  font-size: 11px;
+  color: #616161;
+  min-width: 32px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+// ─── Button Groups ───
+.button-group {
+  display: flex;
+  gap: 2px;
+}
+
+.style-btn {
+  padding: 4px 10px;
+  border: 1px solid #ddd;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+  min-width: 32px;
+
+  &:first-child {
+    border-radius: 4px 0 0 4px;
+  }
+
+  &:last-child {
+    border-radius: 0 4px 4px 0;
+  }
+
+  &:hover {
+    background: #f5f5f5;
+  }
+
+  &.active {
+    background: #e3f2fd;
+    border-color: #2196f3;
+    color: #1565c0;
+  }
+}
+
+.small-btn {
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+
+  &:hover {
+    background: #f5f5f5;
+  }
+}
+
+// ─── No Selection ───
+.no-selection {
+  padding: 32px 16px;
+  text-align: center;
+  color: #9e9e9e;
+}
+
+.no-selection-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+  opacity: 0.3;
+}
+
+.no-selection p {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.hint {
+  font-size: 11px;
+  color: #bdbdbd;
+}
+
+// ─── Empty State ───
+.empty-state {
+  padding: 16px;
+  text-align: center;
+  color: #9e9e9e;
+
+  p {
+    margin: 0;
+    font-size: 12px;
+  }
+}

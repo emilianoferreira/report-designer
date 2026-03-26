@@ -1,0 +1,60 @@
+<!-- Preview Component - Shows rendered HTML output -->
+<div class="preview-container">
+
+  <!-- Toolbar -->
+  <div class="preview-toolbar">
+    <div class="toolbar-group">
+      <button class="toolbar-btn" (click)="zoomOut()">−</button>
+      <span class="zoom-label">{{ (zoom * 100) | number:'1.0-0' }}%</span>
+      <button class="toolbar-btn" (click)="zoomIn()">+</button>
+    </div>
+
+    <div class="toolbar-group">
+      <button
+        class="toolbar-btn"
+        [class.active]="sampleDataMode === 'multi'"
+        (click)="toggleSampleData()"
+      >
+        {{ sampleDataMode === 'single' ? '1 artículo' : '5 artículos' }}
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="toolbar-btn" (click)="toggleRawHtml()">
+        {{ showRawHtml ? 'Preview' : 'HTML' }}
+      </button>
+      <button class="toolbar-btn" (click)="printPreview()">
+        Imprimir
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="toolbar-btn primary" (click)="exportHtmlTemplate()">
+        Exportar Template
+      </button>
+      <button class="toolbar-btn" (click)="exportRenderedHtml()">
+        Exportar HTML
+      </button>
+    </div>
+  </div>
+
+  <!-- Preview content -->
+  <div class="preview-body">
+    @if (!showRawHtml) {
+      <!-- Rendered preview in iframe -->
+      <div class="preview-frame-wrapper" [style.transform]="'scale(' + zoom + ')'" [style.transform-origin]="'top center'">
+        <iframe
+          #previewFrame
+          class="preview-frame"
+          sandbox="allow-same-origin"
+          title="Vista previa"
+        ></iframe>
+      </div>
+    } @else {
+      <!-- Raw HTML source -->
+      <div class="raw-html-wrapper">
+        <pre class="raw-html">{{ rawHtml }}</pre>
+      </div>
+    }
+  </div>
+</div>

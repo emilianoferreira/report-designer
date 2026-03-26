@@ -1,0 +1,173 @@
+/**
+ * Designer Page Layout
+ * Three-panel layout (Design) or full-width (Preview)
+ */
+
+:host {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.designer-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #f5f5f5;
+}
+
+// ─── Header ───
+.designer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  min-height: 48px;
+  padding: 0 16px;
+  background: #263238;
+  color: #fff;
+  z-index: 100;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.app-logo {
+  font-weight: 700;
+  font-size: 16px;
+  color: #4fc3f7;
+  letter-spacing: 0.5px;
+}
+
+.header-separator {
+  color: #546e7a;
+}
+
+.template-name {
+  font-size: 13px;
+  color: #b0bec5;
+}
+
+.header-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+// ─── View Mode Toggle ───
+.view-toggle {
+  display: flex;
+  background: #37474f;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.toggle-btn {
+  padding: 6px 20px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: #90a4ae;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover:not(.active) {
+    color: #cfd8dc;
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  &.active {
+    background: #1976d2;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.header-btn {
+  padding: 5px 14px;
+  border: 1px solid #546e7a;
+  border-radius: 4px;
+  background: transparent;
+  color: #b0bec5;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+
+  &:hover {
+    background: #37474f;
+    border-color: #78909c;
+    color: #fff;
+  }
+
+  &.primary {
+    background: #1976d2;
+    border-color: #1565c0;
+    color: #fff;
+
+    &:hover {
+      background: #1565c0;
+    }
+  }
+}
+
+// ─── Body (3 columns or full-width) ───
+.designer-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+// Left panel (Toolbox)
+.panel-left {
+  width: 180px;
+  min-width: 180px;
+  background: #fff;
+  border-right: 1px solid #e0e0e0;
+}
+
+// Center panel (Canvas)
+.panel-center {
+  flex: 1;
+  min-width: 0;
+  background: #e8e8e8;
+}
+
+// Right panel (Properties)
+.panel-right {
+  width: 260px;
+  min-width: 260px;
+  background: #fff;
+  border-left: 1px solid #e0e0e0;
+}
+
+// Full-width panel (Preview)
+.panel-full {
+  flex: 1;
+  background: #e8e8e8;
+}

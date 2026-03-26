@@ -296,6 +296,27 @@ export interface InvoiceData {
   invoice: Record<string, any>;
   invoiceLines: Array<Record<string, any>>;
   company: Record<string, any>;
+
+  // ─── Zureo ERP context fields ───
+  Moneda?: { ISO4217: string; Simbolo: string };
+  Contacto?: Record<string, any>;
+  CFE?: Record<string, any>;
+  Articulos?: Array<Record<string, any>>;
+  Impuestos?: Array<{ Nombre: string; Valor: number }>;
+  SubtotalesDesglosados?: Array<{ Key: string; Value: number }>;
+  Subtotal?: number;
+  Total?: number;
+  Redondeo?: number;
+  MontoDtoGlobal?: number;
+  isCFE?: boolean;
+  isConsumoFinal?: boolean;
+  isImpIncluidos?: boolean;
+  hasContacto?: boolean;
+  hasDtoGlobal?: boolean;
+  hasRedondeo?: boolean;
+  logoBase64?: string;
+  QRBase64?: string;
+
   [key: string]: any;
 }
 

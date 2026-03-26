@@ -1,0 +1,64 @@
+<!-- Designer Page - Main layout with mode toggle: Design | Preview -->
+<div class="designer-layout">
+
+  <!-- ─── Top Bar ─── -->
+  <header class="designer-header">
+    <div class="header-left">
+      <span class="app-logo">Zureo</span>
+      <span class="header-separator">|</span>
+      <span class="template-name">{{ templateName }}</span>
+    </div>
+
+    <!-- View mode toggle -->
+    <div class="header-center">
+      <div class="view-toggle">
+        <button
+          class="toggle-btn"
+          [class.active]="viewMode === 'design'"
+          (click)="setViewMode('design')"
+        >
+          Diseño
+        </button>
+        <button
+          class="toggle-btn"
+          [class.active]="viewMode === 'preview'"
+          (click)="setViewMode('preview')"
+        >
+          Vista Previa
+        </button>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button class="header-btn" (click)="exportTemplateJson()">
+        JSON
+      </button>
+      <button class="header-btn primary" (click)="exportHtmlTemplate()">
+        Exportar HTML
+      </button>
+    </div>
+  </header>
+
+  <!-- ─── Main Content ─── -->
+  <div class="designer-body">
+    @if (viewMode === 'design') {
+      <!-- Design mode: Toolbox | Canvas | Properties -->
+      <aside class="panel panel-left">
+        <app-toolbox />
+      </aside>
+
+      <main class="panel panel-center">
+        <app-design-canvas />
+      </main>
+
+      <aside class="panel panel-right">
+        <app-properties-panel />
+      </aside>
+    } @else {
+      <!-- Preview mode: Full-width preview -->
+      <main class="panel panel-full">
+        <app-preview />
+      </main>
+    }
+  </div>
+</div>

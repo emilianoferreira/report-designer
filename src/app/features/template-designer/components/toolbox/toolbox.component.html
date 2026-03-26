@@ -1,0 +1,58 @@
+<!-- Toolbox - Draggable element tools organized by category -->
+<div class="toolbox">
+  <h3 class="toolbox-title">Herramientas</h3>
+
+  <!-- Basic Elements -->
+  <div class="tool-category">
+    <div class="category-label">Básicos</div>
+    <div class="tool-grid">
+      @for (tool of basicTools; track tool.type) {
+        <div
+          class="tool-item"
+          draggable="true"
+          (dragstart)="onDragStart($event, tool)"
+          [title]="tool.description"
+        >
+          <div class="tool-icon">{{ tool.icon }}</div>
+          <div class="tool-label">{{ tool.label }}</div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Data Elements -->
+  <div class="tool-category">
+    <div class="category-label">Datos</div>
+    <div class="tool-grid">
+      @for (tool of dataTools; track tool.type) {
+        <div
+          class="tool-item"
+          draggable="true"
+          (dragstart)="onDragStart($event, tool)"
+          [title]="tool.description"
+        >
+          <div class="tool-icon">{{ tool.icon }}</div>
+          <div class="tool-label">{{ tool.label }}</div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Visual Elements -->
+  <div class="tool-category">
+    <div class="category-label">Visuales</div>
+    <div class="tool-grid">
+      @for (tool of visualTools; track tool.type) {
+        <div
+          class="tool-item"
+          draggable="true"
+          (dragstart)="onDragStart($event, tool)"
+          [title]="tool.description"
+        >
+          <div class="tool-icon">{{ tool.icon }}</div>
+          <div class="tool-label">{{ tool.label }}</div>
+        </div>
+      }
+    </div>
+  </div>
+</div>

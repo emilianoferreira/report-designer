@@ -9,10 +9,15 @@ import { BehaviorSubject, Observable } from 'rxjs';
 import {
   ReportTemplate,
   TemplateElement,
+  TemplateSections,
   SectionDefinition,
   PageSettings
 } from '../../../core/models/template.model';
 import { cloneElement, updateElement } from '../utils/element-factory';
+import { createDefaultTemplate } from '../data/default-template';
+
+/** Valid section keys for element operations */
+type SectionKey = 'header' | 'detail' | 'footer';
 
 @Injectable({
   providedIn: 'root'
@@ -60,7 +65,7 @@ export class TemplateStateService {
    * @param sectionKey - 'header', 'detail', or 'footer'
    * @param element - Element to add
    */
-  addElement(sectionKey: keyof 'header' | 'detail' | 'footer', element: TemplateElement): void {
+  addElement(sectionKey: SectionKey, element: TemplateElement): void {
     const current = this.getCurrentTemplate();
     const section = current.sections[sectionKey];
 
@@ -89,7 +94,7 @@ export class TemplateStateService {
    * @param updates - Partial element updates
    */
   updateElement(
-    sectionKey: keyof 'header' | 'detail' | 'footer',
+    sectionKey: SectionKey,
     elementId: string,
     updates: Partial<TemplateElement>
   ): void {
@@ -119,7 +124,7 @@ export class TemplateStateService {
   /**
    * Remove an element
    */
-  removeElement(sectionKey: keyof 'header' | 'detail' | 'footer', elementId: string): void {
+  removeElement(sectionKey: SectionKey, elementId: string): void {
     const current = this.getCurrentTemplate();
     const section = current.sections[sectionKey];
 
@@ -144,7 +149,7 @@ export class TemplateStateService {
   /**
    * Duplicate an element
    */
-  duplicateElement(sectionKey: keyof 'header' | 'detail' | 'footer', elementId: string): void {
+  duplicateElement(sectionKey: SectionKey, elementId: string): void {
     const current = this.getCurrentTemplate();
     const section = current.sections[sectionKey];
     const element = section?.elements.find(el => el.id === elementId);
@@ -162,7 +167,7 @@ export class TemplateStateService {
    * Reorder element by z-index
    */
   reorderElement(
-    sectionKey: keyof 'header' | 'detail' | 'footer',
+    sectionKey: SectionKey,
     elementId: string,
     direction: 'front' | 'back'
   ): void {
@@ -201,7 +206,7 @@ export class TemplateStateService {
   /**
    * Get elements from a specific section
    */
-  getElements(sectionKey: keyof 'header' | 'detail' | 'footer'): TemplateElement[] {
+  getElements(sectionKey: SectionKey): TemplateElement[] {
     const section = this.getCurrentTemplate().sections[sectionKey];
     return section?.elements || [];
   }
@@ -210,7 +215,7 @@ export class TemplateStateService {
    * Get a single element by ID
    */
   getElement(
-    sectionKey: keyof 'header' | 'detail' | 'footer',
+    sectionKey: SectionKey,
     elementId: string
   ): TemplateElement | undefined {
     return this.getElements(sectionKey).find(el => el.id === elementId);
@@ -219,7 +224,7 @@ export class TemplateStateService {
   /**
    * Clear all elements from a section
    */
-  clearSection(sectionKey: keyof 'header' | 'detail' | 'footer'): void {
+  clearSection(sectionKey: SectionKey): void {
     const current = this.getCurrentTemplate();
     const updated: ReportTemplate = {
       ...current,
@@ -235,82 +240,10 @@ export class TemplateStateService {
   }
 
   /**
-   * Create a blank template with default settings
+   * Create the initial template.
+   * Uses the pre-built invoice template so the canvas is not empty.
    */
   private createBlankTemplate(): ReportTemplate {
-    return {
-      schemaVersion: '1.0',
-      metadata: {
-        id: '',
-        name: 'Untitled Template',
-        description: '',
-        version: 1,
-        author: 'unknown',
-        companyId: 'default',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        tags: [],
-        status: 'draft'
-      },
-      page: {
-        width: 210,
-        height: 297,
-        margins: { top: 10, right: 10, bottom: 10, left: 10 },
-        orientation: 'portrait',
-        defaultFont: {
-          family: 'Arial',
-          size: 10,
-          weight: 'normal',
-          style: 'normal',
-          color: '#000000'
-        }
-      },
-      sections: {
-        header: {
-          height: 60,
-          backgroundColor: undefined,
-          elements: [],
-          printOnFirstPage: true,
-          printOnLastPage: true,
-          printOnEveryPage: false
-        },
-        detail: {
-          height: 180,
-          backgroundColor: undefined,
-          elements: [],
-          printOnFirstPage: true,
-          printOnLastPage: true,
-          printOnEveryPage: false,
-          dataSource: 'invoiceLines',
-          rowHeight: 8,
-          autoGrow: false,
-          showGridLines: true,
-          gridLineColor: '#e0e0e0',
-          gridLineWidth: 0.2
-        },
-        footer: {
-          height: 50,
-          backgroundColor: undefined,
-          elements: [],
-          printOnFirstPage: true,
-          printOnLastPage: true,
-          printOnEveryPage: true
-        }
-      },
-      dataSources: {
-        primary: {
-          entity: 'invoice',
-          fields: []
-        },
-        detail: {
-          entity: 'invoiceLine',
-          fields: [],
-          parentKey: 'invoiceId'
-        },
-        lookups: {}
-      },
-      styles: {},
-      variables: []
-    };
+    return createDefaultTemplate();
   }
 }

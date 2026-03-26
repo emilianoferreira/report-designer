@@ -1,0 +1,88 @@
+<!-- Element Renderer - renders any TemplateElement type visually -->
+<div
+  class="element-wrapper"
+  [ngStyle]="hostStyles"
+  [class.selected]="selected"
+  [class.locked]="element.locked"
+  (mousedown)="onMouseDown($event)"
+  [attr.data-element-id]="element.id"
+  [attr.data-element-type]="element.type"
+>
+  <!-- Selection handles -->
+  @if (selected && !element.locked) {
+    <div class="resize-handle nw"></div>
+    <div class="resize-handle n"></div>
+    <div class="resize-handle ne"></div>
+    <div class="resize-handle e"></div>
+    <div class="resize-handle se"></div>
+    <div class="resize-handle s"></div>
+    <div class="resize-handle sw"></div>
+    <div class="resize-handle w"></div>
+  }
+
+  <!-- Text Element -->
+  @if (element.type === 'text') {
+    <div class="element-content text-element" [ngStyle]="contentStyles">
+      {{ asText.content }}
+    </div>
+  }
+
+  <!-- DataField Element -->
+  @if (element.type === 'dataField') {
+    <div class="element-content datafield-element" [ngStyle]="contentStyles">
+      <span class="binding-tag">{{ asDataField.binding.source }}</span>
+    </div>
+  }
+
+  <!-- Formula Element -->
+  @if (element.type === 'formula') {
+    <div class="element-content formula-element" [ngStyle]="contentStyles">
+      <span class="formula-tag">fx: {{ asFormula.expression }}</span>
+    </div>
+  }
+
+  <!-- Image Element -->
+  @if (element.type === 'image') {
+    <div class="element-content image-element">
+      @if (asImage.source.type === 'static' && asImage.source.url) {
+        <img
+          [src]="asImage.source.url"
+          [alt]="element.name"
+          [style.object-fit]="asImage.fit"
+        />
+      } @else {
+        <div class="image-placeholder">
+          <span class="placeholder-icon">&#128247;</span>
+          <span class="placeholder-text">{{ asImage.source.binding || 'Image' }}</span>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Line Element -->
+  @if (element.type === 'line') {
+    <div class="element-content line-element" [ngStyle]="lineStyles"></div>
+  }
+
+  <!-- Rectangle Element -->
+  @if (element.type === 'rectangle') {
+    <div class="element-content rectangle-element" [ngStyle]="rectangleStyles"></div>
+  }
+
+  <!-- QR Code Element -->
+  @if (element.type === 'qrCode') {
+    <div class="element-content qrcode-element">
+      <div class="qr-placeholder">QR</div>
+    </div>
+  }
+
+  <!-- Barcode Element -->
+  @if (element.type === 'barcode') {
+    <div class="element-content barcode-element">
+      <div class="barcode-placeholder">||||| ||||| |||||</div>
+    </div>
+  }
+
+  <!-- Element name tooltip -->
+  <div class="element-tooltip">{{ element.name }}</div>
+</div>

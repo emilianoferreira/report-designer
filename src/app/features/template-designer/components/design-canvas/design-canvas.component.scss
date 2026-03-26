@@ -1,0 +1,270 @@
+/**
+ * Design Canvas Styles
+ * A4 page rendering with rulers, grid, sections, and margins
+ */
+
+// ─── Variables ───
+$ruler-size: 24px;
+$ruler-bg: #f8f8f8;
+$ruler-border: #d0d0d0;
+$page-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+$canvas-bg: #e8e8e8;
+$section-active-bg: rgba(33, 150, 243, 0.03);
+$section-border: rgba(33, 150, 243, 0.2);
+$grid-color: rgba(0, 0, 0, 0.06);
+$margin-color: rgba(255, 0, 0, 0.08);
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+// ─── Canvas Toolbar ───
+.canvas-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 12px;
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+  min-height: 36px;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  color: #424242;
+  transition: all 0.15s;
+
+  &:hover {
+    background: #f0f0f0;
+    border-color: #bbb;
+  }
+
+  &.active {
+    background: #e3f2fd;
+    border-color: #2196f3;
+    color: #1565c0;
+  }
+}
+
+.zoom-label {
+  font-size: 12px;
+  color: #616161;
+  min-width: 40px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+// ─── Scroll Area ───
+.canvas-scroll-area {
+  overflow: auto;
+  height: calc(100% - 37px);
+  background: $canvas-bg;
+  position: relative;
+}
+
+// ─── Rulers ───
+.ruler {
+  background: $ruler-bg;
+  position: relative;
+  z-index: 5;
+}
+
+.ruler-horizontal {
+  height: $ruler-size;
+  border-bottom: 1px solid $ruler-border;
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+
+  .ruler-offset {
+    width: $ruler-size;
+    min-width: $ruler-size;
+    border-right: 1px solid $ruler-border;
+    background: $ruler-bg;
+  }
+
+  .ruler-track {
+    position: relative;
+    transform-origin: left center;
+  }
+
+  .ruler-mark {
+    position: absolute;
+    top: 0;
+    width: 1px;
+    height: 8px;
+    background: #999;
+
+    &.major {
+      height: 14px;
+      background: #666;
+    }
+  }
+
+  .ruler-label {
+    position: absolute;
+    top: 14px;
+    left: 2px;
+    font-size: 9px;
+    color: #666;
+    white-space: nowrap;
+  }
+}
+
+.ruler-vertical {
+  width: $ruler-size;
+  min-width: $ruler-size;
+  border-right: 1px solid $ruler-border;
+  background: $ruler-bg;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+
+  .ruler-track {
+    position: relative;
+    transform-origin: center top;
+  }
+
+  .ruler-mark {
+    position: absolute;
+    left: 0;
+    width: 8px;
+    height: 1px;
+    background: #999;
+
+    &.major {
+      width: 14px;
+      background: #666;
+    }
+  }
+
+  .ruler-label {
+    position: absolute;
+    left: 15px;
+    top: 1px;
+    font-size: 9px;
+    color: #666;
+    white-space: nowrap;
+  }
+}
+
+// ─── Canvas Body ───
+.canvas-body {
+  display: flex;
+  padding-bottom: 40px;
+  padding-right: 40px;
+}
+
+// ─── Page Surface ───
+.canvas-page {
+  background: #ffffff;
+  box-shadow: $page-shadow;
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 16px;
+}
+
+// ─── Grid Overlay ───
+.grid-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(to right, $grid-color 1px, transparent 1px),
+    linear-gradient(to bottom, $grid-color 1px, transparent 1px);
+}
+
+// ─── Margin Indicator ───
+.margin-indicator {
+  position: absolute;
+  border: 1px dashed rgba(255, 0, 0, 0.15);
+  background: transparent;
+  pointer-events: none;
+  z-index: 1;
+}
+
+// ─── Sections ───
+.section-area {
+  position: relative;
+  flex-shrink: 0;
+  border-bottom: none;
+  transition: background 0.15s;
+
+  &.active {
+    background: $section-active-bg;
+  }
+
+  &:hover:not(.active) {
+    background: rgba(0, 0, 0, 0.01);
+  }
+}
+
+.section-label {
+  position: absolute;
+  right: -1px;
+  top: 0;
+  transform: translateX(100%);
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-left: none;
+  padding: 2px 8px;
+  font-size: 10px;
+  color: #757575;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  border-radius: 0 4px 4px 0;
+  z-index: 2;
+
+  .section-area.active & {
+    background: #e3f2fd;
+    color: #1565c0;
+    border-color: #90caf9;
+  }
+}
+
+.section-body {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+}
+
+.section-divider {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    #2196f3 0,
+    #2196f3 4px,
+    transparent 4px,
+    transparent 8px
+  );
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: 3;
+}
