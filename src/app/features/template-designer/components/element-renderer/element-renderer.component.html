@@ -4,20 +4,19 @@
   [ngStyle]="hostStyles"
   [class.selected]="selected"
   [class.locked]="element.locked"
+  [class.dragging]="isDragging"
   (mousedown)="onMouseDown($event)"
-  [attr.data-element-id]="element.id"
-  [attr.data-element-type]="element.type"
 >
-  <!-- Selection handles -->
+  <!-- Selection handles (resize) -->
   @if (selected && !element.locked) {
-    <div class="resize-handle nw"></div>
-    <div class="resize-handle n"></div>
-    <div class="resize-handle ne"></div>
-    <div class="resize-handle e"></div>
-    <div class="resize-handle se"></div>
-    <div class="resize-handle s"></div>
-    <div class="resize-handle sw"></div>
-    <div class="resize-handle w"></div>
+    <div class="resize-handle nw" (mousedown)="onHandleMouseDown($event, 'nw')"></div>
+    <div class="resize-handle n"  (mousedown)="onHandleMouseDown($event, 'n')"></div>
+    <div class="resize-handle ne" (mousedown)="onHandleMouseDown($event, 'ne')"></div>
+    <div class="resize-handle e"  (mousedown)="onHandleMouseDown($event, 'e')"></div>
+    <div class="resize-handle se" (mousedown)="onHandleMouseDown($event, 'se')"></div>
+    <div class="resize-handle s"  (mousedown)="onHandleMouseDown($event, 's')"></div>
+    <div class="resize-handle sw" (mousedown)="onHandleMouseDown($event, 'sw')"></div>
+    <div class="resize-handle w"  (mousedown)="onHandleMouseDown($event, 'w')"></div>
   }
 
   <!-- Text Element -->
@@ -49,6 +48,7 @@
           [src]="asImage.source.url"
           [alt]="element.name"
           [style.object-fit]="asImage.fit"
+          draggable="false"
         />
       } @else {
         <div class="image-placeholder">
@@ -83,6 +83,8 @@
     </div>
   }
 
-  <!-- Element name tooltip -->
-  <div class="element-tooltip">{{ element.name }}</div>
+  <!-- Element name tooltip (only when not dragging) -->
+  @if (!isDragging) {
+    <div class="element-tooltip">{{ element.name }}</div>
+  }
 </div>

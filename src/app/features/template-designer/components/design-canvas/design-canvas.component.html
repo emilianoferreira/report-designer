@@ -5,7 +5,7 @@
   <div class="canvas-toolbar">
     <div class="toolbar-group">
       <button class="toolbar-btn" (click)="zoomOut()" title="Alejar">
-        <span>−</span>
+        <span>&minus;</span>
       </button>
       <span class="zoom-label">{{ (zoom * 100) | number:'1.0-0' }}%</span>
       <button class="toolbar-btn" (click)="zoomIn()" title="Acercar">
@@ -22,7 +22,7 @@
         (click)="toggleGrid()"
         title="Grilla"
       >
-        <span>⊞</span> Grilla
+        Grilla
       </button>
       <button
         class="toolbar-btn"
@@ -30,7 +30,7 @@
         (click)="toggleSnap()"
         title="Snap a grilla"
       >
-        <span>⊡</span> Snap
+        Snap
       </button>
     </div>
   </div>
@@ -125,7 +125,13 @@
                   [element]="element"
                   [selected]="isElementSelected(element.id)"
                   [sectionKey]="$any(sectionKey)"
+                  [dragTransform]="getElementTransform(element.id)"
+                  [dragWidth]="getElementDragWidth(element.id)"
+                  [dragHeight]="getElementDragHeight(element.id)"
+                  [resizeTransform]="getElementDragTransform(element.id)"
+                  [isDragging]="isDragging(element.id)"
                   (elementSelected)="onElementSelected($event)"
+                  (dragStarted)="onElementDragStart($event)"
                 />
               }
             </div>

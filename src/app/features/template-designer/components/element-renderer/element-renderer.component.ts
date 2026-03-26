@@ -1,14 +1,13 @@
 /**
  * Element Renderer Component
  * Renders a single TemplateElement on the canvas based on its type.
- * Handles visual representation, selection state, and interaction hooks.
+ * Emits drag/resize start events for the canvas to handle via native mouse events.
  */
 import {
   Component,
   Input,
   Output,
   EventEmitter,
-  HostBinding,
   OnChanges,
   SimpleChanges,
   ChangeDetectionStrategy
@@ -21,8 +20,7 @@ import {
   FormulaElement,
   ImageElement,
   LineElement,
-  RectangleElement,
-  FontSettings
+  RectangleElement
 } from '../../../../core/models/template.model';
 import { mmToPx } from '../../utils/coordinate-utils';
 
@@ -39,10 +37,25 @@ export class ElementRendererComponent implements OnChanges {
   @Input() selected = false;
   @Input() sectionKey: 'header' | 'detail' | 'footer' = 'header';
 
+  /** Visual overrides during drag/resize (from canvas) */
+  @Input() dragTransform = '';
+  @Input() resizeTransform = '';
+  @Input() dragWidth: number | null = null;
+  @Input() dragHeight: number | null = null;
+  @Input() isDragging = false;
+
   @Output() elementSelected = new EventEmitter<{
     elementId: string;
     section: 'header' | 'detail' | 'footer';
     event: MouseEvent;
+  }>();
+
+  /** Emitted when user starts dragging the element body or a resize handle */
+  @Output() dragStarted = new EventEmitter<{
+    elementId: string;
+    section: 'header' | 'detail' | 'footer';
+    mouseEvent: MouseEvent;
+    handle?: string;
   }>();
 
   // Computed styles
@@ -50,7 +63,7 @@ export class ElementRendererComponent implements OnChanges {
   contentStyles: Record<string, string> = {};
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['element'] || changes['selected']) {
+    if (changes['element'] || changes['selected'] || changes['dragWidth'] || changes['dragHeight'] || changes['dragTransform'] || changes['resizeTransform']) {
       this.computeStyles();
     }
   }
@@ -61,20 +74,32 @@ export class ElementRendererComponent implements OnChanges {
     const el = this.element;
     const left = mmToPx(el.position.x);
     const top = mmToPx(el.position.y);
-    const width = mmToPx(el.size.width);
-    const height = mmToPx(el.size.height);
+    const width = this.dragWidth ?? mmToPx(el.size.width);
+    const height = this.dragHeight ?? mmToPx(el.size.height);
+
+    // Determine the transform to apply
+    let transform = '';
+    if (this.dragTransform) {
+      transform = this.dragTransform;
+    } else if (this.resizeTransform) {
+      transform = this.resizeTransform;
+    }
 
     this.hostStyles = {
       'position': 'absolute',
       'left': `${left}px`,
       'top': `${top}px`,
       'width': `${width}px`,
-      'height': el.type === 'line' ? '0px' : `${height}px`,
-      'z-index': `${el.zIndex}`,
+      'height': el.type === 'line' ? '2px' : `${height}px`,
+      'z-index': `${this.isDragging ? 9999 : el.zIndex}`,
       'opacity': `${el.style.opacity ?? 1}`,
       'pointer-events': el.locked ? 'none' : 'auto',
       'cursor': el.locked ? 'default' : 'move'
     };
+
+    if (transform) {
+      this.hostStyles['transform'] = transform;
+    }
 
     // Content-specific styles
     this.contentStyles = {};
@@ -139,12 +164,45 @@ export class ElementRendererComponent implements OnChanges {
     }
   }
 
+  /** Click to select */
   onMouseDown(event: MouseEvent): void {
     event.stopPropagation();
+    event.preventDefault();
+
     this.elementSelected.emit({
       elementId: this.element.id,
       section: this.sectionKey,
       event
+    });
+
+    // Also start a move drag
+    if (!this.element.locked) {
+      this.dragStarted.emit({
+        elementId: this.element.id,
+        section: this.sectionKey,
+        mouseEvent: event
+      });
+    }
+  }
+
+  /** Resize handle mousedown */
+  onHandleMouseDown(event: MouseEvent, handle: string): void {
+    event.stopPropagation();
+    event.preventDefault();
+
+    // Select the element first
+    this.elementSelected.emit({
+      elementId: this.element.id,
+      section: this.sectionKey,
+      event
+    });
+
+    // Start resize
+    this.dragStarted.emit({
+      elementId: this.element.id,
+      section: this.sectionKey,
+      mouseEvent: event,
+      handle
     });
   }
 
@@ -176,7 +234,7 @@ export class ElementRendererComponent implements OnChanges {
   get lineStyles(): Record<string, string> {
     if (this.element.type !== 'line') return {};
     const line = this.asLine;
-    const width = mmToPx(this.element.size.width);
+    const width = this.dragWidth ?? mmToPx(this.element.size.width);
     return {
       'width': `${width}px`,
       'border-top-width': `${mmToPx(line.lineStyle.width)}px`,

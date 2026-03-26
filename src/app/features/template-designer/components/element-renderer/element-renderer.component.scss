@@ -10,9 +10,8 @@
 .element-wrapper {
   box-sizing: border-box;
   user-select: none;
-  transition: box-shadow 0.1s ease;
 
-  &:hover:not(.locked) {
+  &:hover:not(.locked):not(.dragging) {
     outline: 1px solid rgba(33, 150, 243, 0.4);
   }
 
@@ -25,26 +24,38 @@
     cursor: default;
     opacity: 0.7;
   }
+
+  &.dragging {
+    opacity: 0.85;
+    outline: 2px dashed #1976d2;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
 }
 
 // ─── Selection Resize Handles ───
 .resize-handle {
   position: absolute;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   background: #ffffff;
   border: 2px solid #2196f3;
-  border-radius: 1px;
+  border-radius: 2px;
   z-index: 10;
+  box-shadow: 0 0 2px rgba(0,0,0,0.2);
 
-  &.nw { top: -4px; left: -4px; cursor: nw-resize; }
-  &.n  { top: -4px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
-  &.ne { top: -4px; right: -4px; cursor: ne-resize; }
-  &.e  { top: 50%; right: -4px; transform: translateY(-50%); cursor: e-resize; }
-  &.se { bottom: -4px; right: -4px; cursor: se-resize; }
-  &.s  { bottom: -4px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
-  &.sw { bottom: -4px; left: -4px; cursor: sw-resize; }
-  &.w  { top: 50%; left: -4px; transform: translateY(-50%); cursor: w-resize; }
+  &.nw { top: -5px; left: -5px; cursor: nw-resize; }
+  &.n  { top: -5px; left: 50%; margin-left: -5px; cursor: n-resize; }
+  &.ne { top: -5px; right: -5px; cursor: ne-resize; }
+  &.e  { top: 50%; right: -5px; margin-top: -5px; cursor: e-resize; }
+  &.se { bottom: -5px; right: -5px; cursor: se-resize; }
+  &.s  { bottom: -5px; left: 50%; margin-left: -5px; cursor: s-resize; }
+  &.sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+  &.w  { top: 50%; left: -5px; margin-top: -5px; cursor: w-resize; }
+
+  &:hover {
+    background: #bbdefb;
+    border-color: #1565c0;
+  }
 }
 
 // ─── Element Content ───
@@ -53,6 +64,7 @@
   height: 100%;
   box-sizing: border-box;
   overflow: hidden;
+  pointer-events: none; // let clicks pass through to wrapper
 }
 
 // ─── Text Element ───
@@ -191,7 +203,7 @@
 .element-tooltip {
   display: none;
   position: absolute;
-  bottom: calc(100% + 4px);
+  bottom: calc(100% + 6px);
   left: 0;
   background: #333;
   color: #fff;
@@ -203,6 +215,6 @@
   pointer-events: none;
 }
 
-.element-wrapper:hover .element-tooltip {
+.element-wrapper:hover:not(.dragging) .element-tooltip {
   display: block;
 }
