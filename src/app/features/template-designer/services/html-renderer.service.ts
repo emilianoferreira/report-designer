@@ -296,9 +296,18 @@ ${footerHtml}
       }
     }
 
+    // Calculate offset to clear positioned elements (column headers, lines)
+    let tableOffsetMm = 0;
+    if (section.elements.length > 0) {
+      tableOffsetMm = Math.max(
+        ...section.elements.map(el => el.position.y + el.size.height)
+      );
+    }
+    const tableOffsetPx = tableOffsetMm > 0 ? mmToPx(tableOffsetMm + 1) : 0;
+
     // Render the detail lines as a table if we have data
     if (opts.resolveData && data.invoiceLines && data.invoiceLines.length > 0) {
-      html += this.renderDetailTable(section, data, opts);
+      html += this.renderDetailTable(section, data, opts, tableOffsetPx);
     } else if (!opts.resolveData) {
       // Export mode: output z-code directives for the detail table
       html += this.renderDetailTableDirectives(section);
@@ -313,22 +322,20 @@ ${footerHtml}
   private renderDetailTable(
     section: DetailSectionDefinition,
     data: InvoiceData,
-    opts: RenderOptions
+    opts: RenderOptions,
+    tableOffsetPx: number = 0
   ): string {
     const lines = data.invoiceLines || data.Articulos || [];
     const isImpIncluidos = data.isImpIncluidos;
 
-    let html = `      <table class="detail-table">
-        <thead>
-          <tr>
-            <th style="width: 18%; text-align:left">CÓDIGO</th>
-            <th style="width: 35%; text-align:left">DESCRIPCIÓN</th>
-            <th style="width: 8%; text-align:center">CANT.</th>
-            <th style="width: 14%; text-align:right">UNITARIO</th>
-            <th style="width: 10%; text-align:right">DESC</th>
-            <th style="width: 15%; text-align:right">IMPORTE</th>
-          </tr>
-        </thead>
+    // Note: column headers are already rendered as positioned text elements
+    // in the detail section, so we skip <thead> to avoid duplication.
+    // Wrap in a div with padding-top to clear the absolutely positioned headers.
+    let html = '';
+    if (tableOffsetPx > 0) {
+      html += `      <div style="padding-top: ${tableOffsetPx}px;">\n`;
+    }
+    html += `      <table class="detail-table">
         <tbody>\n`;
 
     for (const line of lines) {
@@ -357,6 +364,10 @@ ${footerHtml}
 
     // Subtotals block
     html += this.renderSubtotals(data, opts);
+
+    if (tableOffsetPx > 0) {
+      html += `      </div>\n`;
+    }
 
     return html;
   }

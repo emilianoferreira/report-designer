@@ -12,12 +12,12 @@
   user-select: none;
 
   &:hover:not(.locked):not(.dragging) {
-    outline: 1px solid rgba(33, 150, 243, 0.4);
+    outline: 1px solid rgba(123, 31, 162, 0.4);
   }
 
   &.selected {
-    outline: 2px solid #2196f3;
-    box-shadow: 0 0 0 1px rgba(33, 150, 243, 0.2);
+    outline: 2px solid #7B1FA2;
+    box-shadow: 0 0 0 1px rgba(123, 31, 162, 0.2);
   }
 
   &.locked {
@@ -27,7 +27,7 @@
 
   &.dragging {
     opacity: 0.85;
-    outline: 2px dashed #1976d2;
+    outline: 2px dashed #6A1B9A;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   }
 }
@@ -38,7 +38,7 @@
   width: 10px;
   height: 10px;
   background: #ffffff;
-  border: 2px solid #2196f3;
+  border: 2px solid #7B1FA2;
   border-radius: 2px;
   z-index: 10;
   box-shadow: 0 0 2px rgba(0,0,0,0.2);
@@ -53,8 +53,8 @@
   &.w  { top: 50%; left: -5px; margin-top: -5px; cursor: w-resize; }
 
   &:hover {
-    background: #bbdefb;
-    border-color: #1565c0;
+    background: #CE93D8;
+    border-color: #4A148C;
   }
 }
 

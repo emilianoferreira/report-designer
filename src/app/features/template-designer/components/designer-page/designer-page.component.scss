@@ -25,7 +25,7 @@
   height: 48px;
   min-height: 48px;
   padding: 0 16px;
-  background: #263238;
+  background: #4A148C;
   color: #fff;
   z-index: 100;
 }
@@ -40,17 +40,17 @@
 .app-logo {
   font-weight: 700;
   font-size: 16px;
-  color: #4fc3f7;
+  color: #CE93D8;
   letter-spacing: 0.5px;
 }
 
 .header-separator {
-  color: #546e7a;
+  color: #7B1FA2;
 }
 
 .template-name {
   font-size: 13px;
-  color: #b0bec5;
+  color: #D1C4E9;
 }
 
 .header-center {
@@ -63,7 +63,7 @@
 // ─── View Mode Toggle ───
 .view-toggle {
   display: flex;
-  background: #37474f;
+  background: #5C1690;
   border-radius: 6px;
   padding: 2px;
   gap: 2px;
@@ -74,7 +74,7 @@
   border: none;
   border-radius: 5px;
   background: transparent;
-  color: #90a4ae;
+  color: #B39DDB;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -82,12 +82,12 @@
   white-space: nowrap;
 
   &:hover:not(.active) {
-    color: #cfd8dc;
+    color: #E1BEE7;
     background: rgba(255, 255, 255, 0.05);
   }
 
   &.active {
-    background: #1976d2;
+    background: #7B1FA2;
     color: #fff;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   }
@@ -103,28 +103,28 @@
 
 .header-btn {
   padding: 5px 14px;
-  border: 1px solid #546e7a;
+  border: 1px solid #7B1FA2;
   border-radius: 4px;
   background: transparent;
-  color: #b0bec5;
+  color: #D1C4E9;
   font-size: 12px;
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
 
   &:hover {
-    background: #37474f;
-    border-color: #78909c;
+    background: #5C1690;
+    border-color: #9C27B0;
     color: #fff;
   }
 
   &.primary {
-    background: #1976d2;
-    border-color: #1565c0;
+    background: #7B1FA2;
+    border-color: #6A1B9A;
     color: #fff;
 
     &:hover {
-      background: #1565c0;
+      background: #6A1B9A;
     }
   }
 }

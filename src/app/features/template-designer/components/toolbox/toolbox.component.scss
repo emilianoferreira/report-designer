@@ -60,15 +60,15 @@
   transition: all 0.15s;
 
   &:hover {
-    background: #e3f2fd;
-    border-color: #90caf9;
-    box-shadow: 0 1px 4px rgba(33, 150, 243, 0.15);
+    background: #F3E5F5;
+    border-color: #BA68C8;
+    box-shadow: 0 1px 4px rgba(123, 31, 162, 0.15);
   }
 
   &:active {
     cursor: grabbing;
     transform: scale(0.95);
-    background: #bbdefb;
+    background: #CE93D8;
   }
 }
 
