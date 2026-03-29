@@ -222,6 +222,38 @@ export class TemplateStateService {
   }
 
   /**
+   * Update multiple elements in a single emission (batch update).
+   * Used by multi-drag and multi-property editing to avoid N separate emissions.
+   */
+  updateMultipleElements(
+    sectionKey: SectionKey,
+    updates: Array<{ id: string; changes: Partial<TemplateElement> }>
+  ): void {
+    const current = this.getCurrentTemplate();
+    const section = current.sections[sectionKey];
+
+    if (!section) {
+      console.error(`Section ${sectionKey} not found`);
+      return;
+    }
+
+    const updateMap = new Map(updates.map(u => [u.id, u.changes]));
+    const updated: ReportTemplate = {
+      ...current,
+      sections: {
+        ...current.sections,
+        [sectionKey]: {
+          ...section,
+          elements: section.elements.map(el =>
+            updateMap.has(el.id) ? updateElement(el, updateMap.get(el.id)!) : el
+          )
+        }
+      }
+    };
+    this.setTemplate(updated);
+  }
+
+  /**
    * Clear all elements from a section
    */
   clearSection(sectionKey: SectionKey): void {

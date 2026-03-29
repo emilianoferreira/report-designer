@@ -119,7 +119,10 @@
             </div>
 
             <!-- Section body - elements go here -->
-            <div class="section-body">
+            <div
+              class="section-body"
+              (mousedown)="onSectionBodyMouseDown($event, $any(sectionKey))"
+            >
               @for (element of getSectionElements($any(sectionKey)); track trackByElementId($index, element)) {
                 <app-element-renderer
                   [element]="element"
@@ -133,6 +136,17 @@
                   (elementSelected)="onElementSelected($event)"
                   (dragStarted)="onElementDragStart($event)"
                 />
+              }
+
+              <!-- Marquee overlay -->
+              @if (marqueeState && marqueeState.section === $any(sectionKey) && marqueeRect) {
+                <div
+                  class="marquee-overlay"
+                  [style.left.px]="mmToPx(marqueeRect.x)"
+                  [style.top.px]="mmToPx(marqueeRect.y)"
+                  [style.width.px]="mmToPx(marqueeRect.w)"
+                  [style.height.px]="mmToPx(marqueeRect.h)"
+                ></div>
               }
             </div>
 

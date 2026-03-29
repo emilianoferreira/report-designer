@@ -25,11 +25,12 @@ import {
 import { TemplateStateService } from '../../services/template-state.service';
 import { SelectionService } from '../../services/selection.service';
 import { mmToPx, pxToMm, snapToGrid } from '../../utils/coordinate-utils';
+import { createElement } from '../../utils/element-factory';
 import { ElementRendererComponent } from '../element-renderer/element-renderer.component';
 
 type SectionKey = 'header' | 'detail' | 'footer';
 
-/** Tracks an active drag or resize operation */
+/** Tracks an active drag or resize operation (single element) */
 interface DragState {
   type: 'move' | 'resize';
   elementId: string;
@@ -46,6 +47,32 @@ interface DragState {
   currentDy: number;
   currentWidth: number;   // in px, for resize visual feedback
   currentHeight: number;  // in px, for resize visual feedback
+}
+
+/** Tracks a multi-element move operation */
+interface MultiDragState {
+  type: 'multi-move';
+  anchorElementId: string;
+  section: SectionKey;
+  startMouseX: number;
+  startMouseY: number;
+  startPositions: Map<string, { x: number; y: number }>;
+  currentDx: number;
+  currentDy: number;
+}
+
+/** Tracks an active marquee (rubber-band) selection */
+interface MarqueeState {
+  startClientX: number;
+  startClientY: number;
+  startXMm: number;
+  startYMm: number;
+  currentXMm: number;
+  currentYMm: number;
+  additive: boolean;
+  previousIds: string[];
+  sectionBodyRect: DOMRect;
+  section: SectionKey;
 }
 
 @Component({
@@ -86,7 +113,10 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
   verticalMarks: number[] = [];
 
   // Drag/resize state
-  dragState: DragState | null = null;
+  dragState: DragState | MultiDragState | null = null;
+
+  // Marquee selection state
+  marqueeState: MarqueeState | null = null;
 
   private destroy$ = new Subject<void>();
 
@@ -122,6 +152,25 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
 
   @HostListener('document:mousemove', ['$event'])
   onDocumentMouseMove(event: MouseEvent): void {
+    // ─── Marquee drag ───
+    if (this.marqueeState) {
+      event.preventDefault();
+      const rect = this.marqueeState.sectionBodyRect;
+      this.marqueeState.currentXMm = pxToMm((event.clientX - rect.left) / this.zoom);
+      this.marqueeState.currentYMm = pxToMm((event.clientY - rect.top) / this.zoom);
+
+      // Compute which elements intersect the marquee
+      const ids = this.getElementsInMarquee();
+      if (this.marqueeState.additive) {
+        const union = new Set([...this.marqueeState.previousIds, ...ids]);
+        this.selectionService.selectMultiple(Array.from(union), this.marqueeState.section);
+      } else {
+        this.selectionService.selectMultiple(ids, this.marqueeState.section);
+      }
+      this.cdr.markForCheck();
+      return;
+    }
+
     if (!this.dragState) return;
     event.preventDefault();
 
@@ -129,6 +178,9 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
     const dy = event.clientY - this.dragState.startMouseY;
 
     if (this.dragState.type === 'move') {
+      this.dragState.currentDx = dx;
+      this.dragState.currentDy = dy;
+    } else if (this.dragState.type === 'multi-move') {
       this.dragState.currentDx = dx;
       this.dragState.currentDy = dy;
     } else if (this.dragState.type === 'resize') {
@@ -140,10 +192,25 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
 
   @HostListener('document:mouseup', ['$event'])
   onDocumentMouseUp(event: MouseEvent): void {
+    // ─── End marquee ───
+    if (this.marqueeState) {
+      const dx = event.clientX - this.marqueeState.startClientX;
+      const dy = event.clientY - this.marqueeState.startClientY;
+      // If barely moved, treat as a click → clear selection
+      if (Math.abs(dx) < 3 && Math.abs(dy) < 3) {
+        this.selectionService.clearSelection();
+      }
+      this.marqueeState = null;
+      this.cdr.markForCheck();
+      return;
+    }
+
     if (!this.dragState) return;
 
     if (this.dragState.type === 'move') {
       this.commitMove();
+    } else if (this.dragState.type === 'multi-move') {
+      this.commitMultiMove();
     } else if (this.dragState.type === 'resize') {
       this.commitResize();
     }
@@ -184,14 +251,78 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
   // ─── Canvas click (deselect) ───
 
   onCanvasClick(event: MouseEvent): void {
+    // Deselection is now handled by marquee mouseup (tiny-move = click = clear).
+    // Only clear when clicking canvas-page or section-area directly (not section-body,
+    // which is handled by onSectionBodyMouseDown for marquee).
     const target = event.target as HTMLElement;
     if (
-      target.classList.contains('section-body') ||
       target.classList.contains('canvas-page') ||
       target.classList.contains('section-area')
     ) {
       this.selectionService.clearSelection();
     }
+  }
+
+  // ─── Marquee selection (rubber-band) ───
+
+  onSectionBodyMouseDown(event: MouseEvent, section: SectionKey): void {
+    // Only start marquee from empty space (section-body itself)
+    const target = event.target as HTMLElement;
+    if (!target.classList.contains('section-body')) return;
+    if (event.button !== 0) return; // left-click only
+
+    const rect = target.getBoundingClientRect();
+    const xMm = pxToMm((event.clientX - rect.left) / this.zoom);
+    const yMm = pxToMm((event.clientY - rect.top) / this.zoom);
+
+    this.marqueeState = {
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startXMm: xMm,
+      startYMm: yMm,
+      currentXMm: xMm,
+      currentYMm: yMm,
+      additive: event.shiftKey,
+      previousIds: event.shiftKey ? Array.from(this.selectedIds) : [],
+      sectionBodyRect: rect,
+      section
+    };
+
+    this.selectionService.setActiveSection(section);
+    if (!event.shiftKey) {
+      this.selectionService.clearSelection();
+    }
+
+    event.preventDefault();
+  }
+
+  /** Get marquee rectangle normalized (min/max) in mm */
+  get marqueeRect(): { x: number; y: number; w: number; h: number } | null {
+    if (!this.marqueeState) return null;
+    const x1 = Math.min(this.marqueeState.startXMm, this.marqueeState.currentXMm);
+    const y1 = Math.min(this.marqueeState.startYMm, this.marqueeState.currentYMm);
+    const x2 = Math.max(this.marqueeState.startXMm, this.marqueeState.currentXMm);
+    const y2 = Math.max(this.marqueeState.startYMm, this.marqueeState.currentYMm);
+    return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+  }
+
+  /** Find elements whose bounding box intersects the marquee */
+  private getElementsInMarquee(): string[] {
+    if (!this.marqueeState) return [];
+    const rect = this.marqueeRect!;
+    const x1 = rect.x;
+    const y1 = rect.y;
+    const x2 = rect.x + rect.w;
+    const y2 = rect.y + rect.h;
+
+    return this.getSectionElements(this.marqueeState.section)
+      .filter(el => !el.locked &&
+        el.position.x < x2 &&
+        el.position.x + el.size.width > x1 &&
+        el.position.y < y2 &&
+        el.position.y + el.size.height > y1
+      )
+      .map(el => el.id);
   }
 
   // ─── Element selection ───
@@ -261,6 +392,29 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
 
     const isResize = !!event.handle;
 
+    // Multi-drag: if multiple elements selected and dragged element is in selection (no resize)
+    if (!isResize && this.selectedIds.size > 1 && this.selectedIds.has(event.elementId)) {
+      const startPositions = new Map<string, { x: number; y: number }>();
+      this.selectedIds.forEach(id => {
+        const selEl = this.templateState.getElement(event.section as any, id);
+        if (selEl && !selEl.locked) {
+          startPositions.set(id, { x: selEl.position.x, y: selEl.position.y });
+        }
+      });
+
+      this.dragState = {
+        type: 'multi-move',
+        anchorElementId: event.elementId,
+        section: event.section,
+        startMouseX: event.mouseEvent.clientX,
+        startMouseY: event.mouseEvent.clientY,
+        startPositions,
+        currentDx: 0,
+        currentDy: 0
+      };
+      return;
+    }
+
     this.dragState = {
       type: isResize ? 'resize' : 'move',
       elementId: event.elementId,
@@ -282,41 +436,53 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
   // ─── Get element visual transform during drag ───
 
   getElementTransform(elementId: string): string {
-    if (!this.dragState || this.dragState.elementId !== elementId) return '';
-    if (this.dragState.type !== 'move') return '';
-    return `translate(${this.dragState.currentDx}px, ${this.dragState.currentDy}px)`;
+    if (!this.dragState) return '';
+    // Multi-move: same transform for all selected elements
+    if (this.dragState.type === 'multi-move' && this.dragState.startPositions.has(elementId)) {
+      return `translate(${this.dragState.currentDx}px, ${this.dragState.currentDy}px)`;
+    }
+    // Single move
+    if (this.dragState.type === 'move' && (this.dragState as DragState).elementId === elementId) {
+      return `translate(${this.dragState.currentDx}px, ${this.dragState.currentDy}px)`;
+    }
+    return '';
   }
 
   getElementDragWidth(elementId: string): number | null {
-    if (!this.dragState || this.dragState.elementId !== elementId) return null;
-    if (this.dragState.type !== 'resize') return null;
-    return this.dragState.currentWidth;
+    if (!this.dragState || this.dragState.type !== 'resize') return null;
+    if ((this.dragState as DragState).elementId !== elementId) return null;
+    return (this.dragState as DragState).currentWidth;
   }
 
   getElementDragHeight(elementId: string): number | null {
-    if (!this.dragState || this.dragState.elementId !== elementId) return null;
-    if (this.dragState.type !== 'resize') return null;
-    return this.dragState.currentHeight;
+    if (!this.dragState || this.dragState.type !== 'resize') return null;
+    if ((this.dragState as DragState).elementId !== elementId) return null;
+    return (this.dragState as DragState).currentHeight;
   }
 
   getElementDragTransform(elementId: string): string {
-    if (!this.dragState || this.dragState.elementId !== elementId) return '';
-    if (this.dragState.type !== 'resize') return '';
+    if (!this.dragState || this.dragState.type !== 'resize') return '';
+    if ((this.dragState as DragState).elementId !== elementId) return '';
     return `translate(${this.dragState.currentDx}px, ${this.dragState.currentDy}px)`;
   }
 
   isDragging(elementId: string): boolean {
-    return this.dragState?.elementId === elementId;
+    if (!this.dragState) return false;
+    if (this.dragState.type === 'multi-move') {
+      return this.dragState.startPositions.has(elementId);
+    }
+    return (this.dragState as DragState).elementId === elementId;
   }
 
   // ─── Resize delta calculation ───
 
   private applyResizeDelta(dx: number, dy: number): void {
     if (!this.dragState || this.dragState.type !== 'resize') return;
+    const state = this.dragState as DragState;
 
-    const handle = this.dragState.resizeHandle || 'se';
-    const startW = mmToPx(this.dragState.startElWidth);
-    const startH = mmToPx(this.dragState.startElHeight);
+    const handle = state.resizeHandle || 'se';
+    const startW = mmToPx(state.startElWidth);
+    const startH = mmToPx(state.startElHeight);
     const minSize = mmToPx(2); // minimum 2mm
 
     let newW = startW;
@@ -343,24 +509,25 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
       offsetDy = startH - newH;
     }
 
-    this.dragState.currentWidth = newW;
-    this.dragState.currentHeight = newH;
-    this.dragState.currentDx = offsetDx;
-    this.dragState.currentDy = offsetDy;
+    state.currentWidth = newW;
+    state.currentHeight = newH;
+    state.currentDx = offsetDx;
+    state.currentDy = offsetDy;
   }
 
   // ─── Commit move to state ───
 
   private commitMove(): void {
-    if (!this.dragState) return;
+    if (!this.dragState || this.dragState.type !== 'move') return;
+    const state = this.dragState as DragState;
 
-    const dx = this.dragState.currentDx;
-    const dy = this.dragState.currentDy;
+    const dx = state.currentDx;
+    const dy = state.currentDy;
 
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return; // no meaningful move
 
-    let newX = this.dragState.startElX + pxToMm(dx / this.zoom);
-    let newY = this.dragState.startElY + pxToMm(dy / this.zoom);
+    let newX = state.startElX + pxToMm(dx / this.zoom);
+    let newY = state.startElY + pxToMm(dy / this.zoom);
 
     if (this.snapEnabled) {
       newX = snapToGrid(newX, this.gridSizeMm);
@@ -371,21 +538,51 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
     newY = Math.max(0, newY);
 
     this.templateState.updateElement(
-      this.dragState.section as any,
-      this.dragState.elementId,
+      state.section as any,
+      state.elementId,
       { position: { x: newX, y: newY } } as any
     );
+  }
+
+  // ─── Commit multi-move to state ───
+
+  private commitMultiMove(): void {
+    if (!this.dragState || this.dragState.type !== 'multi-move') return;
+
+    const dx = this.dragState.currentDx;
+    const dy = this.dragState.currentDy;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+
+    const updates: Array<{ id: string; changes: Partial<TemplateElement> }> = [];
+
+    this.dragState.startPositions.forEach((startPos, id) => {
+      let newX = startPos.x + pxToMm(dx / this.zoom);
+      let newY = startPos.y + pxToMm(dy / this.zoom);
+
+      if (this.snapEnabled) {
+        newX = snapToGrid(newX, this.gridSizeMm);
+        newY = snapToGrid(newY, this.gridSizeMm);
+      }
+
+      newX = Math.max(0, newX);
+      newY = Math.max(0, newY);
+
+      updates.push({ id, changes: { position: { x: newX, y: newY } } as any });
+    });
+
+    this.templateState.updateMultipleElements(this.dragState.section as any, updates);
   }
 
   // ─── Commit resize to state ───
 
   private commitResize(): void {
-    if (!this.dragState) return;
+    if (!this.dragState || this.dragState.type !== 'resize') return;
+    const state = this.dragState as DragState;
 
-    let newWidth = pxToMm(this.dragState.currentWidth / this.zoom);
-    let newHeight = pxToMm(this.dragState.currentHeight / this.zoom);
-    let newX = this.dragState.startElX + pxToMm(this.dragState.currentDx / this.zoom);
-    let newY = this.dragState.startElY + pxToMm(this.dragState.currentDy / this.zoom);
+    let newWidth = pxToMm(state.currentWidth / this.zoom);
+    let newHeight = pxToMm(state.currentHeight / this.zoom);
+    let newX = state.startElX + pxToMm(state.currentDx / this.zoom);
+    let newY = state.startElY + pxToMm(state.currentDy / this.zoom);
 
     if (this.snapEnabled) {
       newWidth = snapToGrid(newWidth, this.gridSizeMm);
@@ -400,8 +597,8 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
     newY = Math.max(0, newY);
 
     this.templateState.updateElement(
-      this.dragState.section as any,
-      this.dragState.elementId,
+      state.section as any,
+      state.elementId,
       {
         position: { x: newX, y: newY },
         size: { width: newWidth, height: newHeight }
@@ -428,10 +625,11 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
       yMm = snapToGrid(yMm, this.gridSizeMm);
     }
 
-    import('../../utils/element-factory').then(factory => {
-      const newElement = factory.createElement(elementType as any, { x: xMm, y: yMm });
+    this.ngZone.run(() => {
+      const newElement = createElement(elementType as any, { x: xMm, y: yMm });
       this.templateState.addElement(section as any, newElement);
       this.selectionService.select(newElement.id, section);
+      this.cdr.markForCheck();
     });
   }
 

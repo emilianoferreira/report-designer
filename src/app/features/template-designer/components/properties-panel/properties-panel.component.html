@@ -1,6 +1,189 @@
 <!-- Properties Panel - Edit selected element properties -->
 <div class="properties-panel">
-  @if (selectedElement) {
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- MULTI-SELECT MODE                                       -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  @if (multiSelectMode) {
+    <div class="panel-header">
+      <span class="element-type-badge multi">{{ selectedElements.length }} elementos</span>
+      <div class="panel-actions">
+        <button class="action-btn danger" (click)="deleteAllSelected()" title="Eliminar todos">✕</button>
+      </div>
+    </div>
+
+    <!-- Tabs (General + Style only) -->
+    <div class="tabs">
+      <button
+        class="tab"
+        [class.active]="activeTab === 'general'"
+        (click)="setTab('general')"
+      >General</button>
+      <button
+        class="tab"
+        [class.active]="activeTab === 'style'"
+        (click)="setTab('style')"
+      >Estilo</button>
+    </div>
+
+    <!-- ─── Multi: General Tab ─── -->
+    @if (activeTab === 'general') {
+      <div class="tab-content">
+        <div class="multi-info">
+          <span class="field-hint">Posición y nombre individuales no editables en selección múltiple.</span>
+        </div>
+
+        <!-- Size -->
+        <div class="field-row">
+          <div class="field-group half">
+            <label class="field-label">Ancho (mm)</label>
+            <input
+              type="number"
+              class="field-input"
+              [class.mixed]="mixedFields.has('width')"
+              [(ngModel)]="width"
+              (blur)="onMultiFieldChange('width')"
+              [placeholder]="mixedFields.has('width') ? '— Varios —' : ''"
+              step="0.5"
+              min="1"
+            />
+          </div>
+          <div class="field-group half">
+            <label class="field-label">Alto (mm)</label>
+            <input
+              type="number"
+              class="field-input"
+              [class.mixed]="mixedFields.has('height')"
+              [(ngModel)]="height"
+              (blur)="onMultiFieldChange('height')"
+              [placeholder]="mixedFields.has('height') ? '— Varios —' : ''"
+              step="0.5"
+              min="1"
+            />
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- ─── Multi: Style Tab ─── -->
+    @if (activeTab === 'style') {
+      <div class="tab-content">
+        @if (allHaveFont) {
+          <!-- Font Family -->
+          <div class="field-group">
+            <label class="field-label">Fuente</label>
+            <select
+              class="field-input"
+              [class.mixed]="mixedFields.has('fontFamily')"
+              [(ngModel)]="fontFamily"
+              (change)="onMultiFieldChange('fontFamily')"
+            >
+              @if (mixedFields.has('fontFamily')) {
+                <option value="" disabled selected>— Varios —</option>
+              }
+              @for (font of fontFamilies; track font) {
+                <option [value]="font">{{ font }}</option>
+              }
+            </select>
+          </div>
+
+          <!-- Font Size & Color -->
+          <div class="field-row">
+            <div class="field-group half">
+              <label class="field-label">Tamaño</label>
+              <select
+                class="field-input"
+                [class.mixed]="mixedFields.has('fontSize')"
+                [(ngModel)]="fontSize"
+                (change)="onMultiFieldChange('fontSize')"
+              >
+                @if (mixedFields.has('fontSize')) {
+                  <option value="" disabled selected>— Varios —</option>
+                }
+                @for (size of fontSizes; track size) {
+                  <option [value]="size">{{ size }}pt</option>
+                }
+              </select>
+            </div>
+            <div class="field-group half">
+              <label class="field-label">Color</label>
+              <input
+                type="color"
+                class="field-input color-input"
+                [(ngModel)]="fontColor"
+                (change)="onMultiFieldChange('fontColor')"
+              />
+            </div>
+          </div>
+
+          <!-- Bold / Italic -->
+          <div class="field-group">
+            <label class="field-label">Estilo</label>
+            <div class="button-group">
+              <button
+                class="style-btn"
+                [class.active]="fontWeight === 'bold'"
+                [class.mixed]="mixedFields.has('fontWeight')"
+                (click)="toggleBoldMulti()"
+              ><strong>N</strong></button>
+              <button
+                class="style-btn"
+                [class.active]="fontStyle === 'italic'"
+                [class.mixed]="mixedFields.has('fontStyle')"
+                (click)="toggleItalicMulti()"
+              ><em>I</em></button>
+            </div>
+          </div>
+
+          <!-- Text Alignment -->
+          <div class="field-group">
+            <label class="field-label">Alineación</label>
+            <div class="button-group">
+              <button class="style-btn" [class.active]="textAlign === 'left'" (click)="setAlignmentMulti('left')">≡←</button>
+              <button class="style-btn" [class.active]="textAlign === 'center'" (click)="setAlignmentMulti('center')">≡↔</button>
+              <button class="style-btn" [class.active]="textAlign === 'right'" (click)="setAlignmentMulti('right')">≡→</button>
+              <button class="style-btn" [class.active]="textAlign === 'justify'" (click)="setAlignmentMulti('justify')">≡≡</button>
+            </div>
+          </div>
+        }
+
+        <!-- Background Color -->
+        <div class="field-group">
+          <label class="field-label">Fondo</label>
+          <div class="field-row compact">
+            <input
+              type="color"
+              class="field-input color-input"
+              [(ngModel)]="backgroundColor"
+              (change)="onMultiFieldChange('backgroundColor')"
+            />
+            <button class="small-btn" (click)="backgroundColor = ''; onMultiFieldChange('backgroundColor')" title="Sin fondo">✕</button>
+          </div>
+        </div>
+
+        <!-- Opacity -->
+        <div class="field-group">
+          <label class="field-label">Opacidad</label>
+          <div class="field-row compact">
+            <input
+              type="range"
+              class="field-range"
+              [(ngModel)]="opacity"
+              (input)="onMultiFieldChange('opacity')"
+              min="0"
+              max="1"
+              step="0.05"
+            />
+            <span class="range-value">{{ (opacity * 100) | number:'1.0-0' }}%</span>
+          </div>
+        </div>
+      </div>
+    }
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- SINGLE-SELECT MODE                                      -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  } @else if (selectedElement) {
     <!-- Element header -->
     <div class="panel-header">
       <span class="element-type-badge">{{ elementTypeLabel }}</span>

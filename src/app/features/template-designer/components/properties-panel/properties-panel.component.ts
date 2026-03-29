@@ -38,6 +38,9 @@ type TabKey = 'general' | 'style' | 'data';
 })
 export class PropertiesPanelComponent implements OnInit, OnDestroy {
   selectedElement: TemplateElement | null = null;
+  selectedElements: TemplateElement[] = [];
+  multiSelectMode = false;
+  mixedFields = new Set<string>();
   activeSection: 'header' | 'detail' | 'footer' = 'header';
   activeTab: TabKey = 'general';
 
@@ -83,10 +86,19 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
     this.selectionService.selectedElements$
       .pipe(takeUntil(this.destroy$))
       .subscribe(elements => {
+        this.selectedElements = elements;
+        this.multiSelectMode = elements.length > 1;
         this.selectedElement = elements.length === 1 ? elements[0] : null;
         this.activeSection = this.selectionService.getActiveSection();
-        if (this.selectedElement) {
-          this.loadElementProperties(this.selectedElement);
+
+        if (elements.length === 1) {
+          this.loadElementProperties(elements[0]);
+        } else if (elements.length > 1) {
+          this.loadCommonProperties(elements);
+          // Switch to style tab in multi-select if on data tab
+          if (this.activeTab === 'data') {
+            this.activeTab = 'style';
+          }
         }
         this.cdr.markForCheck();
       });
@@ -140,6 +152,150 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
     if (el.type === 'image') {
       this.imageUrl = (el as ImageElement).source.url || '';
     }
+  }
+
+  /**
+   * Load common properties across multiple selected elements.
+   * Fields with differing values are marked as "mixed".
+   */
+  private loadCommonProperties(elements: TemplateElement[]): void {
+    this.mixedFields.clear();
+
+    // Position is always mixed in multi-select
+    this.mixedFields.add('name');
+    this.mixedFields.add('posX');
+    this.mixedFields.add('posY');
+
+    // Size
+    const widths = new Set(elements.map(e => e.size.width));
+    this.width = widths.size === 1 ? elements[0].size.width : 0;
+    if (widths.size > 1) this.mixedFields.add('width');
+
+    const heights = new Set(elements.map(e => e.size.height));
+    this.height = heights.size === 1 ? elements[0].size.height : 0;
+    if (heights.size > 1) this.mixedFields.add('height');
+
+    // Opacity
+    const opacities = new Set(elements.map(e => e.style.opacity ?? 1));
+    this.opacity = opacities.size === 1 ? (elements[0].style.opacity ?? 1) : 1;
+    if (opacities.size > 1) this.mixedFields.add('opacity');
+
+    // Background
+    const bgs = new Set(elements.map(e => e.style.backgroundColor || ''));
+    this.backgroundColor = bgs.size === 1 ? (elements[0].style.backgroundColor || '') : '';
+    if (bgs.size > 1) this.mixedFields.add('backgroundColor');
+
+    // Font properties (only for elements that have font)
+    const withFont = elements.filter(e => !!e.style.font);
+    if (withFont.length === elements.length) {
+      const families = new Set(withFont.map(e => e.style.font!.family));
+      this.fontFamily = families.size === 1 ? withFont[0].style.font!.family : 'Arial';
+      if (families.size > 1) this.mixedFields.add('fontFamily');
+
+      const sizes = new Set(withFont.map(e => e.style.font!.size));
+      this.fontSize = sizes.size === 1 ? withFont[0].style.font!.size : 10;
+      if (sizes.size > 1) this.mixedFields.add('fontSize');
+
+      const weights = new Set(withFont.map(e => e.style.font!.weight));
+      this.fontWeight = weights.size === 1 ? withFont[0].style.font!.weight : 'normal';
+      if (weights.size > 1) this.mixedFields.add('fontWeight');
+
+      const styles = new Set(withFont.map(e => e.style.font!.style));
+      this.fontStyle = styles.size === 1 ? withFont[0].style.font!.style : 'normal';
+      if (styles.size > 1) this.mixedFields.add('fontStyle');
+
+      const colors = new Set(withFont.map(e => e.style.font!.color));
+      this.fontColor = colors.size === 1 ? withFont[0].style.font!.color : '#000000';
+      if (colors.size > 1) this.mixedFields.add('fontColor');
+
+      const aligns = new Set(elements.map(e => e.style.textAlign || 'left'));
+      this.textAlign = aligns.size === 1 ? (elements[0].style.textAlign || 'left') as any : 'left';
+      if (aligns.size > 1) this.mixedFields.add('textAlign');
+    }
+  }
+
+  /** Whether all selected elements have font properties */
+  get allHaveFont(): boolean {
+    if (this.multiSelectMode) {
+      return this.selectedElements.every(e => !!e.style.font);
+    }
+    return !!this.selectedElement?.style.font;
+  }
+
+  /**
+   * Apply a specific field change to all selected elements (multi-edit)
+   */
+  onMultiFieldChange(field: string): void {
+    if (this.selectedElements.length === 0) return;
+
+    const updates = this.selectedElements.map(el => ({
+      id: el.id,
+      changes: this.buildFieldUpdate(el, field)
+    }));
+
+    this.templateState.updateMultipleElements(this.activeSection as any, updates);
+    this.mixedFields.delete(field);
+  }
+
+  private buildFieldUpdate(el: TemplateElement, field: string): Partial<TemplateElement> {
+    switch (field) {
+      case 'width':
+        return { size: { width: this.width, height: el.size.height } } as any;
+      case 'height':
+        return { size: { width: el.size.width, height: this.height } } as any;
+      case 'opacity':
+        return { style: { ...el.style, opacity: this.opacity } } as any;
+      case 'backgroundColor':
+        return { style: { ...el.style, backgroundColor: this.backgroundColor || undefined } } as any;
+      case 'fontFamily':
+        return { style: { ...el.style, font: { ...el.style.font!, family: this.fontFamily } } } as any;
+      case 'fontSize':
+        return { style: { ...el.style, font: { ...el.style.font!, size: this.fontSize } } } as any;
+      case 'fontColor':
+        return { style: { ...el.style, font: { ...el.style.font!, color: this.fontColor } } } as any;
+      case 'fontWeight':
+        return { style: { ...el.style, font: { ...el.style.font!, weight: this.fontWeight } } } as any;
+      case 'fontStyle':
+        return { style: { ...el.style, font: { ...el.style.font!, style: this.fontStyle } } } as any;
+      case 'textAlign':
+        return { style: { ...el.style, textAlign: this.textAlign } } as any;
+      default:
+        return {};
+    }
+  }
+
+  /**
+   * Delete all selected elements
+   */
+  deleteAllSelected(): void {
+    for (const el of this.selectedElements) {
+      this.templateState.removeElement(this.activeSection as any, el.id);
+    }
+    this.selectionService.clearSelection();
+  }
+
+  /**
+   * Toggle bold for all selected elements
+   */
+  toggleBoldMulti(): void {
+    this.fontWeight = this.fontWeight === 'bold' ? 'normal' : 'bold';
+    this.onMultiFieldChange('fontWeight');
+  }
+
+  /**
+   * Toggle italic for all selected elements
+   */
+  toggleItalicMulti(): void {
+    this.fontStyle = this.fontStyle === 'italic' ? 'normal' : 'italic';
+    this.onMultiFieldChange('fontStyle');
+  }
+
+  /**
+   * Set alignment for all selected elements
+   */
+  setAlignmentMulti(align: 'left' | 'center' | 'right' | 'justify'): void {
+    this.textAlign = align;
+    this.onMultiFieldChange('textAlign');
   }
 
   /**

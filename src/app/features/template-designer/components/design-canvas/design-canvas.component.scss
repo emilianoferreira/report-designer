@@ -251,6 +251,15 @@ $margin-color: rgba(255, 0, 0, 0.08);
   z-index: 2;
 }
 
+// ─── Marquee Overlay ───
+.marquee-overlay {
+  position: absolute;
+  border: 1px solid #7B1FA2;
+  background: rgba(123, 31, 162, 0.08);
+  pointer-events: none;
+  z-index: 9998;
+}
+
 .section-divider {
   position: absolute;
   bottom: 0;
