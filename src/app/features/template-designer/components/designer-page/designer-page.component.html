@@ -45,16 +45,42 @@
   <div class="designer-body">
     @if (viewMode === 'design') {
       <!-- Design mode: Toolbox | Canvas | Properties -->
-      <aside class="panel panel-left">
-        <app-toolbox />
+      <aside class="panel panel-left" [class.collapsed]="leftPanelCollapsed">
+        @if (!leftPanelCollapsed) {
+          <div class="panel-content">
+            <app-toolbox />
+          </div>
+        }
+        <div class="panel-edge panel-edge-left">
+          <button
+            class="panel-toggle"
+            (click)="toggleLeftPanel()"
+            [title]="leftPanelCollapsed ? 'Mostrar herramientas' : 'Ocultar herramientas'"
+          >
+            {{ leftPanelCollapsed ? '▶' : '◀' }}
+          </button>
+        </div>
       </aside>
 
       <main class="panel panel-center">
         <app-design-canvas />
       </main>
 
-      <aside class="panel panel-right">
-        <app-properties-panel />
+      <aside class="panel panel-right" [class.collapsed]="rightPanelCollapsed">
+        <div class="panel-edge panel-edge-right">
+          <button
+            class="panel-toggle"
+            (click)="toggleRightPanel()"
+            [title]="rightPanelCollapsed ? 'Mostrar propiedades' : 'Ocultar propiedades'"
+          >
+            {{ rightPanelCollapsed ? '◀' : '▶' }}
+          </button>
+        </div>
+        @if (!rightPanelCollapsed) {
+          <div class="panel-content">
+            <app-properties-panel />
+          </div>
+        }
       </aside>
     } @else {
       <!-- Preview mode: Full-width preview -->

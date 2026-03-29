@@ -33,8 +33,10 @@ export function createDefaultTemplate(): ReportTemplate {
       status: 'draft'
     },
     page: {
+      paperType: 'a4',
       width: 210,
       height: 297,
+      dynamicHeight: false,
       margins: { top: 10, right: 10, bottom: 10, left: 10 },
       orientation: 'portrait',
       defaultFont: {

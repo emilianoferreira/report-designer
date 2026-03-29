@@ -145,10 +145,20 @@
 
 // Left panel (Toolbox)
 .panel-left {
-  width: 180px;
-  min-width: 180px;
+  width: 140px;
+  min-width: 140px;
   background: #fff;
-  border-right: 1px solid #e0e0e0;
+  border-right: none;
+  flex-direction: row;
+
+  &.collapsed {
+    width: auto;
+    min-width: auto;
+
+    .panel-content {
+      display: none;
+    }
+  }
 }
 
 // Center panel (Canvas)
@@ -163,11 +173,73 @@
   width: 260px;
   min-width: 260px;
   background: #fff;
-  border-left: 1px solid #e0e0e0;
+  border-left: none;
+  flex-direction: row;
+
+  &.collapsed {
+    width: auto;
+    min-width: auto;
+
+    .panel-content {
+      display: none;
+    }
+  }
 }
 
 // Full-width panel (Preview)
 .panel-full {
   flex: 1;
   background: #e8e8e8;
+}
+
+// ─── Panel content wrapper ───
+.panel-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+  flex: 1;
+  min-width: 0;
+}
+
+// ─── Panel edge (thin strip with toggle button) ───
+.panel-edge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  min-width: 16px;
+  background: #f0f0f0;
+  cursor: pointer;
+}
+
+.panel-edge-left {
+  border-left: 1px solid #e0e0e0;
+  order: 1; // edge goes after content (right side of left panel)
+}
+
+.panel-edge-right {
+  border-right: 1px solid #e0e0e0;
+  order: -1; // edge goes before content (left side of right panel)
+}
+
+// ─── Collapse toggle buttons ───
+.panel-toggle {
+  width: 14px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #bdbdbd;
+  font-size: 8px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.15s;
+
+  &:hover {
+    color: #616161;
+  }
 }

@@ -159,7 +159,7 @@ export function parseMm(str: string): number {
 }
 
 /**
- * A4 page dimensions in millimeters
+ * Page dimensions in millimeters
  */
 export const PAGE_SIZES = {
   A4_PORTRAIT: { width: 210, height: 297 },
@@ -168,6 +168,56 @@ export const PAGE_SIZES = {
   A3_LANDSCAPE: { width: 420, height: 297 },
   LETTER: { width: 215.9, height: 279.4 }
 };
+
+/**
+ * Paper presets for the paper-size selector
+ */
+export interface PaperPreset {
+  type: string;
+  label: string;
+  width: number;        // mm
+  height: number;       // mm
+  dynamicHeight: boolean;
+  defaultMargins: { top: number; right: number; bottom: number; left: number };
+}
+
+export const PAPER_PRESETS: PaperPreset[] = [
+  {
+    type: 'a4',
+    label: 'A4 (210 × 297 mm)',
+    width: 210, height: 297,
+    dynamicHeight: false,
+    defaultMargins: { top: 10, right: 10, bottom: 10, left: 10 }
+  },
+  {
+    type: 'a5',
+    label: 'A5 (148 × 210 mm)',
+    width: 148, height: 210,
+    dynamicHeight: false,
+    defaultMargins: { top: 8, right: 8, bottom: 8, left: 8 }
+  },
+  {
+    type: 'ticket-80',
+    label: 'Ticket 80 mm',
+    width: 80, height: 200,
+    dynamicHeight: true,
+    defaultMargins: { top: 3, right: 3, bottom: 3, left: 3 }
+  },
+  {
+    type: 'ticket-58',
+    label: 'Ticket 58 mm',
+    width: 58, height: 200,
+    dynamicHeight: true,
+    defaultMargins: { top: 2, right: 2, bottom: 2, left: 2 }
+  },
+  {
+    type: 'custom',
+    label: 'Personalizado',
+    width: 210, height: 297,
+    dynamicHeight: false,
+    defaultMargins: { top: 10, right: 10, bottom: 10, left: 10 }
+  }
+];
 
 /**
  * Default page margins in millimeters

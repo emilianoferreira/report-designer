@@ -11,7 +11,7 @@
 }
 
 .toolbox {
-  padding: 12px;
+  padding: 8px;
 }
 
 .toolbox-title {
@@ -49,8 +49,8 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
+  gap: 6px;
+  padding: 5px 8px;
   border: 1px solid #e0e0e0;
   border-radius: 6px;
   background: #fff;
@@ -72,19 +72,20 @@
 }
 
 .tool-icon {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: #546e7a;
   line-height: 1;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .tool-label {
-  font-size: 11px;
+  font-size: 10px;
   color: #616161;
   text-align: left;
   line-height: 1.2;

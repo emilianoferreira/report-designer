@@ -32,6 +32,18 @@ export class DesignerPageComponent {
   templateName = 'Untitled Template';
   viewMode: ViewMode = 'design';
 
+  /** Panel collapse state */
+  leftPanelCollapsed = false;
+  rightPanelCollapsed = false;
+
+  toggleLeftPanel(): void {
+    this.leftPanelCollapsed = !this.leftPanelCollapsed;
+  }
+
+  toggleRightPanel(): void {
+    this.rightPanelCollapsed = !this.rightPanelCollapsed;
+  }
+
   constructor(
     private templateState: TemplateStateService,
     private htmlRenderer: HtmlRendererService

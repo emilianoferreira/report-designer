@@ -4,7 +4,7 @@
  */
 
 // ─── Variables ───
-$ruler-size: 24px;
+$ruler-size: 30px;
 $ruler-bg: #f8f8f8;
 $ruler-border: #d0d0d0;
 $page-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
@@ -77,6 +77,67 @@ $margin-color: rgba(255, 0, 0, 0.08);
   font-variant-numeric: tabular-nums;
 }
 
+.toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: #d0d0d0;
+  margin: 0 4px;
+}
+
+.toolbar-label {
+  font-size: 11px;
+  color: #616161;
+  white-space: nowrap;
+
+  &.dim {
+    color: #999;
+    font-size: 10px;
+  }
+}
+
+.toolbar-select {
+  padding: 3px 6px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 11px;
+  color: #424242;
+  cursor: pointer;
+  outline: none;
+
+  &:focus {
+    border-color: #7B1FA2;
+  }
+}
+
+.toolbar-input {
+  width: 50px;
+  padding: 3px 4px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 11px;
+  color: #424242;
+  text-align: center;
+  outline: none;
+
+  &:focus {
+    border-color: #7B1FA2;
+  }
+
+  // Hide number spinners
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  -moz-appearance: textfield;
+}
+
+.paper-group {
+  gap: 6px;
+}
+
 // ─── Scroll Area ───
 .canvas-scroll-area {
   overflow: auto;
@@ -115,23 +176,23 @@ $margin-color: rgba(255, 0, 0, 0.08);
 
   .ruler-mark {
     position: absolute;
-    top: 0;
+    bottom: 0;
     width: 1px;
-    height: 8px;
+    height: 6px;
     background: #999;
 
     &.major {
-      height: 14px;
+      height: 10px;
       background: #666;
     }
   }
 
   .ruler-label {
     position: absolute;
-    top: 14px;
+    top: 2px;
     left: 2px;
-    font-size: 9px;
-    color: #666;
+    font-size: 8px;
+    color: #888;
     white-space: nowrap;
   }
 }
@@ -144,6 +205,7 @@ $margin-color: rgba(255, 0, 0, 0.08);
   position: sticky;
   left: 0;
   z-index: 5;
+  overflow: hidden;
 
   .ruler-track {
     position: relative;
@@ -152,23 +214,23 @@ $margin-color: rgba(255, 0, 0, 0.08);
 
   .ruler-mark {
     position: absolute;
-    left: 0;
-    width: 8px;
+    right: 0;
+    width: 6px;
     height: 1px;
     background: #999;
 
     &.major {
-      width: 14px;
+      width: 10px;
       background: #666;
     }
   }
 
   .ruler-label {
     position: absolute;
-    left: 15px;
+    right: 12px;
     top: 1px;
-    font-size: 9px;
-    color: #666;
+    font-size: 8px;
+    color: #888;
     white-space: nowrap;
   }
 }
@@ -188,7 +250,7 @@ $margin-color: rgba(255, 0, 0, 0.08);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  margin: 16px;
+  margin: 0;
 }
 
 // ─── Grid Overlay ───

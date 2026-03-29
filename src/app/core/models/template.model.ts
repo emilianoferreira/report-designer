@@ -32,9 +32,13 @@ export interface TemplateMetadata {
   basedOn?: string;        // parent template ID for inheritance
 }
 
+export type PaperType = 'a4' | 'a5' | 'ticket-58' | 'ticket-80' | 'custom';
+
 export interface PageSettings {
+  paperType: PaperType;    // preset identifier
   width: number;           // mm, default 210 (A4)
   height: number;          // mm, default 297 (A4)
+  dynamicHeight: boolean;  // true for ticket formats (height grows with content)
   margins: {
     top: number;
     right: number;

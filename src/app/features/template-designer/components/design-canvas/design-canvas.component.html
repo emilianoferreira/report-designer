@@ -33,10 +33,46 @@
         Snap
       </button>
     </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group paper-group">
+      <label class="toolbar-label" title="Tamaño de papel">Papel:</label>
+      <select
+        class="toolbar-select"
+        [(ngModel)]="selectedPaperType"
+        (ngModelChange)="onPaperTypeChange()"
+        title="Seleccionar el tamaño de papel para la plantilla"
+      >
+        @for (preset of paperPresets; track preset.type) {
+          <option [value]="preset.type">{{ preset.label }}</option>
+        }
+      </select>
+      @if (selectedPaperType === 'custom') {
+        <input
+          type="number"
+          class="toolbar-input"
+          [(ngModel)]="customWidth"
+          (change)="onCustomDimensionChange()"
+          min="20" max="500"
+          title="Ancho en milímetros"
+          placeholder="Ancho"
+        />
+        <span class="toolbar-label dim">×</span>
+        <input
+          type="number"
+          class="toolbar-input"
+          [(ngModel)]="customHeight"
+          (change)="onCustomDimensionChange()"
+          min="20" max="1000"
+          title="Alto en milímetros"
+          placeholder="Alto"
+        />
+        <span class="toolbar-label dim">mm</span>
+      }
+    </div>
   </div>
 
   <!-- ─── Scroll area ─── -->
-  <div class="canvas-scroll-area">
+  <div class="canvas-scroll-area" #scrollArea>
 
     <!-- ─── Horizontal Ruler ─── -->
     <div class="ruler ruler-horizontal" [style.width.px]="pageWidthPx * zoom + 30">

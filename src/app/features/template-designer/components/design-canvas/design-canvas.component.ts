@@ -8,6 +8,7 @@ import {
   Component,
   OnInit,
   OnDestroy,
+  AfterViewInit,
   ElementRef,
   ViewChild,
   ChangeDetectionStrategy,
@@ -24,8 +25,9 @@ import {
 } from '../../../../core/models/template.model';
 import { TemplateStateService } from '../../services/template-state.service';
 import { SelectionService } from '../../services/selection.service';
-import { mmToPx, pxToMm, snapToGrid } from '../../utils/coordinate-utils';
+import { mmToPx, pxToMm, snapToGrid, PAPER_PRESETS, PaperPreset } from '../../utils/coordinate-utils';
 import { createElement } from '../../utils/element-factory';
+import { FormsModule } from '@angular/forms';
 import { ElementRendererComponent } from '../element-renderer/element-renderer.component';
 
 type SectionKey = 'header' | 'detail' | 'footer';
@@ -78,13 +80,14 @@ interface MarqueeState {
 @Component({
   selector: 'app-design-canvas',
   standalone: true,
-  imports: [CommonModule, ElementRendererComponent],
+  imports: [CommonModule, FormsModule, ElementRendererComponent],
   templateUrl: './design-canvas.component.html',
   styleUrl: './design-canvas.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class DesignCanvasComponent implements OnInit, OnDestroy {
+export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild('canvasPage') canvasPage!: ElementRef<HTMLDivElement>;
+  @ViewChild('scrollArea') scrollArea!: ElementRef<HTMLDivElement>;
 
   template!: ReportTemplate;
   selectedIds = new Set<string>();
@@ -106,7 +109,17 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
   snapEnabled = true;
 
   // Zoom
+  readonly ZOOM_MIN = 0.25;
+  readonly ZOOM_MAX = 2;
+  readonly ZOOM_STEP = 0.05;
   zoom = 1;
+  private wheelHandler: ((e: WheelEvent) => void) | null = null;
+
+  // Paper size
+  paperPresets = PAPER_PRESETS;
+  selectedPaperType = 'a4';
+  customWidth = 210;
+  customHeight = 297;
 
   // Ruler marks
   horizontalMarks: number[] = [];
@@ -143,7 +156,17 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
       });
   }
 
+  ngAfterViewInit(): void {
+    // Bind wheel event with passive:false so we can preventDefault for zoom
+    this.wheelHandler = (e: WheelEvent) => this.onWheel(e);
+    this.scrollArea.nativeElement.addEventListener('wheel', this.wheelHandler, { passive: false });
+  }
+
   ngOnDestroy(): void {
+    // Clean up wheel listener
+    if (this.wheelHandler && this.scrollArea?.nativeElement) {
+      this.scrollArea.nativeElement.removeEventListener('wheel', this.wheelHandler);
+    }
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -257,12 +280,19 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
     this.detailHeightPx = mmToPx(this.template.sections.detail.height);
     this.footerHeightPx = mmToPx(this.template.sections.footer.height);
 
+    // Sync paper selector state from template
+    this.selectedPaperType = page.paperType || 'a4';
+    if (this.selectedPaperType === 'custom') {
+      this.customWidth = page.width;
+      this.customHeight = page.height;
+    }
+
     this.horizontalMarks = [];
-    for (let mm = 0; mm <= page.width; mm += 10) {
+    for (let mm = 0; mm <= page.width; mm += 5) {
       this.horizontalMarks.push(mm);
     }
     this.verticalMarks = [];
-    for (let mm = 0; mm <= page.height; mm += 10) {
+    for (let mm = 0; mm <= page.height; mm += 5) {
       this.verticalMarks.push(mm);
     }
   }
@@ -358,6 +388,9 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
   }): void {
     if (event.event.shiftKey) {
       this.selectionService.toggleSelect(event.elementId, event.section);
+    } else if (this.selectedIds.size > 1 && this.selectedIds.has(event.elementId)) {
+      // Element is already part of a multi-selection — keep selection intact for multi-drag
+      // (selection will be reduced to single on mouseup if no drag occurred)
     } else {
       this.selectionService.select(event.elementId, event.section);
     }
@@ -667,15 +700,60 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
   // ─── Zoom controls ───
 
   zoomIn(): void {
-    this.zoom = Math.min(this.zoom + 0.1, 2);
+    this.zoom = Math.min(Math.round((this.zoom + 0.1) * 100) / 100, this.ZOOM_MAX);
   }
 
   zoomOut(): void {
-    this.zoom = Math.max(this.zoom - 0.1, 0.3);
+    this.zoom = Math.max(Math.round((this.zoom - 0.1) * 100) / 100, this.ZOOM_MIN);
   }
 
   resetZoom(): void {
     this.zoom = 1;
+  }
+
+  /**
+   * Wheel zoom: Ctrl+wheel or pinch-to-zoom on trackpad.
+   * Zooms centered on the cursor position so the point under the cursor stays fixed.
+   */
+  private onWheel(e: WheelEvent): void {
+    // Only zoom when Ctrl/Meta is held (browser sends ctrlKey=true for pinch gestures too)
+    if (!e.ctrlKey && !e.metaKey) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const el = this.scrollArea.nativeElement;
+    const rect = el.getBoundingClientRect();
+
+    // Cursor position relative to the scroll container viewport
+    const cursorX = e.clientX - rect.left;
+    const cursorY = e.clientY - rect.top;
+
+    // Cursor position in the content (accounting for current scroll + zoom)
+    const contentX = (el.scrollLeft + cursorX);
+    const contentY = (el.scrollTop + cursorY);
+
+    // Calculate new zoom
+    const oldZoom = this.zoom;
+    const delta = -e.deltaY * this.ZOOM_STEP * 0.1; // smooth small increments
+    let newZoom = oldZoom + delta;
+    newZoom = Math.max(this.ZOOM_MIN, Math.min(this.ZOOM_MAX, newZoom));
+    newZoom = Math.round(newZoom * 100) / 100;
+
+    if (newZoom === oldZoom) return;
+
+    const scale = newZoom / oldZoom;
+
+    // Apply zoom
+    this.zoom = newZoom;
+    this.cdr.markForCheck();
+
+    // Adjust scroll so the point under the cursor stays in the same viewport position
+    // After zoom, the content point that was at contentX,contentY is now at contentX*scale, contentY*scale
+    requestAnimationFrame(() => {
+      el.scrollLeft = contentX * scale - cursorX;
+      el.scrollTop = contentY * scale - cursorY;
+    });
   }
 
   toggleGrid(): void {
@@ -684,5 +762,22 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
 
   toggleSnap(): void {
     this.snapEnabled = !this.snapEnabled;
+  }
+
+  // ─── Paper size ───
+
+  onPaperTypeChange(): void {
+    if (this.selectedPaperType === 'custom') {
+      this.templateState.updatePaperSize('custom', this.customWidth, this.customHeight);
+    } else {
+      this.templateState.updatePaperSize(this.selectedPaperType);
+    }
+  }
+
+  onCustomDimensionChange(): void {
+    if (this.selectedPaperType !== 'custom') return;
+    if (this.customWidth < 20) this.customWidth = 20;
+    if (this.customHeight < 20) this.customHeight = 20;
+    this.templateState.updatePaperSize('custom', this.customWidth, this.customHeight);
   }
 }
