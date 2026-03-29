@@ -219,6 +219,30 @@ export class DesignCanvasComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  // ─── Keyboard shortcuts ───
+
+  @HostListener('document:keydown', ['$event'])
+  onDocumentKeyDown(event: KeyboardEvent): void {
+    // Delete/Backspace → remove selected elements (skip if user is typing in an input)
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+      const target = event.target as HTMLElement;
+      const tag = target.tagName.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable) {
+        return; // don't intercept form input
+      }
+
+      if (this.selectedIds.size > 0) {
+        event.preventDefault();
+        const idsToDelete = Array.from(this.selectedIds);
+        for (const id of idsToDelete) {
+          this.templateState.removeElement(this.activeSection as any, id);
+        }
+        this.selectionService.clearSelection();
+        this.cdr.markForCheck();
+      }
+    }
+  }
+
   // ─── Compute dimensions ───
 
   private computeDimensions(): void {

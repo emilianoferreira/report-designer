@@ -16,6 +16,7 @@
           class="toggle-btn"
           [class.active]="viewMode === 'design'"
           (click)="setViewMode('design')"
+          title="Editar la plantilla: posicionar y configurar elementos"
         >
           Diseño
         </button>
@@ -23,6 +24,7 @@
           class="toggle-btn"
           [class.active]="viewMode === 'preview'"
           (click)="setViewMode('preview')"
+          title="Vista previa del documento con datos de ejemplo"
         >
           Vista Previa
         </button>
@@ -30,10 +32,10 @@
     </div>
 
     <div class="header-right">
-      <button class="header-btn" (click)="exportTemplateJson()">
+      <button class="header-btn" (click)="exportTemplateJson()" title="Descargar la plantilla en formato JSON para respaldo o importar en otro entorno">
         JSON
       </button>
-      <button class="header-btn primary" (click)="exportHtmlTemplate()">
+      <button class="header-btn primary" (click)="exportHtmlTemplate()" title="Exportar la plantilla como archivo HTML listo para renderizar con Puppeteer">
         Exportar HTML
       </button>
     </div>

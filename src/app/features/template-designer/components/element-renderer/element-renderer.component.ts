@@ -93,7 +93,7 @@ export class ElementRendererComponent implements OnChanges {
       'height': el.type === 'line' ? '2px' : `${height}px`,
       'z-index': `${this.isDragging ? 9999 : el.zIndex}`,
       'opacity': `${el.style.opacity ?? 1}`,
-      'pointer-events': el.locked ? 'none' : 'auto',
+      'pointer-events': 'auto',
       'cursor': el.locked ? 'default' : 'move'
     };
 

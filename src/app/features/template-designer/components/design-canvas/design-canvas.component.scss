@@ -21,6 +21,12 @@ $margin-color: rgba(255, 0, 0, 0.08);
   overflow: hidden;
 }
 
+.canvas-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 // ─── Canvas Toolbar ───
 .canvas-toolbar {
   display: flex;
@@ -74,7 +80,8 @@ $margin-color: rgba(255, 0, 0, 0.08);
 // ─── Scroll Area ───
 .canvas-scroll-area {
   overflow: auto;
-  height: calc(100% - 37px);
+  flex: 1;
+  min-height: 0;
   background: $canvas-bg;
   position: relative;
 }

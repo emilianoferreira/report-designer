@@ -40,18 +40,17 @@
 // ─── Tool Grid ───
 .tool-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 6px;
 }
 
 // ─── Tool Item ───
 .tool-item {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 8px 4px;
+  gap: 8px;
+  padding: 7px 10px;
   border: 1px solid #e0e0e0;
   border-radius: 6px;
   background: #fff;
@@ -85,12 +84,12 @@
 }
 
 .tool-label {
-  font-size: 10px;
+  font-size: 11px;
   color: #616161;
-  text-align: center;
+  text-align: left;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
+  flex: 1;
 }

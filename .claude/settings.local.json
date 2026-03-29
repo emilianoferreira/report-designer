@@ -6,7 +6,31 @@
       "Bash(npm install:*)",
       "Bash(npm list:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(curl -s http://localhost:4200)",
+      "Bash(pkill -f \"npm start\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npx ng:*)",
+      "Bash(brew install:*)",
+      "Bash(python3 -c \":*)",
+      "Bash(export PATH=\"/usr/local/bin:$PATH\")",
+      "Bash(pdftoppm -png -r 150 -f 1 -l 1 \"/Users/user/Desktop/Zureo Gestión Online _ Diseño de impresión.pdf\" /tmp/zureo-pdf-page)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:4200)",
+      "Bash(git status:*)",
+      "Bash(git checkout:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr:*)",
+      "Bash(brew list:*)",
+      "Bash(brew services:*)",
+      "Bash(export PATH=\"/usr/local/opt/postgresql@16/bin:$PATH\")",
+      "Bash(psql --version)",
+      "Bash(createdb bd_dis_reportes)",
+      "Bash(psql -d bd_dis_reportes -f /Users/user/Documents/GitHub/zureo-report-designer/database/001-schema.sql)",
+      "Bash(psql -d bd_dis_reportes -f /Users/user/Documents/GitHub/zureo-report-designer/database/002-seed.sql)",
+      "Bash(psql -d bd_dis_reportes -c \"DROP SCHEMA public CASCADE; CREATE SCHEMA public;\")",
+      "Bash(psql -d bd_dis_reportes -f /Users/user/Documents/GitHub/zureo-report-designer/database/003-view-invoice-data.sql)",
+      "Bash(psql -d bd_dis_reportes -c \":*)",
+      "Bash(psql -d bd_dis_reportes -t -c \"SELECT jsonb_pretty\\(build_invoice_data\\(''''f1000000-0000-0000-0000-000000000002''''\\)\\);\")"
     ]
   }
 }

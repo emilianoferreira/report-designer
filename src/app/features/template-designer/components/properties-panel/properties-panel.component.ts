@@ -74,6 +74,90 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
   fontFamilies = ['Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Verdana', 'Georgia', 'Tahoma'];
   fontSizes = [6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72];
 
+  // Available data binding sources grouped by category
+  bindingCategories: Array<{ label: string; fields: Array<{ path: string; description: string }> }> = [
+    {
+      label: 'Empresa',
+      fields: [
+        { path: 'invoice.Empresa.Parametros.EFA_Emisor_Nombre', description: 'Razón Social' },
+        { path: 'invoice.Empresa.Parametros.EFA_Emisor_NComercial', description: 'Nombre Comercial' },
+        { path: 'invoice.Empresa.Parametros.EFA_Emisor_RUT', description: 'RUT Emisor' },
+        { path: 'invoice.Empresa.Parametros.EFA_Emisor_Direccion', description: 'Dirección Emisor' },
+        { path: 'invoice.Empresa.Parametros.EFA_Emisor_Ciudad', description: 'Ciudad Emisor' },
+        { path: 'invoice.Empresa.Parametros.EFA_Resolucion', description: 'Resolución DGI' },
+        { path: 'company.logoUrl', description: 'URL Logo Empresa' },
+      ]
+    },
+    {
+      label: 'Comprobante',
+      fields: [
+        { path: 'invoice.Tipo.Nombre', description: 'Tipo de Comprobante' },
+        { path: 'invoice.Tipo.Clasificacion.OperaContado', description: 'Forma de Pago' },
+        { path: 'invoice.Numero.Serie', description: 'Serie' },
+        { path: 'invoice.Numero.Numero', description: 'Número' },
+        { path: 'invoice.Fecha', description: 'Fecha' },
+        { path: 'invoice.Comentario', description: 'Comentario' },
+        { path: 'invoice.TipoCambio', description: 'Tipo de Cambio' },
+        { path: 'invoice.PorcentajeDescGlobal', description: '% Descuento Global' },
+      ]
+    },
+    {
+      label: 'Cliente',
+      fields: [
+        { path: 'Contacto.GuardarComo', description: 'Nombre Cliente' },
+        { path: 'invoice.DireccionFactura.Domicilio', description: 'Dirección Cliente' },
+      ]
+    },
+    {
+      label: 'Moneda y Totales',
+      fields: [
+        { path: 'Moneda.ISO4217', description: 'Moneda (ISO)' },
+        { path: 'Moneda.Simbolo', description: 'Símbolo Moneda' },
+        { path: 'Subtotal', description: 'Subtotal' },
+        { path: 'Total', description: 'Total' },
+        { path: 'Redondeo', description: 'Redondeo' },
+        { path: 'MontoDtoGlobal', description: 'Monto Descuento Global' },
+      ]
+    },
+    {
+      label: 'Línea de Detalle',
+      fields: [
+        { path: 'Articulo.Codigo', description: 'Código Artículo' },
+        { path: 'Articulo.Nombre', description: 'Descripción Artículo' },
+        { path: 'Cantidad', description: 'Cantidad' },
+        { path: 'PrecioUnitario', description: 'Precio Unitario' },
+        { path: 'PrecioUnitarioNeto', description: 'Precio Neto' },
+        { path: 'Descuento', description: 'Descuento (%)' },
+        { path: 'SubTotal', description: 'Importe Línea' },
+      ]
+    },
+    {
+      label: 'CFE (Facturación Electrónica)',
+      fields: [
+        { path: 'CFE.TipoComprobanteFiscal.Nombre', description: 'Tipo CFE' },
+        { path: 'CFE.CodSeguridad', description: 'Código Seguridad' },
+        { path: 'CFE.Adenda', description: 'Adenda' },
+        { path: 'invoice.Numero.CAEIdentificador', description: 'CAE Identificador' },
+        { path: 'invoice.Numero.CAEDesde', description: 'CAE Desde' },
+        { path: 'invoice.Numero.CAEHasta', description: 'CAE Hasta' },
+        { path: 'invoice.Numero.CAEFechaVto', description: 'CAE Fecha Vto.' },
+      ]
+    },
+    {
+      label: 'Contexto',
+      fields: [
+        { path: 'isCFE', description: 'Es CFE?' },
+        { path: 'isConsumoFinal', description: 'Es Consumo Final?' },
+        { path: 'isImpIncluidos', description: 'Imp. Incluidos?' },
+        { path: 'hasContacto', description: 'Tiene Contacto?' },
+        { path: 'hasDtoGlobal', description: 'Tiene Dto. Global?' },
+        { path: 'hasRedondeo', description: 'Tiene Redondeo?' },
+        { path: 'logoBase64', description: 'Logo (Base64)' },
+        { path: 'QRBase64', description: 'QR (Base64)' },
+      ]
+    }
+  ];
+
   private destroy$ = new Subject<void>();
 
   constructor(

@@ -4,14 +4,14 @@
   <!-- ─── Toolbar ─── -->
   <div class="canvas-toolbar">
     <div class="toolbar-group">
-      <button class="toolbar-btn" (click)="zoomOut()" title="Alejar">
+      <button class="toolbar-btn" (click)="zoomOut()" title="Alejar la vista del lienzo">
         <span>&minus;</span>
       </button>
-      <span class="zoom-label">{{ (zoom * 100) | number:'1.0-0' }}%</span>
-      <button class="toolbar-btn" (click)="zoomIn()" title="Acercar">
+      <span class="zoom-label" title="Nivel de zoom actual">{{ (zoom * 100) | number:'1.0-0' }}%</span>
+      <button class="toolbar-btn" (click)="zoomIn()" title="Acercar la vista del lienzo">
         <span>+</span>
       </button>
-      <button class="toolbar-btn" (click)="resetZoom()" title="100%">
+      <button class="toolbar-btn" (click)="resetZoom()" title="Restaurar zoom al 100%">
         <span>1:1</span>
       </button>
     </div>
@@ -20,7 +20,7 @@
         class="toolbar-btn"
         [class.active]="showGrid"
         (click)="toggleGrid()"
-        title="Grilla"
+        title="Mostrar u ocultar la grilla de referencia (cuadrícula de {{ gridSizeMm }}mm)"
       >
         Grilla
       </button>
@@ -28,7 +28,7 @@
         class="toolbar-btn"
         [class.active]="snapEnabled"
         (click)="toggleSnap()"
-        title="Snap a grilla"
+        title="Ajustar automáticamente los elementos a la grilla de {{ gridSizeMm }}mm al mover o redimensionar"
       >
         Snap
       </button>

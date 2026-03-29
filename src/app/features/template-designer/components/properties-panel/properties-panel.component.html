@@ -419,14 +419,32 @@
         @if (selectedElement.type === 'dataField') {
           <div class="field-group">
             <label class="field-label">Origen de datos</label>
+            <select
+              class="field-input"
+              [(ngModel)]="bindingSource"
+              (change)="onFieldChange()"
+            >
+              <option value="" disabled>— Seleccionar campo —</option>
+              @for (cat of bindingCategories; track cat.label) {
+                <optgroup [label]="cat.label">
+                  @for (field of cat.fields; track field.path) {
+                    <option [value]="field.path">{{ field.description }}</option>
+                  }
+                </optgroup>
+              }
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Ruta del campo</label>
             <input
               type="text"
               class="field-input mono"
               [(ngModel)]="bindingSource"
               (blur)="onFieldChange()"
-              placeholder="ej: invoice.customerName"
+              placeholder="ej: invoice.Empresa.Parametros.EFA_Emisor_Nombre"
             />
-            <span class="field-hint">Ruta al campo en el objeto de datos</span>
+            <span class="field-hint">Seleccioná de la lista o escribí la ruta manualmente</span>
           </div>
         }
 
