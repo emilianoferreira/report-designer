@@ -60,7 +60,8 @@ export const SAMPLE_INVOICE_DATA: InvoiceData = {
       PrecioUnitarioNeto: 100.00,
       Descuento: 0,
       SubTotal: 122.00,
-      ImpuestoIncluido: true
+      ImpuestoIncluido: true,
+      FechaArticulo: '2025-09-17T00:00:00.000Z'
     }
   ],
 
@@ -120,7 +121,8 @@ export const SAMPLE_INVOICE_DATA: InvoiceData = {
       PrecioUnitario: 122.00,
       PrecioUnitarioNeto: 100.00,
       Descuento: 0,
-      SubTotal: 122.00
+      SubTotal: 122.00,
+      FechaArticulo: '2025-09-17T00:00:00.000Z'
     }
   ]
 };
@@ -131,18 +133,18 @@ export const SAMPLE_INVOICE_DATA: InvoiceData = {
 export const SAMPLE_INVOICE_MULTILINE: InvoiceData = {
   ...SAMPLE_INVOICE_DATA,
   invoiceLines: [
-    { Articulo: { Codigo: 'ART001', Nombre: 'Producto Alpha' }, Cantidad: 2, PrecioUnitario: 150.00, PrecioUnitarioNeto: 123.97, Descuento: 0, SubTotal: 300.00 },
-    { Articulo: { Codigo: 'ART002', Nombre: 'Producto Beta' }, Cantidad: 5, PrecioUnitario: 80.00, PrecioUnitarioNeto: 66.12, Descuento: 10, SubTotal: 360.00 },
-    { Articulo: { Codigo: 'ART003', Nombre: 'Servicio Consultoría' }, Cantidad: 1, PrecioUnitario: 2500.00, PrecioUnitarioNeto: 2066.12, Descuento: 0, SubTotal: 2500.00 },
-    { Articulo: { Codigo: 'ART004', Nombre: 'Licencia Software Anual' }, Cantidad: 1, PrecioUnitario: 4800.00, PrecioUnitarioNeto: 3966.94, Descuento: 5, SubTotal: 4560.00 },
-    { Articulo: { Codigo: 'ART005', Nombre: 'Soporte Técnico Mensual' }, Cantidad: 3, PrecioUnitario: 600.00, PrecioUnitarioNeto: 495.87, Descuento: 0, SubTotal: 1800.00 },
+    { Articulo: { Codigo: 'ART001', Nombre: 'Producto Alpha' }, Cantidad: 2, PrecioUnitario: 150.00, PrecioUnitarioNeto: 123.97, Descuento: 0, SubTotal: 300.00, FechaArticulo: '2025-08-10T00:00:00.000Z' },
+    { Articulo: { Codigo: 'ART002', Nombre: 'Producto Beta' }, Cantidad: 5, PrecioUnitario: 80.00, PrecioUnitarioNeto: 66.12, Descuento: 10, SubTotal: 360.00, FechaArticulo: '2025-09-05T00:00:00.000Z' },
+    { Articulo: { Codigo: 'ART003', Nombre: 'Servicio Consultoría' }, Cantidad: 1, PrecioUnitario: 2500.00, PrecioUnitarioNeto: 2066.12, Descuento: 0, SubTotal: 2500.00, FechaArticulo: '2025-09-17T00:00:00.000Z' },
+    { Articulo: { Codigo: 'ART004', Nombre: 'Licencia Software Anual' }, Cantidad: 1, PrecioUnitario: 4800.00, PrecioUnitarioNeto: 3966.94, Descuento: 5, SubTotal: 4560.00, FechaArticulo: '2025-10-01T00:00:00.000Z' },
+    { Articulo: { Codigo: 'ART005', Nombre: 'Soporte Técnico Mensual' }, Cantidad: 3, PrecioUnitario: 600.00, PrecioUnitarioNeto: 495.87, Descuento: 0, SubTotal: 1800.00, FechaArticulo: '2025-10-15T00:00:00.000Z' },
   ],
   Articulos: [
-    { Articulo: { Codigo: 'ART001', Nombre: 'Producto Alpha' }, Cantidad: 2, PrecioUnitario: 150.00, PrecioUnitarioNeto: 123.97, Descuento: 0, SubTotal: 300.00 },
-    { Articulo: { Codigo: 'ART002', Nombre: 'Producto Beta' }, Cantidad: 5, PrecioUnitario: 80.00, PrecioUnitarioNeto: 66.12, Descuento: 10, SubTotal: 360.00 },
-    { Articulo: { Codigo: 'ART003', Nombre: 'Servicio Consultoría' }, Cantidad: 1, PrecioUnitario: 2500.00, PrecioUnitarioNeto: 2066.12, Descuento: 0, SubTotal: 2500.00 },
-    { Articulo: { Codigo: 'ART004', Nombre: 'Licencia Software Anual' }, Cantidad: 1, PrecioUnitario: 4800.00, PrecioUnitarioNeto: 3966.94, Descuento: 5, SubTotal: 4560.00 },
-    { Articulo: { Codigo: 'ART005', Nombre: 'Soporte Técnico Mensual' }, Cantidad: 3, PrecioUnitario: 600.00, PrecioUnitarioNeto: 495.87, Descuento: 0, SubTotal: 1800.00 },
+    { Articulo: { Codigo: 'ART001', Nombre: 'Producto Alpha' }, Cantidad: 2, PrecioUnitario: 150.00, PrecioUnitarioNeto: 123.97, Descuento: 0, SubTotal: 300.00, FechaArticulo: '2025-08-10T00:00:00.000Z' },
+    { Articulo: { Codigo: 'ART002', Nombre: 'Producto Beta' }, Cantidad: 5, PrecioUnitario: 80.00, PrecioUnitarioNeto: 66.12, Descuento: 10, SubTotal: 360.00, FechaArticulo: '2025-09-05T00:00:00.000Z' },
+    { Articulo: { Codigo: 'ART003', Nombre: 'Servicio Consultoría' }, Cantidad: 1, PrecioUnitario: 2500.00, PrecioUnitarioNeto: 2066.12, Descuento: 0, SubTotal: 2500.00, FechaArticulo: '2025-09-17T00:00:00.000Z' },
+    { Articulo: { Codigo: 'ART004', Nombre: 'Licencia Software Anual' }, Cantidad: 1, PrecioUnitario: 4800.00, PrecioUnitarioNeto: 3966.94, Descuento: 5, SubTotal: 4560.00, FechaArticulo: '2025-10-01T00:00:00.000Z' },
+    { Articulo: { Codigo: 'ART005', Nombre: 'Soporte Técnico Mensual' }, Cantidad: 3, PrecioUnitario: 600.00, PrecioUnitarioNeto: 495.87, Descuento: 0, SubTotal: 1800.00, FechaArticulo: '2025-10-15T00:00:00.000Z' },
   ],
   Subtotal: 7851.24,
   Total: 9520.00,

@@ -233,6 +233,62 @@ ${footerHtml}
       text-align: left;
       font-size: 12px;
       white-space: pre-line;
+    }
+    /* ─── Ticket detail styles ─── */
+    .ticket-detail-header {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 600;
+      font-size: ${defaultFont.size}pt;
+      border-bottom: 1px solid #b1b1b1;
+      padding: 2px 0 4px 0;
+      margin-bottom: 4px;
+    }
+    .ticket-item {
+      padding: 4px 0;
+      border-bottom: 1px solid #e8e8e8;
+      font-size: ${defaultFont.size}pt;
+    }
+    .ticket-item-name {
+      font-size: ${defaultFont.size}pt;
+      line-height: 1.3;
+    }
+    .ticket-item-date {
+      font-size: ${Math.max(defaultFont.size - 1, 7)}pt;
+      color: #555;
+      line-height: 1.3;
+    }
+    .ticket-item-qty-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      line-height: 1.3;
+    }
+    .ticket-item-qty {
+      font-size: ${defaultFont.size}pt;
+    }
+    .ticket-item-subtotal {
+      font-size: ${defaultFont.size}pt;
+      text-align: right;
+      font-weight: 500;
+    }
+    .ticket-subtotals-block {
+      margin-top: 6px;
+      text-align: right;
+    }
+    .ticket-subtotals-table {
+      width: 100%;
+      font-size: ${defaultFont.size}pt;
+      text-align: right;
+    }
+    .ticket-subtotals-table td {
+      padding: 1px 0;
+    }
+    .ticket-total-row td {
+      font-weight: bold;
+      font-size: ${Math.min(defaultFont.size + 2, 14)}pt;
+      border-top: 1px solid #333;
+      padding-top: 3px;
     }`;
 
     if (opts.includePrintStyles) {
@@ -286,10 +342,12 @@ ${footerHtml}
     data: InvoiceData,
     opts: RenderOptions
   ): string {
+    const isTicket = this.isTicketFormat(template);
     let html = '';
 
     // Render any positioned elements in the detail section (column headers, etc.)
-    if (section.elements.length > 0) {
+    // For ticket format, skip positioned column headers — we use our own layout
+    if (section.elements.length > 0 && !isTicket) {
       const sortedElements = [...section.elements].sort((a, b) => a.zIndex - b.zIndex);
       for (const element of sortedElements) {
         html += this.renderElement(element, template, data, opts);
@@ -298,22 +356,39 @@ ${footerHtml}
 
     // Calculate offset to clear positioned elements (column headers, lines)
     let tableOffsetMm = 0;
-    if (section.elements.length > 0) {
+    if (section.elements.length > 0 && !isTicket) {
       tableOffsetMm = Math.max(
         ...section.elements.map(el => el.position.y + el.size.height)
       );
     }
     const tableOffsetPx = tableOffsetMm > 0 ? mmToPx(tableOffsetMm + 1) : 0;
 
-    // Render the detail lines as a table if we have data
+    // Render the detail lines
     if (opts.resolveData && data.invoiceLines && data.invoiceLines.length > 0) {
-      html += this.renderDetailTable(section, data, opts, tableOffsetPx);
+      if (isTicket) {
+        html += this.renderTicketDetailTable(section, template, data, opts);
+      } else {
+        html += this.renderDetailTable(section, data, opts, tableOffsetPx);
+      }
     } else if (!opts.resolveData) {
       // Export mode: output z-code directives for the detail table
-      html += this.renderDetailTableDirectives(section);
+      if (isTicket) {
+        html += this.renderTicketDetailDirectives(section);
+      } else {
+        html += this.renderDetailTableDirectives(section);
+      }
     }
 
     return html;
+  }
+
+  /**
+   * Detect if the template uses a ticket format
+   */
+  private isTicketFormat(template: ReportTemplate): boolean {
+    return template.page.dynamicHeight === true ||
+      template.page.paperType === 'ticket-58' ||
+      template.page.paperType === 'ticket-80';
   }
 
   /**
@@ -370,6 +445,151 @@ ${footerHtml}
     }
 
     return html;
+  }
+
+  /**
+   * Render the articles detail for ticket format (grouped vertical layout).
+   * Each article is a block:
+   *   (Código) Nombre
+   *   dd/MM/yyyy
+   *   x{cantidad}   {unitario}           {subtotal}
+   */
+  private renderTicketDetailTable(
+    section: DetailSectionDefinition,
+    template: ReportTemplate,
+    data: InvoiceData,
+    opts: RenderOptions
+  ): string {
+    const lines = data.invoiceLines || data.Articulos || [];
+    const isImpIncluidos = data.isImpIncluidos;
+
+    let html = `      <div class="ticket-detail-header">
+        <span>DESCRIPCI&Oacute;N</span>
+        <span>SUBTOTAL</span>
+      </div>\n`;
+
+    for (const line of lines) {
+      const art = line['Articulo'] || {};
+      const codigo = art['Codigo'] || '';
+      const nombre = art['Nombre'] || '';
+      const cantidad = line['Cantidad'] ?? 0;
+      const unitario = isImpIncluidos
+        ? (line['PrecioUnitario'] ?? 0)
+        : (line['PrecioUnitarioNeto'] ?? 0);
+      const subtotal = line['SubTotal'] ?? 0;
+      const fechaArt = line['FechaArticulo'] || '';
+
+      html += `      <div class="ticket-item">\n`;
+      // Line 1: (Code) Name
+      html += `        <div class="ticket-item-name">(${this.escapeHtml(String(codigo))}) ${this.escapeHtml(String(nombre))}</div>\n`;
+      // Line 2: Date (if available)
+      if (fechaArt) {
+        html += `        <div class="ticket-item-date">${this.formatDate(String(fechaArt), 'dd/MM/yyyy')}</div>\n`;
+      }
+      // Line 3: x{qty}  {unit price}   |   {subtotal}
+      html += `        <div class="ticket-item-qty-row">
+          <span class="ticket-item-qty">x${cantidad}\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0${this.formatNumber(unitario)}</span>
+          <span class="ticket-item-subtotal">${this.formatNumber(subtotal)}</span>
+        </div>\n`;
+      html += `      </div>\n`;
+    }
+
+    // Subtotals in ticket format
+    html += this.renderTicketSubtotals(data, opts);
+
+    return html;
+  }
+
+  /**
+   * Render subtotals for ticket format (full-width, compact)
+   */
+  private renderTicketSubtotals(data: InvoiceData, opts: RenderOptions): string {
+    let html = `      <div class="ticket-subtotals-block">
+        <div style="font-size: 9pt; text-align:left; margin: 6px 0 4px 0;">Moneda: ${data.Moneda?.ISO4217 || 'UYU'}</div>
+        <table class="ticket-subtotals-table">
+          <tbody>\n`;
+
+    // Discount global
+    if (data.hasDtoGlobal) {
+      html += `            <tr>
+              <td style="text-align:left; width:60%">Descuento:</td>
+              <td style="text-align:right; width:40%">${this.formatNumber(data.MontoDtoGlobal || 0)}</td>
+            </tr>\n`;
+    }
+
+    // Subtotal
+    if (!data.isCFE) {
+      html += `            <tr>
+              <td style="text-align:left; width:60%">Subtotal:</td>
+              <td style="text-align:right; width:40%">${this.formatNumber(data.Subtotal || 0)}</td>
+            </tr>\n`;
+
+      // Impuestos
+      const impuestos = data.Impuestos || [];
+      for (const imp of impuestos) {
+        html += `            <tr>
+              <td style="text-align:left; width:60%">${this.escapeHtml(imp.Nombre)}:</td>
+              <td style="text-align:right; width:40%">${this.formatNumber(imp.Valor)}</td>
+            </tr>\n`;
+      }
+    } else {
+      // CFE desglosados
+      const desglosados = data.SubtotalesDesglosados || [];
+      for (const s of desglosados) {
+        html += `            <tr>
+              <td style="text-align:left; width:60%">${this.escapeHtml(s.Key)}:</td>
+              <td style="text-align:right; width:40%">${this.formatNumber(s.Value)}</td>
+            </tr>\n`;
+      }
+    }
+
+    // Redondeo
+    if (data.hasRedondeo) {
+      html += `            <tr>
+              <td style="text-align:left; width:60%">Redondeo:</td>
+              <td style="text-align:right; width:40%">${this.formatNumber(data.Redondeo || 0)}</td>
+            </tr>\n`;
+    }
+
+    // Total
+    const simbolo = data.Moneda?.Simbolo || '$';
+    html += `            <tr class="ticket-total-row">
+              <td style="text-align:left; width:60%">Total:</td>
+              <td style="text-align:right; width:40%">${simbolo} ${this.formatNumber(data.Total || 0)}</td>
+            </tr>\n`;
+
+    html += `          </tbody>
+        </table>
+      </div>\n`;
+
+    return html;
+  }
+
+  /**
+   * Render ticket detail as z-code directives (for template export)
+   */
+  private renderTicketDetailDirectives(section: DetailSectionDefinition): string {
+    return `      <div class="ticket-detail-header">
+        <span>DESCRIPCI&Oacute;N</span>
+        <span>SUBTOTAL</span>
+      </div>
+      <div z-code="true" z-override-parent="true">
+        HTML(\`<div class="ticket-item">
+          <div class="ticket-item-name">(@cod) @nombre</div>
+          <div class="ticket-item-date">@fecha</div>
+          <div class="ticket-item-qty-row">
+            <span class="ticket-item-qty">x@cant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;@unitario</span>
+            <span class="ticket-item-subtotal">@subtotal</span>
+          </div>
+        </div>\`, Articulos.map( function (art) {
+          return { cod: art.Articulo.Codigo,
+                   nombre: art.Articulo.Nombre,
+                   fecha: art.FechaArticulo ? DateFormat(art.FechaArticulo, 'dd/MM/yyyy') : '',
+                   cant: art.Cantidad,
+                   unitario: Format(isImpIncluidos ? UnitarioBruto(art) : UnitarioNeto(art)),
+                   subtotal: Format(TotalConDto(art)) }
+        } ))
+      </div>\n`;
   }
 
   /**

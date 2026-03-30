@@ -4,9 +4,17 @@
   <!-- ─── Top Bar ─── -->
   <header class="designer-header">
     <div class="header-left">
+      <button class="back-btn" (click)="goBack()" title="Volver a la lista de moldes">
+        ←
+      </button>
       <span class="app-logo">Zureo</span>
       <span class="header-separator">|</span>
-      <span class="template-name">{{ templateName }}</span>
+      <span class="template-name">
+        {{ templateName }}
+        @if (isDirty) {
+          <span class="dirty-indicator" title="Cambios sin guardar">●</span>
+        }
+      </span>
     </div>
 
     <!-- View mode toggle -->
@@ -32,14 +40,222 @@
     </div>
 
     <div class="header-right">
+      @if (currentMold) {
+        <button
+          class="header-btn save-btn"
+          [class.has-changes]="isDirty"
+          (click)="saveTemplate()"
+          [disabled]="!isDirty"
+          title="Guardar cambios en el molde"
+        >
+          Guardar
+        </button>
+      }
       <button class="header-btn" (click)="exportTemplateJson()" title="Descargar la plantilla en formato JSON para respaldo o importar en otro entorno">
         JSON
       </button>
       <button class="header-btn primary" (click)="exportHtmlTemplate()" title="Exportar la plantilla como archivo HTML listo para renderizar con Puppeteer">
         Exportar HTML
       </button>
+      <button class="header-btn info-btn" (click)="toggleHelp()" title="Documentación y ayuda del diseñador">
+        Info
+      </button>
     </div>
   </header>
+
+  <!-- ─── Help Modal ─── -->
+  @if (showHelp) {
+    <div class="help-overlay" (click)="closeHelp()">
+      <div class="help-modal" (click)="$event.stopPropagation()">
+        <div class="help-sidebar">
+          <h3 class="help-sidebar-title">Documentación</h3>
+          <nav class="help-nav">
+            @for (sec of helpSections; track sec.id) {
+              <button
+                class="help-nav-item"
+                [class.active]="helpSection === sec.id"
+                (click)="helpSection = sec.id"
+              >
+                {{ sec.label }}
+              </button>
+            }
+          </nav>
+        </div>
+        <div class="help-content">
+          <button class="help-close" (click)="closeHelp()" title="Cerrar">✕</button>
+
+          @if (helpSection === 'intro') {
+            <h2>Zureo Report Designer</h2>
+            <p>Bienvenido al diseñador de plantillas de comprobantes. Esta herramienta permite crear y personalizar el formato de impresión de facturas, tickets y otros documentos comerciales.</p>
+            <h3>Estructura del diseñador</h3>
+            <p>La interfaz se divide en tres paneles:</p>
+            <ul>
+              <li><strong>Panel izquierdo (Herramientas):</strong> contiene los elementos que se pueden arrastrar al canvas.</li>
+              <li><strong>Panel central (Canvas):</strong> es la superficie de diseño donde se posicionan los elementos sobre la hoja.</li>
+              <li><strong>Panel derecho (Propiedades):</strong> muestra y permite editar las propiedades del elemento seleccionado.</li>
+            </ul>
+            <p>Los paneles laterales se pueden colapsar usando las flechas en sus bordes para ganar espacio de trabajo.</p>
+            <h3>Secciones del comprobante</h3>
+            <p>Cada plantilla tiene tres secciones:</p>
+            <ul>
+              <li><strong>Encabezado:</strong> datos de la empresa, tipo de comprobante, datos del cliente.</li>
+              <li><strong>Detalle:</strong> líneas de productos/servicios (se repite por cada ítem).</li>
+              <li><strong>Pie:</strong> totales, impuestos, observaciones y datos fiscales.</li>
+            </ul>
+          }
+
+          @if (helpSection === 'elements') {
+            <h2>Elementos</h2>
+            <p>Los elementos disponibles se agrupan en tres categorías:</p>
+            <h3>Básicos</h3>
+            <ul>
+              <li><strong>Texto:</strong> texto estático (etiquetas, títulos). Se escribe el contenido directamente.</li>
+            </ul>
+            <h3>Datos</h3>
+            <ul>
+              <li><strong>Campo:</strong> campo vinculado a un dato del comprobante (nombre del cliente, fecha, etc.).</li>
+              <li><strong>Fórmula:</strong> campo calculado con expresiones matemáticas.</li>
+              <li><strong>QR / Código de barras:</strong> elementos gráficos generados a partir de datos.</li>
+            </ul>
+            <h3>Visuales</h3>
+            <ul>
+              <li><strong>Imagen:</strong> logo u otra imagen estática o vinculada a datos.</li>
+              <li><strong>Línea:</strong> separador horizontal, vertical o diagonal.</li>
+              <li><strong>Rectángulo:</strong> forma rectangular con borde y/o relleno.</li>
+            </ul>
+            <h3>Agregar elementos</h3>
+            <p>Arrastre un elemento desde el panel de herramientas y suéltelo sobre la sección deseada del canvas. El elemento aparecerá en la posición donde se soltó.</p>
+          }
+
+          @if (helpSection === 'selection') {
+            <h2>Seleccionar y mover</h2>
+            <h3>Selección simple</h3>
+            <p>Haga clic sobre un elemento para seleccionarlo. Aparecerán los controles de redimensionado en los bordes y esquinas.</p>
+            <h3>Selección múltiple</h3>
+            <ul>
+              <li><strong>Shift + clic:</strong> agrega o quita elementos de la selección.</li>
+              <li><strong>Marquee (recuadro):</strong> haga clic en un área vacía del canvas y arrastre para dibujar un recuadro de selección. Todos los elementos que intersecten serán seleccionados.</li>
+            </ul>
+            <h3>Mover elementos</h3>
+            <p>Arrastre un elemento seleccionado para moverlo. Si hay varios seleccionados, todos se mueven juntos manteniendo su posición relativa.</p>
+            <h3>Redimensionar</h3>
+            <p>Arrastre los controles cuadrados en los bordes o esquinas del elemento seleccionado para cambiar su tamaño.</p>
+            <h3>Bloquear / Desbloquear</h3>
+            <p>Un elemento bloqueado (candado) no se puede mover ni redimensionar. Selecciónelo y desbloquéelo desde el panel de propiedades.</p>
+          }
+
+          @if (helpSection === 'paper') {
+            <h2>Tamaño de papel</h2>
+            <p>En la barra superior del canvas, el selector <strong>Papel</strong> permite cambiar el formato de la hoja:</p>
+            <ul>
+              <li><strong>A4</strong> (210 × 297 mm) — formato estándar de factura.</li>
+              <li><strong>A5</strong> (148 × 210 mm) — formato compacto.</li>
+              <li><strong>Ticket 80 mm</strong> — impresora térmica estándar.</li>
+              <li><strong>Ticket 58 mm</strong> — impresora térmica angosta.</li>
+              <li><strong>Personalizado</strong> — ingrese ancho y alto en milímetros.</li>
+            </ul>
+            <p>Al cambiar el tamaño, todos los elementos se redistribuyen y escalan proporcionalmente para mantener el diseño.</p>
+          }
+
+          @if (helpSection === 'zoom') {
+            <h2>Zoom y navegación</h2>
+            <h3>Controles de zoom</h3>
+            <ul>
+              <li><strong>Botones +/−:</strong> en la barra superior del canvas, aumentan o reducen el zoom en 10%.</li>
+              <li><strong>Botón 1:1:</strong> restaura el zoom al 100%.</li>
+              <li><strong>Ctrl + rueda del mouse:</strong> zoom suave centrado en la posición del cursor.</li>
+              <li><strong>Pinch en trackpad:</strong> gesto de pellizco para acercar o alejar.</li>
+            </ul>
+            <h3>Rango</h3>
+            <p>El zoom va desde 25% (vista general) hasta 200% (detalle fino).</p>
+            <h3>Desplazamiento</h3>
+            <p>Use la rueda del mouse (sin Ctrl) o las barras de scroll para desplazarse por el canvas cuando el contenido excede el área visible.</p>
+          }
+
+          @if (helpSection === 'properties') {
+            <h2>Panel de propiedades</h2>
+            <p>Al seleccionar un elemento, el panel derecho muestra sus propiedades organizadas en pestañas:</p>
+            <h3>General</h3>
+            <ul>
+              <li><strong>Nombre:</strong> identificador del elemento.</li>
+              <li><strong>Posición (X, Y):</strong> en milímetros desde la esquina superior izquierda de la sección.</li>
+              <li><strong>Tamaño (Ancho, Alto):</strong> dimensiones en milímetros.</li>
+              <li><strong>Bloqueado:</strong> impide mover o redimensionar.</li>
+            </ul>
+            <h3>Estilo</h3>
+            <ul>
+              <li>Tipografía (familia, tamaño, negrita, cursiva).</li>
+              <li>Alineación de texto (izquierda, centro, derecha).</li>
+              <li>Color de fondo y bordes.</li>
+            </ul>
+            <h3>Datos (solo Campo)</h3>
+            <ul>
+              <li><strong>Campo vinculado:</strong> seleccione el dato del comprobante que mostrará este campo desde la lista categorizada.</li>
+            </ul>
+            <h3>Edición múltiple</h3>
+            <p>Al seleccionar varios elementos, el panel muestra las propiedades comunes. Los campos con valores diferentes muestran "Mixto". Los cambios se aplican a todos los elementos seleccionados.</p>
+          }
+
+          @if (helpSection === 'data') {
+            <h2>Campos de datos</h2>
+            <p>Los campos de tipo <strong>Campo</strong> se vinculan a datos del comprobante. Al seleccionar uno, en la pestaña "Datos" del panel de propiedades verá un listado categorizado:</p>
+            <h3>Categorías disponibles</h3>
+            <ul>
+              <li><strong>Empresa:</strong> nombre, RUT, dirección, teléfono, logo.</li>
+              <li><strong>Comprobante:</strong> tipo, nombre, número, serie, fecha, forma de pago.</li>
+              <li><strong>Cliente:</strong> nombre, documento, dirección, teléfono.</li>
+              <li><strong>Moneda y Totales:</strong> símbolo de moneda, subtotal, impuestos, total.</li>
+              <li><strong>Línea de Detalle:</strong> código, descripción, cantidad, precio, descuento, importe.</li>
+              <li><strong>CFE (Comprobante Fiscal Electrónico):</strong> CAE, vencimiento, seguridad.</li>
+              <li><strong>Contexto:</strong> fecha de impresión, número de página.</li>
+            </ul>
+            <p>También puede escribir manualmente una ruta de binding personalizada.</p>
+          }
+
+          @if (helpSection === 'export') {
+            <h2>Exportación</h2>
+            <h3>JSON</h3>
+            <p>El botón <strong>JSON</strong> descarga la plantilla completa en formato JSON. Este archivo contiene toda la configuración del diseño y puede usarse para:</p>
+            <ul>
+              <li>Respaldo de la plantilla.</li>
+              <li>Importar en otro entorno o empresa.</li>
+              <li>Versionado manual del diseño.</li>
+            </ul>
+            <h3>Exportar HTML</h3>
+            <p>El botón <strong>Exportar HTML</strong> genera un archivo HTML con directivas Zureo, listo para ser renderizado por el motor de impresión (Puppeteer) en el servidor.</p>
+            <h3>Vista Previa</h3>
+            <p>La pestaña <strong>Vista Previa</strong> muestra cómo se verá el comprobante con datos de ejemplo, permitiendo validar el diseño antes de exportar.</p>
+          }
+
+          @if (helpSection === 'shortcuts') {
+            <h2>Atajos de teclado</h2>
+            <div class="shortcuts-table">
+              <div class="shortcut-row">
+                <span class="shortcut-key">Delete / Backspace</span>
+                <span class="shortcut-desc">Eliminar elementos seleccionados</span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-key">Shift + Clic</span>
+                <span class="shortcut-desc">Agregar/quitar de la selección múltiple</span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-key">Ctrl + Rueda</span>
+                <span class="shortcut-desc">Zoom centrado en el cursor</span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-key">Clic en área vacía</span>
+                <span class="shortcut-desc">Deseleccionar todo</span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-key">Arrastrar en área vacía</span>
+                <span class="shortcut-desc">Selección por recuadro (marquee)</span>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
 
   <!-- ─── Main Content ─── -->
   <div class="designer-body">
@@ -89,4 +305,9 @@
       </main>
     }
   </div>
+
+  <!-- Save toast notification -->
+  @if (showSaveToast) {
+    <div class="save-toast">Guardado correctamente</div>
+  }
 </div>

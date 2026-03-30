@@ -176,4 +176,104 @@ describe('HtmlRendererService', () => {
       expect(html).toContain('invoice.');
     });
   });
+
+  // ─── Ticket format rendering ───
+
+  describe('ticket format rendering', () => {
+    let ticketTemplate: ReportTemplate;
+
+    beforeEach(() => {
+      ticketTemplate = createDefaultTemplate();
+      ticketTemplate.page.paperType = 'ticket-80';
+      ticketTemplate.page.width = 80;
+      ticketTemplate.page.height = 200;
+      ticketTemplate.page.dynamicHeight = true;
+    });
+
+    it('should detect ticket format from paperType', () => {
+      const html = service.renderPreview(ticketTemplate, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('ticket-detail-header');
+    });
+
+    it('should detect ticket format from dynamicHeight', () => {
+      const customTicket = createDefaultTemplate();
+      customTicket.page.dynamicHeight = true;
+      customTicket.page.paperType = 'custom' as any;
+      const html = service.renderPreview(customTicket, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('ticket-detail-header');
+    });
+
+    it('should NOT use ticket format for A4', () => {
+      const html = service.renderPreview(template, SAMPLE_INVOICE_DATA);
+      // The CSS will contain ticket classes, but the HTML body should use detail-table not ticket-item
+      expect(html).toContain('<table class="detail-table">');
+      expect(html).not.toContain('<div class="ticket-item">');
+    });
+
+    it('should render DESCRIPCIÓN and SUBTOTAL headers', () => {
+      const html = service.renderPreview(ticketTemplate, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('DESCRIPCI');
+      expect(html).toContain('SUBTOTAL');
+    });
+
+    it('should render article name with code in ticket format', () => {
+      const html = service.renderPreview(ticketTemplate, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('(Art1)');
+      expect(html).toContain('Articulo 1');
+    });
+
+    it('should render article date when available', () => {
+      const html = service.renderPreview(ticketTemplate, SAMPLE_INVOICE_DATA);
+      // Date rendering depends on timezone; just check for ticket-item-date class and year
+      expect(html).toContain('ticket-item-date');
+      expect(html).toContain('2025');
+    });
+
+    it('should render quantity with x prefix', () => {
+      const html = service.renderPreview(ticketTemplate, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('x1');
+    });
+
+    it('should render ticket subtotals', () => {
+      const html = service.renderPreview(ticketTemplate, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('ticket-subtotals-table');
+      expect(html).toContain('Subtotal:');
+      expect(html).toContain('Total:');
+    });
+
+    it('should render ticket item subtotal value', () => {
+      const html = service.renderPreview(ticketTemplate, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('ticket-item-subtotal');
+    });
+
+    it('should NOT render 6-column detail table for tickets', () => {
+      const html = service.renderPreview(ticketTemplate, SAMPLE_INVOICE_DATA);
+      // Should not have the columnar headers as positioned elements
+      // The detail-table class should not appear in the detail section
+      expect(html).not.toContain('<table class="detail-table">');
+    });
+
+    it('should use ticket directives for z-code export', () => {
+      const html = service.exportAsZureoTemplate(ticketTemplate);
+      expect(html).toContain('ticket-item');
+      expect(html).toContain('Articulos.map');
+    });
+
+    it('should render ticket CSS classes', () => {
+      const html = service.renderPreview(ticketTemplate, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('.ticket-detail-header');
+      expect(html).toContain('.ticket-item');
+      expect(html).toContain('.ticket-item-qty-row');
+    });
+
+    it('should render IVA in ticket subtotals', () => {
+      const html = service.renderPreview(ticketTemplate, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('IVA Tasa');
+    });
+
+    it('should render currency in ticket total', () => {
+      const html = service.renderPreview(ticketTemplate, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('$');
+    });
+  });
 });

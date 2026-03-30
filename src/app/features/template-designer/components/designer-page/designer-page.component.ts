@@ -2,15 +2,20 @@
  * Designer Page Component
  * Main layout that composes the toolbox, canvas, properties panel, and preview.
  * This is the root component for the template designer feature.
+ * Now integrated with mold persistence — loads mold by route :id, saves back to storage.
  */
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { DesignCanvasComponent } from '../design-canvas/design-canvas.component';
 import { ToolboxComponent } from '../toolbox/toolbox.component';
 import { PropertiesPanelComponent } from '../properties-panel/properties-panel.component';
 import { PreviewComponent } from '../preview/preview.component';
 import { TemplateStateService } from '../../services/template-state.service';
+import { TemplateStorageService } from '../../services/template-storage.service';
 import { HtmlRendererService } from '../../services/html-renderer.service';
+import { TemplateMold } from '../../../../core/models/template.model';
 
 type ViewMode = 'design' | 'preview';
 
@@ -28,13 +33,121 @@ type ViewMode = 'design' | 'preview';
   styleUrl: './designer-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class DesignerPageComponent {
+export class DesignerPageComponent implements OnInit, OnDestroy {
   templateName = 'Untitled Template';
   viewMode: ViewMode = 'design';
+
+  /** Current mold being edited */
+  currentMold: TemplateMold | null = null;
+
+  /** Dirty state — true when there are unsaved changes */
+  isDirty = false;
+
+  /** Save feedback */
+  showSaveToast = false;
+  private saveToastTimer: any;
 
   /** Panel collapse state */
   leftPanelCollapsed = false;
   rightPanelCollapsed = false;
+
+  /** Help modal */
+  showHelp = false;
+  helpSection = 'intro';
+
+  helpSections = [
+    { id: 'intro', label: 'Inicio' },
+    { id: 'elements', label: 'Elementos' },
+    { id: 'selection', label: 'Seleccionar y mover' },
+    { id: 'paper', label: 'Tamaño de papel' },
+    { id: 'zoom', label: 'Zoom y navegación' },
+    { id: 'properties', label: 'Propiedades' },
+    { id: 'data', label: 'Campos de datos' },
+    { id: 'export', label: 'Exportación' },
+    { id: 'shortcuts', label: 'Atajos de teclado' }
+  ];
+
+  private templateSub!: Subscription;
+  private initialTemplateJson = '';
+
+  constructor(
+    private templateState: TemplateStateService,
+    private templateStorage: TemplateStorageService,
+    private htmlRenderer: HtmlRendererService,
+    private route: ActivatedRoute,
+    private router: Router,
+    private cdr: ChangeDetectorRef
+  ) {}
+
+  ngOnInit(): void {
+    const moldId = this.route.snapshot.paramMap.get('id');
+    if (moldId) {
+      const mold = this.templateStorage.getById(moldId);
+      if (mold) {
+        this.currentMold = mold;
+        this.templateName = mold.name;
+        this.templateState.setTemplate(mold.template);
+        this.initialTemplateJson = JSON.stringify(mold.template);
+      } else {
+        // Mold not found — redirect to list
+        this.router.navigate(['/templates']);
+        return;
+      }
+    } else {
+      this.templateName = this.templateState.getCurrentTemplate().metadata.name;
+      this.initialTemplateJson = JSON.stringify(this.templateState.getCurrentTemplate());
+    }
+
+    // Track changes for dirty state
+    this.templateSub = this.templateState.template$.subscribe(template => {
+      const currentJson = JSON.stringify(template);
+      this.isDirty = currentJson !== this.initialTemplateJson;
+      this.templateName = this.currentMold?.name || template.metadata.name;
+      this.cdr.markForCheck();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.templateSub?.unsubscribe();
+    if (this.saveToastTimer) clearTimeout(this.saveToastTimer);
+  }
+
+  // ─── Save ───
+
+  saveTemplate(): void {
+    if (!this.currentMold) return;
+    const template = this.templateState.getCurrentTemplate();
+    const updated = this.templateStorage.saveTemplate(this.currentMold.id, template);
+    if (updated) {
+      this.currentMold = updated;
+      this.initialTemplateJson = JSON.stringify(template);
+      this.isDirty = false;
+
+      // Show toast
+      this.showSaveToast = true;
+      this.cdr.markForCheck();
+      if (this.saveToastTimer) clearTimeout(this.saveToastTimer);
+      this.saveToastTimer = setTimeout(() => {
+        this.showSaveToast = false;
+        this.cdr.markForCheck();
+      }, 2000);
+    }
+  }
+
+  goBack(): void {
+    this.router.navigate(['/templates']);
+  }
+
+  // ─── View Mode ───
+
+  toggleHelp(): void {
+    this.showHelp = !this.showHelp;
+    if (this.showHelp) this.helpSection = 'intro';
+  }
+
+  closeHelp(): void {
+    this.showHelp = false;
+  }
 
   toggleLeftPanel(): void {
     this.leftPanelCollapsed = !this.leftPanelCollapsed;
@@ -42,13 +155,6 @@ export class DesignerPageComponent {
 
   toggleRightPanel(): void {
     this.rightPanelCollapsed = !this.rightPanelCollapsed;
-  }
-
-  constructor(
-    private templateState: TemplateStateService,
-    private htmlRenderer: HtmlRendererService
-  ) {
-    this.templateName = this.templateState.getCurrentTemplate().metadata.name;
   }
 
   /**

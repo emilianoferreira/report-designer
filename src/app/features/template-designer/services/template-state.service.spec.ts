@@ -215,4 +215,179 @@ describe('TemplateStateService', () => {
       expect(service.getCurrentTemplate().page.height).toBe(originalHeight);
     });
   });
+
+  // ─── updatePaperSize ───
+
+  describe('updatePaperSize', () => {
+    it('should change page dimensions to A5', () => {
+      service.updatePaperSize('a5');
+      const page = service.getCurrentTemplate().page;
+      expect(page.width).toBe(148);
+      expect(page.height).toBe(210);
+      expect(page.paperType).toBe('a5');
+    });
+
+    it('should change page dimensions to ticket-80', () => {
+      service.updatePaperSize('ticket-80');
+      const page = service.getCurrentTemplate().page;
+      expect(page.width).toBe(80);
+      expect(page.dynamicHeight).toBe(true);
+    });
+
+    it('should set custom dimensions', () => {
+      service.updatePaperSize('custom', 100, 150);
+      const page = service.getCurrentTemplate().page;
+      expect(page.width).toBe(100);
+      expect(page.height).toBe(150);
+      expect(page.paperType).toBe('custom');
+    });
+
+    it('should scale element positions proportionally', () => {
+      // Get an element position before
+      const before = service.getCurrentTemplate();
+      const headerEl = before.sections.header.elements[0];
+      const originalX = headerEl.position.x;
+      const originalWidth = before.page.width;
+
+      // Change to A5 (148mm wide, from 210mm)
+      service.updatePaperSize('a5');
+
+      const after = service.getCurrentTemplate();
+      const updatedEl = after.sections.header.elements[0];
+      const scaleX = 148 / originalWidth;
+
+      expect(updatedEl.position.x).toBeCloseTo(originalX * scaleX, 0);
+    });
+
+    it('should scale element sizes proportionally', () => {
+      const before = service.getCurrentTemplate();
+      const headerEl = before.sections.header.elements[0];
+      const originalW = headerEl.size.width;
+      const originalPageW = before.page.width;
+
+      service.updatePaperSize('a5');
+
+      const after = service.getCurrentTemplate();
+      const updatedEl = after.sections.header.elements[0];
+      const scaleX = 148 / originalPageW;
+
+      expect(updatedEl.size.width).toBeCloseTo(originalW * scaleX, 0);
+    });
+
+    it('should scale section heights proportionally', () => {
+      const before = service.getCurrentTemplate();
+      const originalHeaderH = before.sections.header.height;
+      const originalPageH = before.page.height;
+
+      service.updatePaperSize('a5');
+
+      const after = service.getCurrentTemplate();
+      const scaleY = 210 / originalPageH;
+
+      expect(after.sections.header.height).toBeCloseTo(originalHeaderH * scaleY, 0);
+    });
+
+    it('should apply preset margins for non-custom presets', () => {
+      service.updatePaperSize('ticket-80');
+      const margins = service.getCurrentTemplate().page.margins;
+      expect(margins.top).toBe(3);
+      expect(margins.right).toBe(3);
+      expect(margins.bottom).toBe(3);
+      expect(margins.left).toBe(3);
+    });
+
+    it('should preserve existing margins for custom preset', () => {
+      const originalMargins = { ...service.getCurrentTemplate().page.margins };
+      service.updatePaperSize('custom', 200, 280);
+      const margins = service.getCurrentTemplate().page.margins;
+      // Custom scales margins proportionally
+      expect(margins.top).toBeGreaterThan(0);
+      expect(margins.left).toBeGreaterThan(0);
+    });
+
+    it('should not modify elements when dimensions stay the same', () => {
+      const before = service.getCurrentTemplate();
+      const elBefore = before.sections.header.elements[0];
+      const posXBefore = elBefore.position.x;
+
+      // Reapply A4 (same dimensions)
+      service.updatePaperSize('a4');
+
+      const after = service.getCurrentTemplate();
+      const elAfter = after.sections.header.elements[0];
+      expect(elAfter.position.x).toBe(posXBefore);
+    });
+
+    it('should scale elements across all sections', () => {
+      const before = service.getCurrentTemplate();
+      const footerEls = before.sections.footer.elements;
+      if (footerEls.length === 0) return;
+
+      const originalX = footerEls[0].position.x;
+      const originalPageW = before.page.width;
+
+      service.updatePaperSize('a5');
+
+      const after = service.getCurrentTemplate();
+      const scaleX = 148 / originalPageW;
+      expect(after.sections.footer.elements[0].position.x).toBeCloseTo(originalX * scaleX, 0);
+    });
+
+    it('should ignore unknown paper types', () => {
+      const before = service.getCurrentTemplate();
+      service.updatePaperSize('unknown-type');
+      const after = service.getCurrentTemplate();
+      expect(after.page.width).toBe(before.page.width);
+    });
+  });
+
+  // ─── updateMultipleElements ───
+
+  describe('updateMultipleElements', () => {
+    it('should update multiple elements in a single operation', () => {
+      const elements = service.getElements('header');
+      if (elements.length < 2) return;
+
+      const updates = [
+        { id: elements[0].id, changes: { name: 'BatchA' } as any },
+        { id: elements[1].id, changes: { name: 'BatchB' } as any }
+      ];
+
+      service.updateMultipleElements('header', updates);
+
+      expect(service.getElement('header', elements[0].id)?.name).toBe('BatchA');
+      expect(service.getElement('header', elements[1].id)?.name).toBe('BatchB');
+    });
+
+    it('should not affect elements not in the update list', () => {
+      const elements = service.getElements('header');
+      if (elements.length < 3) return;
+
+      const thirdName = elements[2].name;
+      const updates = [
+        { id: elements[0].id, changes: { name: 'Changed' } as any }
+      ];
+
+      service.updateMultipleElements('header', updates);
+
+      expect(service.getElement('header', elements[2].id)?.name).toBe(thirdName);
+    });
+
+    it('should emit a single template update', () => {
+      let emissions = 0;
+      const sub = service.template$.subscribe(() => emissions++);
+      emissions = 0; // reset after initial
+
+      const elements = service.getElements('header');
+      if (elements.length < 2) { sub.unsubscribe(); return; }
+
+      service.updateMultipleElements('header', [
+        { id: elements[0].id, changes: { name: 'A' } as any },
+        { id: elements[1].id, changes: { name: 'B' } as any }
+      ]);
+
+      expect(emissions).toBe(1);
+      sub.unsubscribe();
+    });
+  });
 });

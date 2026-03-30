@@ -11,7 +11,8 @@ import {
   parseMm,
   PAGE_SIZES,
   DEFAULT_MARGINS,
-  A4_DIMENSIONS_PX
+  A4_DIMENSIONS_PX,
+  PAPER_PRESETS
 } from './coordinate-utils';
 
 describe('coordinate-utils', () => {
@@ -247,6 +248,66 @@ describe('coordinate-utils', () => {
     it('should match mmToPx conversion of A4', () => {
       expect(A4_DIMENSIONS_PX.width).toBeCloseTo(mmToPx(210), 2);
       expect(A4_DIMENSIONS_PX.height).toBeCloseTo(mmToPx(297), 2);
+    });
+  });
+
+  // ─── PAPER_PRESETS ───
+
+  describe('PAPER_PRESETS', () => {
+    it('should contain 5 presets', () => {
+      expect(PAPER_PRESETS.length).toBe(5);
+    });
+
+    it('should include a4, a5, ticket-80, ticket-58, and custom', () => {
+      const types = PAPER_PRESETS.map(p => p.type);
+      expect(types).toContain('a4');
+      expect(types).toContain('a5');
+      expect(types).toContain('ticket-80');
+      expect(types).toContain('ticket-58');
+      expect(types).toContain('custom');
+    });
+
+    it('should have correct A4 dimensions', () => {
+      const a4 = PAPER_PRESETS.find(p => p.type === 'a4')!;
+      expect(a4.width).toBe(210);
+      expect(a4.height).toBe(297);
+      expect(a4.dynamicHeight).toBe(false);
+    });
+
+    it('should have correct A5 dimensions', () => {
+      const a5 = PAPER_PRESETS.find(p => p.type === 'a5')!;
+      expect(a5.width).toBe(148);
+      expect(a5.height).toBe(210);
+      expect(a5.dynamicHeight).toBe(false);
+    });
+
+    it('should have correct ticket-80 dimensions with dynamic height', () => {
+      const t80 = PAPER_PRESETS.find(p => p.type === 'ticket-80')!;
+      expect(t80.width).toBe(80);
+      expect(t80.dynamicHeight).toBe(true);
+    });
+
+    it('should have correct ticket-58 dimensions with dynamic height', () => {
+      const t58 = PAPER_PRESETS.find(p => p.type === 'ticket-58')!;
+      expect(t58.width).toBe(58);
+      expect(t58.dynamicHeight).toBe(true);
+    });
+
+    it('should have defaultMargins for each preset', () => {
+      for (const preset of PAPER_PRESETS) {
+        expect(preset.defaultMargins).toBeTruthy();
+        expect(preset.defaultMargins.top).toBeGreaterThanOrEqual(0);
+        expect(preset.defaultMargins.right).toBeGreaterThanOrEqual(0);
+        expect(preset.defaultMargins.bottom).toBeGreaterThanOrEqual(0);
+        expect(preset.defaultMargins.left).toBeGreaterThanOrEqual(0);
+      }
+    });
+
+    it('should have a label for each preset', () => {
+      for (const preset of PAPER_PRESETS) {
+        expect(preset.label).toBeTruthy();
+        expect(preset.label.length).toBeGreaterThan(0);
+      }
     });
   });
 });

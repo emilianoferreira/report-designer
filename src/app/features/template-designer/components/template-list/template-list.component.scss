@@ -1,0 +1,315 @@
+/**
+ * Template List Styles
+ * Card grid layout for template mold management
+ */
+
+:host {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #f5f5f5;
+}
+
+.template-list-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+// ─── Header ───
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  min-height: 48px;
+  padding: 0 24px;
+  background: #4A148C;
+  color: #fff;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-logo {
+  font-weight: 700;
+  font-size: 16px;
+  color: #CE93D8;
+  letter-spacing: 0.5px;
+}
+
+.header-separator {
+  color: #7B1FA2;
+}
+
+.page-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #D1C4E9;
+  margin: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+// ─── Buttons ───
+.btn-new {
+  padding: 7px 18px;
+  border: none;
+  border-radius: 6px;
+  background: #7B1FA2;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #6A1B9A;
+  }
+
+  &.btn-new-lg {
+    padding: 10px 28px;
+    font-size: 14px;
+  }
+}
+
+// ─── Content area ───
+.list-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+// ─── Empty State ───
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  color: #757575;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.6;
+}
+
+.empty-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #424242;
+  margin: 0 0 8px 0;
+}
+
+.empty-text {
+  font-size: 13px;
+  color: #757575;
+  margin: 0 0 20px 0;
+  max-width: 360px;
+}
+
+// ─── Mold Grid ───
+.mold-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+// ─── Card ───
+.mold-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+
+  &:hover {
+    border-color: #CE93D8;
+    box-shadow: 0 4px 16px rgba(74, 20, 140, 0.12);
+  }
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.card-doctype {
+  font-size: 11px;
+  font-weight: 600;
+  color: #7B1FA2;
+  background: #F3E5F5;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.card-menu {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+
+  .mold-card:hover & {
+    opacity: 1;
+  }
+}
+
+.card-action {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s;
+
+  &:hover {
+    background: #f5f0fa;
+  }
+
+  &.delete:hover {
+    background: #ffebee;
+  }
+}
+
+.card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 4px 0;
+  line-height: 1.3;
+}
+
+.card-description {
+  font-size: 12px;
+  color: #757575;
+  margin: 0 0 12px 0;
+  line-height: 1.4;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.card-date {
+  font-size: 11px;
+  color: #9e9e9e;
+}
+
+.btn-open {
+  padding: 5px 12px;
+  border: 1px solid #CE93D8;
+  border-radius: 5px;
+  background: transparent;
+  color: #7B1FA2;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+
+  &:hover {
+    background: #7B1FA2;
+    color: #fff;
+    border-color: #7B1FA2;
+  }
+}
+
+// ─── Delete Confirmation ───
+.delete-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-modal {
+  width: 380px;
+  max-width: 90vw;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  padding: 24px;
+}
+
+.delete-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #c62828;
+  margin: 0 0 12px 0;
+}
+
+.delete-text {
+  font-size: 13px;
+  color: #616161;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+.delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.form-btn {
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+
+  &.cancel {
+    background: #f5f5f5;
+    color: #616161;
+
+    &:hover {
+      background: #e0e0e0;
+    }
+  }
+
+  &.danger {
+    background: #c62828;
+    color: #fff;
+
+    &:hover {
+      background: #b71c1c;
+    }
+  }
+}

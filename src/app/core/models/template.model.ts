@@ -334,3 +334,35 @@ export interface RenderRequest {
     watermark?: string;
   };
 }
+
+// ============================================================================
+// TEMPLATE MOLD (persistence wrapper)
+// ============================================================================
+
+export type CompanyDocumentType =
+  | 'venta_contado'
+  | 'venta_credito'
+  | 'nota_credito'
+  | 'remito'
+  | 'cotizacion'
+  | 'devolucion';
+
+export const DOCUMENT_TYPE_LABELS: Record<CompanyDocumentType, string> = {
+  venta_contado: 'Venta Contado',
+  venta_credito: 'Venta Crédito',
+  nota_credito: 'Nota de Crédito',
+  remito: 'Remito',
+  cotizacion: 'Cotización',
+  devolucion: 'Devolución'
+};
+
+export interface TemplateMold {
+  id: string;
+  name: string;
+  documentType: CompanyDocumentType;
+  description: string;
+  companyId: string;
+  createdAt: string;       // ISO 8601
+  updatedAt: string;       // ISO 8601
+  template: ReportTemplate;
+}

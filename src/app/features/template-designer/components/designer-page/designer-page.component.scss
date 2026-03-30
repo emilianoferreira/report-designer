@@ -37,6 +37,34 @@
   flex: 1;
 }
 
+.back-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #7B1FA2;
+  border-radius: 4px;
+  background: transparent;
+  color: #CE93D8;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  margin-right: 4px;
+
+  &:hover {
+    background: #5C1690;
+    color: #fff;
+    border-color: #9C27B0;
+  }
+}
+
+.dirty-indicator {
+  color: #FFD54F;
+  font-size: 10px;
+  margin-left: 4px;
+}
+
 .app-logo {
   font-weight: 700;
   font-size: 16px;
@@ -125,6 +153,38 @@
 
     &:hover {
       background: #6A1B9A;
+    }
+  }
+
+  &.info-btn {
+    border-color: #CE93D8;
+    color: #CE93D8;
+
+    &:hover {
+      background: #5C1690;
+      color: #fff;
+    }
+  }
+
+  &.save-btn {
+    background: transparent;
+    border-color: #7B1FA2;
+    color: #9e9e9e;
+    cursor: default;
+
+    &.has-changes {
+      background: #66BB6A;
+      border-color: #43A047;
+      color: #fff;
+      cursor: pointer;
+
+      &:hover {
+        background: #43A047;
+      }
+    }
+
+    &:disabled {
+      opacity: 0.6;
     }
   }
 }
@@ -241,5 +301,205 @@
 
   &:hover {
     color: #616161;
+  }
+}
+
+// ─── Help Modal ───
+.help-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-modal {
+  display: flex;
+  width: 800px;
+  max-width: 90vw;
+  height: 560px;
+  max-height: 80vh;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.help-sidebar {
+  width: 180px;
+  min-width: 180px;
+  background: #f5f0fa;
+  border-right: 1px solid #e0d4ee;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 0;
+}
+
+.help-sidebar-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #4A148C;
+  padding: 0 16px;
+  margin: 0 0 12px 0;
+}
+
+.help-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.help-nav-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: #616161;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.12s;
+
+  &:hover {
+    background: #ede7f6;
+    color: #4A148C;
+  }
+
+  &.active {
+    background: #7B1FA2;
+    color: #fff;
+    font-weight: 600;
+  }
+}
+
+.help-content {
+  flex: 1;
+  padding: 24px 28px;
+  overflow-y: auto;
+  position: relative;
+  color: #333;
+  line-height: 1.6;
+
+  h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #4A148C;
+    margin: 0 0 12px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #E1BEE7;
+  }
+
+  h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #6A1B9A;
+    margin: 16px 0 6px 0;
+  }
+
+  p {
+    font-size: 13px;
+    margin: 0 0 10px 0;
+  }
+
+  ul {
+    margin: 0 0 10px 0;
+    padding-left: 20px;
+
+    li {
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+  }
+
+  strong {
+    color: #4A148C;
+  }
+}
+
+.help-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: #f5f5f5;
+  border-radius: 50%;
+  font-size: 14px;
+  color: #757575;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+
+  &:hover {
+    background: #e0e0e0;
+    color: #333;
+  }
+}
+
+// Shortcuts table
+.shortcuts-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.shortcut-key {
+  display: inline-block;
+  min-width: 180px;
+  padding: 3px 8px;
+  background: #f5f0fa;
+  border: 1px solid #e0d4ee;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4A148C;
+  font-family: monospace;
+}
+
+.shortcut-desc {
+  font-size: 12px;
+  color: #616161;
+}
+
+// ─── Save Toast ───
+.save-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 24px;
+  background: #2E7D32;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  z-index: 2000;
+  animation: toastIn 0.2s ease-out;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
 }
