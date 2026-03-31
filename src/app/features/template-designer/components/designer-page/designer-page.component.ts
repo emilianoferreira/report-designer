@@ -4,7 +4,7 @@
  * This is the root component for the template designer feature.
  * Now integrated with mold persistence — loads mold by route :id, saves back to storage.
  */
-import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnInit, OnDestroy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -16,6 +16,7 @@ import { TemplateStateService } from '../../services/template-state.service';
 import { TemplateStorageService } from '../../services/template-storage.service';
 import { HtmlRendererService } from '../../services/html-renderer.service';
 import { TemplateMold } from '../../../../core/models/template.model';
+import { HasUnsavedChanges } from '../../guards/unsaved-changes.guard';
 
 type ViewMode = 'design' | 'preview';
 
@@ -33,7 +34,7 @@ type ViewMode = 'design' | 'preview';
   styleUrl: './designer-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class DesignerPageComponent implements OnInit, OnDestroy {
+export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChanges {
   templateName = 'Untitled Template';
   viewMode: ViewMode = 'design';
 
@@ -86,7 +87,9 @@ export class DesignerPageComponent implements OnInit, OnDestroy {
       if (mold) {
         this.currentMold = mold;
         this.templateName = mold.name;
+        this.templateState.clearHistory();
         this.templateState.setTemplate(mold.template);
+        this.templateState.clearHistory(); // clear the setTemplate push from undo stack
         this.initialTemplateJson = JSON.stringify(mold.template);
       } else {
         // Mold not found — redirect to list
@@ -110,6 +113,21 @@ export class DesignerPageComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.templateSub?.unsubscribe();
     if (this.saveToastTimer) clearTimeout(this.saveToastTimer);
+  }
+
+  // ─── Unsaved changes protection ───
+
+  hasUnsavedChanges(): boolean {
+    return this.isDirty;
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (this.isDirty) {
+      event.preventDefault();
+      // Modern browsers show a generic message, but returnValue is required
+      event.returnValue = '';
+    }
   }
 
   // ─── Save ───

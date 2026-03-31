@@ -20,9 +20,13 @@ import {
   FormulaElement,
   ImageElement,
   LineElement,
-  RectangleElement
+  RectangleElement,
+  QRCodeElement,
+  BarcodeElement
 } from '../../../../core/models/template.model';
 import { mmToPx } from '../../utils/coordinate-utils';
+import QRCode from 'qrcode';
+import JsBarcode from 'jsbarcode';
 
 @Component({
   selector: 'app-element-renderer',
@@ -65,6 +69,13 @@ export class ElementRendererComponent implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['element'] || changes['selected'] || changes['dragWidth'] || changes['dragHeight'] || changes['dragTransform'] || changes['resizeTransform']) {
       this.computeStyles();
+    }
+    if (changes['element']) {
+      if (this.element?.type === 'qrCode') {
+        this.generateQRPreview();
+      } else if (this.element?.type === 'barcode') {
+        this.generateBarcodePreview();
+      }
     }
   }
 
@@ -229,6 +240,69 @@ export class ElementRendererComponent implements OnChanges {
 
   get asRectangle(): RectangleElement {
     return this.element as RectangleElement;
+  }
+
+  get asQRCode(): QRCodeElement {
+    return this.element as QRCodeElement;
+  }
+
+  get asBarcode(): BarcodeElement {
+    return this.element as BarcodeElement;
+  }
+
+  /** Cached QR SVG string for canvas preview */
+  qrSvg = '';
+
+  /** Cached barcode SVG string for canvas preview */
+  barcodeSvg = '';
+
+  private generateQRPreview(): void {
+    if (this.element.type !== 'qrCode') return;
+    const el = this.asQRCode;
+    const sampleData = el.dataBinding || 'https://example.com';
+    const fgColor = el.foregroundColor || '#000000';
+    const bgColor = el.backgroundColor || '#ffffff';
+
+    try {
+      const qr = (QRCode as any).create(sampleData, { errorCorrectionLevel: el.errorCorrection || 'M' });
+      const modules = qr.modules;
+      const moduleCount = modules.size;
+
+      let rects = '';
+      for (let row = 0; row < moduleCount; row++) {
+        for (let col = 0; col < moduleCount; col++) {
+          if (modules.get(row, col)) {
+            rects += `<rect x="${col}" y="${row}" width="1" height="1" fill="${fgColor}"/>`;
+          }
+        }
+      }
+      this.qrSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${moduleCount} ${moduleCount}" style="width:100%;height:100%;"><rect width="${moduleCount}" height="${moduleCount}" fill="${bgColor}"/>${rects}</svg>`;
+    } catch {
+      this.qrSvg = '';
+    }
+  }
+
+  private generateBarcodePreview(): void {
+    if (this.element.type !== 'barcode') return;
+    const el = this.asBarcode;
+    const sampleData = el.dataBinding || '123456789';
+
+    try {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      (JsBarcode as any)(svg, sampleData, {
+        format: el.barcodeType || 'CODE128',
+        displayValue: el.showText !== false,
+        width: el.barWidth || 2,
+        height: el.barHeight ? mmToPx(el.barHeight) : 40,
+        margin: 2,
+        fontSize: 10,
+        background: '#ffffff',
+        lineColor: '#000000'
+      });
+      this.barcodeSvg = svg.outerHTML;
+    } catch {
+      this.barcodeSvg = '';
+    }
   }
 
   get lineStyles(): Record<string, string> {

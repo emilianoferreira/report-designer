@@ -475,7 +475,98 @@
           </div>
         }
 
-        @if (selectedElement.type !== 'text' && selectedElement.type !== 'dataField' && selectedElement.type !== 'formula' && selectedElement.type !== 'image') {
+        @if (selectedElement.type === 'qrCode') {
+          <div class="field-group">
+            <label class="field-label">Datos del QR</label>
+            <input
+              type="text"
+              class="field-input mono"
+              [(ngModel)]="qrDataBinding"
+              (blur)="onFieldChange()"
+              placeholder="ej: invoice.CFE.CodSeguridad"
+            />
+            <span class="field-hint">Campo de datos o texto fijo para generar el QR</span>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Nivel de corrección</label>
+            <select
+              class="field-input"
+              [(ngModel)]="qrErrorCorrection"
+              (change)="onFieldChange()"
+            >
+              @for (level of qrErrorLevels; track level.value) {
+                <option [value]="level.value">{{ level.label }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="field-row">
+            <div class="field-group half">
+              <label class="field-label">Color frente</label>
+              <input
+                type="color"
+                class="field-input color-input"
+                [(ngModel)]="qrForegroundColor"
+                (change)="onFieldChange()"
+              />
+            </div>
+            <div class="field-group half">
+              <label class="field-label">Color fondo</label>
+              <input
+                type="color"
+                class="field-input color-input"
+                [(ngModel)]="qrBackgroundColor"
+                (change)="onFieldChange()"
+              />
+            </div>
+          </div>
+        }
+
+        @if (selectedElement.type === 'barcode') {
+          <div class="field-group">
+            <label class="field-label">Datos del código</label>
+            <input
+              type="text"
+              class="field-input mono"
+              [(ngModel)]="barcodeDataBinding"
+              (blur)="onFieldChange()"
+              placeholder="ej: invoice.Numero.Numero"
+            />
+            <span class="field-hint">Campo de datos o texto fijo para generar el código</span>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Tipo de código</label>
+            <select
+              class="field-input"
+              [(ngModel)]="barcodeType"
+              (change)="onFieldChange()"
+            >
+              @for (type of barcodeTypes; track type.value) {
+                <option [value]="type.value">{{ type.label }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Mostrar texto</label>
+            <div class="button-group">
+              <button
+                class="style-btn"
+                [class.active]="barcodeShowText"
+                (click)="barcodeShowText = true; onFieldChange()"
+              >Sí</button>
+              <button
+                class="style-btn"
+                [class.active]="!barcodeShowText"
+                (click)="barcodeShowText = false; onFieldChange()"
+              >No</button>
+            </div>
+          </div>
+        }
+
+        @if (selectedElement.type === 'line' || selectedElement.type === 'rectangle') {
           <div class="empty-state">
             <p>Este tipo de elemento no tiene propiedades de datos editables.</p>
           </div>

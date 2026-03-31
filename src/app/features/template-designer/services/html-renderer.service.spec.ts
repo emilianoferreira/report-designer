@@ -2,7 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { HtmlRendererService } from './html-renderer.service';
 import { SAMPLE_INVOICE_DATA } from '../data/sample-invoice';
 import { createDefaultTemplate } from '../data/default-template';
-import { ReportTemplate } from '../../../core/models/template.model';
+import { ReportTemplate, QRCodeElement, BarcodeElement } from '../../../core/models/template.model';
+import { createElement } from '../utils/element-factory';
 
 describe('HtmlRendererService', () => {
   let service: HtmlRendererService;
@@ -174,6 +175,62 @@ describe('HtmlRendererService', () => {
       const html = service.exportAsZureoTemplate(template);
       // The binding source paths should appear raw, not resolved
       expect(html).toContain('invoice.');
+    });
+  });
+
+  // ─── QR Code rendering ───
+
+  describe('QR code rendering', () => {
+    let qrTemplate: ReportTemplate;
+    let qrElement: QRCodeElement;
+
+    beforeEach(() => {
+      qrTemplate = createDefaultTemplate();
+      qrElement = createElement('qrCode', { x: 10, y: 10 }) as QRCodeElement;
+      qrElement.dataBinding = 'QRBase64';
+      qrTemplate.sections.header.elements.push(qrElement);
+    });
+
+    it('should render QR as SVG with viewBox when resolveData is true', () => {
+      const html = service.renderToHtml(qrTemplate, SAMPLE_INVOICE_DATA, { resolveData: true });
+      expect(html).toContain('element-qrcode');
+      expect(html).toContain('<svg');
+      expect(html).toContain('viewBox');
+    });
+
+    it('should render QR as z-code directive when resolveData is false', () => {
+      const html = service.renderToHtml(qrTemplate, SAMPLE_INVOICE_DATA, { resolveData: false });
+      expect(html).toContain('z-code="true"');
+      expect(html).toContain('QRBase64');
+    });
+  });
+
+  // ─── Barcode rendering ───
+
+  describe('barcode rendering', () => {
+    let barcodeTemplate: ReportTemplate;
+    let barcodeElement: BarcodeElement;
+
+    beforeEach(() => {
+      barcodeTemplate = createDefaultTemplate();
+      barcodeElement = createElement('barcode', { x: 10, y: 10 }) as BarcodeElement;
+      barcodeElement.dataBinding = 'invoice.Numero';
+      barcodeElement.barcodeType = 'CODE128';
+      barcodeElement.showText = true;
+      barcodeTemplate.sections.header.elements.push(barcodeElement);
+    });
+
+    it('should render barcode as SVG when resolveData is true', () => {
+      const html = service.renderToHtml(barcodeTemplate, SAMPLE_INVOICE_DATA, { resolveData: true });
+      expect(html).toContain('element-barcode');
+      expect(html).toContain('<svg');
+    });
+
+    it('should render barcode as z-code directive when resolveData is false', () => {
+      const html = service.renderToHtml(barcodeTemplate, SAMPLE_INVOICE_DATA, { resolveData: false });
+      expect(html).toContain('z-code="true"');
+      expect(html).toContain('JsBarcode');
+      expect(html).toContain('CODE128');
     });
   });
 

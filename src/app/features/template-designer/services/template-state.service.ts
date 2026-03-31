@@ -27,6 +27,13 @@ export class TemplateStateService {
   private templateSubject: BehaviorSubject<ReportTemplate>;
   public template$: Observable<ReportTemplate>;
 
+  // ─── Undo/Redo ───
+  private undoStack: ReportTemplate[] = [];
+  private redoStack: ReportTemplate[] = [];
+  private readonly MAX_UNDO = 50;
+  /** When true, setTemplate does NOT push to undo stack (used by undo/redo itself) */
+  private skipUndoPush = false;
+
   constructor() {
     // Initialize with a blank template
     this.templateSubject = new BehaviorSubject<ReportTemplate>(
@@ -43,10 +50,62 @@ export class TemplateStateService {
   }
 
   /**
-   * Update the entire template
+   * Update the entire template.
+   * Pushes the previous state to the undo stack (unless called from undo/redo).
    */
   setTemplate(template: ReportTemplate): void {
+    if (!this.skipUndoPush) {
+      // Save current state to undo stack before replacing
+      this.undoStack.push(this.deepClone(this.templateSubject.getValue()));
+      if (this.undoStack.length > this.MAX_UNDO) {
+        this.undoStack.shift(); // drop oldest
+      }
+      // Any new change clears the redo stack
+      this.redoStack = [];
+    }
     this.templateSubject.next({ ...template });
+  }
+
+  // ─── Undo / Redo ───
+
+  get canUndo(): boolean {
+    return this.undoStack.length > 0;
+  }
+
+  get canRedo(): boolean {
+    return this.redoStack.length > 0;
+  }
+
+  undo(): void {
+    if (!this.canUndo) return;
+    const previous = this.undoStack.pop()!;
+    // Save current state to redo stack
+    this.redoStack.push(this.deepClone(this.templateSubject.getValue()));
+    // Restore without pushing to undo
+    this.skipUndoPush = true;
+    this.setTemplate(previous);
+    this.skipUndoPush = false;
+  }
+
+  redo(): void {
+    if (!this.canRedo) return;
+    const next = this.redoStack.pop()!;
+    // Save current state to undo stack
+    this.undoStack.push(this.deepClone(this.templateSubject.getValue()));
+    // Restore without pushing to undo
+    this.skipUndoPush = true;
+    this.setTemplate(next);
+    this.skipUndoPush = false;
+  }
+
+  /** Clear undo/redo history (e.g. when loading a new template) */
+  clearHistory(): void {
+    this.undoStack = [];
+    this.redoStack = [];
+  }
+
+  private deepClone(template: ReportTemplate): ReportTemplate {
+    return JSON.parse(JSON.stringify(template));
   }
 
   /**

@@ -30,6 +30,9 @@ import {
   DetailSectionDefinition
 } from '../../../core/models/template.model';
 import { mmToPx } from '../utils/coordinate-utils';
+import { evaluateExpression, safeEval } from '../utils/expression-evaluator';
+import QRCode from 'qrcode';
+import JsBarcode from 'jsbarcode';
 
 /** Options for HTML generation */
 export interface RenderOptions {
@@ -762,7 +765,7 @@ ${footerHtml}
     data: InvoiceData, opts: RenderOptions
   ): string {
     if (opts.resolveData) {
-      const value = this.evaluateExpression(el.expression, data);
+      const value = this.evaluateExpr(el.expression, data);
       const formatted = el.format
         ? this.applyFormat(value, el.format)
         : String(value ?? '');
@@ -814,19 +817,74 @@ ${footerHtml}
     el: QRCodeElement, pos: string,
     data: InvoiceData, opts: RenderOptions
   ): string {
-    // In preview, show placeholder. Real QR generation happens server-side
     if (opts.resolveData) {
-      const qrData = this.resolveBinding(el.dataBinding, data) || 'QR';
-      return `      <div class="element" style="${pos} background: repeating-conic-gradient(#333 0% 25%, #fff 0% 50%) 50%/6px 6px; display: flex; align-items: center; justify-content: center;"><span style="background:#fff; padding:2px 4px; font-size:8px;">QR</span></div>\n`;
+      const qrData = this.resolveBinding(el.dataBinding, data) || 'https://example.com';
+      const fgColor = el.foregroundColor || '#000000';
+      const bgColor = el.backgroundColor || '#ffffff';
+      const svg = this.generateQRSvg(qrData, fgColor, bgColor, el.errorCorrection);
+      return `      <div class="element element-qrcode" style="${pos} overflow: hidden;">${svg}</div>\n`;
     }
-    return `      <div class="element" style="${pos}" z-code="true">HTML(\`<img src="data:image/jpg;base64,@base64" style="max-width:100%;" />\`, { base64: QRBase64 })</div>\n`;
+    // Zureo directive mode — server-side QR generation
+    return `      <div class="element" style="${pos}" z-code="true">HTML(\`<img src="data:image/png;base64,@base64" style="width:100%;height:100%;" />\`, { base64: QRBase64 })</div>\n`;
   }
 
   private renderBarcodeElement(
     el: BarcodeElement, pos: string,
     data: InvoiceData, opts: RenderOptions
   ): string {
-    return `      <div class="element" style="${pos} background: #fff; border: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: center; font-size: 10px; letter-spacing: 2px;">|||||||||||</div>\n`;
+    if (opts.resolveData) {
+      const barcodeData = this.resolveBinding(el.dataBinding, data) || '123456789';
+      const svg = this.generateBarcodeSvg(barcodeData, el.barcodeType, el.showText, el.barWidth, el.barHeight);
+      return `      <div class="element element-barcode" style="${pos} overflow: hidden; background: #fff;">${svg}</div>\n`;
+    }
+    // Zureo directive mode
+    return `      <div class="element" style="${pos}" z-code="true">HTML(\`<svg class="barcode"></svg><script>JsBarcode(".barcode", @data, {format: "${el.barcodeType}", displayValue: ${el.showText}});</script>\`)</div>\n`;
+  }
+
+  /**
+   * Generate an inline SVG for a QR code using qrcode library's sync API.
+   */
+  private generateQRSvg(data: string, fgColor: string, bgColor: string, ecLevel: string): string {
+    try {
+      const qr = (QRCode as any).create(data, { errorCorrectionLevel: ecLevel || 'M' });
+      const modules = qr.modules;
+      const moduleCount = modules.size;
+      const size = moduleCount;
+
+      let rects = '';
+      for (let row = 0; row < moduleCount; row++) {
+        for (let col = 0; col < moduleCount; col++) {
+          if (modules.get(row, col)) {
+            rects += `<rect x="${col}" y="${row}" width="1" height="1" fill="${fgColor}"/>`;
+          }
+        }
+      }
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" style="width:100%;height:100%;"><rect width="${size}" height="${size}" fill="${bgColor}"/>${rects}</svg>`;
+    } catch (e) {
+      return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#f5f5f5;font-size:10px;color:#999;">QR Error</div>`;
+    }
+  }
+
+  /**
+   * Generate an inline SVG for a barcode using JsBarcode on an offscreen SVG element.
+   */
+  private generateBarcodeSvg(data: string, format: string, showText: boolean, barWidth?: number, barHeight?: number): string {
+    try {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      (JsBarcode as any)(svg, data, {
+        format: format || 'CODE128',
+        displayValue: showText !== false,
+        width: barWidth || 2,
+        height: barHeight ? mmToPx(barHeight) : 50,
+        margin: 2,
+        fontSize: 12,
+        background: '#ffffff',
+        lineColor: '#000000'
+      });
+      return svg.outerHTML;
+    } catch (e) {
+      return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#f5f5f5;font-size:10px;color:#999;">Barcode Error</div>`;
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────
@@ -911,31 +969,26 @@ ${footerHtml}
   }
 
   /**
-   * Evaluate a simple expression against the data context.
-   * Supports basic arithmetic and property access.
-   * NOTE: Uses Function() for MVP. Will be replaced with mathjs sandbox in Phase 2.
+   * Evaluate an expression against the data context using the safe evaluator.
+   * Supports arithmetic, property access, ternary, and whitelisted functions.
    */
-  private evaluateExpression(expression: string, data: InvoiceData): any {
+  private evaluateExpr(expression: string, data: InvoiceData): any {
     if (!expression) return '';
-    try {
-      // Create a safe-ish context with common aliases
-      const context: Record<string, any> = {
-        ...data,
-        comp: data.invoice,
-        Format: (v: number) => this.formatNumber(v),
-        DateFormat: (d: string, fmt: string) => this.formatDate(d, fmt)
-      };
 
-      // Build argument names and values
-      const keys = Object.keys(context);
-      const values = Object.values(context);
+    // Build context with data + utility functions
+    const context: Record<string, any> = {
+      ...data,
+      comp: data.invoice,
+      Format: (v: number) => this.formatNumber(v),
+      DateFormat: (d: string, fmt: string) => this.formatDate(d, fmt)
+    };
 
-      const fn = new Function(...keys, `"use strict"; return (${expression});`);
-      return fn(...values);
-    } catch (e) {
-      console.warn(`Expression evaluation failed: "${expression}"`, e);
+    const result = evaluateExpression(expression, context);
+    if (result.error) {
+      console.warn(`Expression evaluation failed: "${expression}" — ${result.error}`);
       return `[Error: ${expression}]`;
     }
+    return result.value;
   }
 
   /**
@@ -950,7 +1003,7 @@ ${footerHtml}
     if (!opts.resolveData) return true; // In export mode, always include
 
     if (element.visibility.expression) {
-      const result = this.evaluateExpression(element.visibility.expression, data);
+      const result = this.evaluateExpr(element.visibility.expression, data);
       return !!result;
     }
     return true;

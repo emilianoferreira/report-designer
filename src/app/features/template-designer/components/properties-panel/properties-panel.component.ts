@@ -21,6 +21,8 @@ import {
   ImageElement,
   LineElement,
   RectangleElement,
+  QRCodeElement,
+  BarcodeElement,
   FontSettings
 } from '../../../../core/models/template.model';
 import { TemplateStateService } from '../../services/template-state.service';
@@ -69,6 +71,33 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
   bindingSource = '';
   formulaExpression = '';
   imageUrl = '';
+
+  // QR Code specific
+  qrDataBinding = '';
+  qrErrorCorrection: 'L' | 'M' | 'Q' | 'H' = 'M';
+  qrForegroundColor = '#000000';
+  qrBackgroundColor = '#ffffff';
+
+  // Barcode specific
+  barcodeDataBinding = '';
+  barcodeType: 'CODE128' | 'EAN13' | 'EAN8' | 'CODE39' = 'CODE128';
+  barcodeShowText = true;
+
+  // Available barcode types
+  barcodeTypes = [
+    { value: 'CODE128', label: 'Code 128' },
+    { value: 'EAN13', label: 'EAN-13' },
+    { value: 'EAN8', label: 'EAN-8' },
+    { value: 'CODE39', label: 'Code 39' }
+  ];
+
+  // Error correction levels
+  qrErrorLevels = [
+    { value: 'L', label: 'L - Bajo (7%)' },
+    { value: 'M', label: 'M - Medio (15%)' },
+    { value: 'Q', label: 'Q - Alto (25%)' },
+    { value: 'H', label: 'H - Máximo (30%)' }
+  ];
 
   // Available fonts
   fontFamilies = ['Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Verdana', 'Georgia', 'Tahoma'];
@@ -235,6 +264,19 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
     }
     if (el.type === 'image') {
       this.imageUrl = (el as ImageElement).source.url || '';
+    }
+    if (el.type === 'qrCode') {
+      const qr = el as QRCodeElement;
+      this.qrDataBinding = qr.dataBinding || '';
+      this.qrErrorCorrection = qr.errorCorrection || 'M';
+      this.qrForegroundColor = qr.foregroundColor || '#000000';
+      this.qrBackgroundColor = qr.backgroundColor || '#ffffff';
+    }
+    if (el.type === 'barcode') {
+      const bc = el as BarcodeElement;
+      this.barcodeDataBinding = bc.dataBinding || '';
+      this.barcodeType = bc.barcodeType || 'CODE128';
+      this.barcodeShowText = bc.showText !== false;
     }
   }
 
@@ -428,6 +470,17 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
         ...(this.selectedElement as ImageElement).source,
         url: this.imageUrl
       };
+    }
+    if (this.selectedElement.type === 'qrCode') {
+      updates.dataBinding = this.qrDataBinding;
+      updates.errorCorrection = this.qrErrorCorrection;
+      updates.foregroundColor = this.qrForegroundColor;
+      updates.backgroundColor = this.qrBackgroundColor;
+    }
+    if (this.selectedElement.type === 'barcode') {
+      updates.dataBinding = this.barcodeDataBinding;
+      updates.barcodeType = this.barcodeType;
+      updates.showText = this.barcodeShowText;
     }
 
     this.templateState.updateElement(

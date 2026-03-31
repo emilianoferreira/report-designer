@@ -187,6 +187,201 @@ describe('TemplateStateService', () => {
     });
   });
 
+  // ─── Undo / Redo ───
+
+  describe('undo/redo', () => {
+    it('should have canUndo false initially', () => {
+      expect(service.canUndo).toBe(false);
+    });
+
+    it('should have canRedo false initially', () => {
+      expect(service.canRedo).toBe(false);
+    });
+
+    it('should set canUndo to true after a state change', () => {
+      const el = createElement('text', { x: 5, y: 5 });
+      service.addElement('header', el);
+      expect(service.canUndo).toBe(true);
+    });
+
+    it('should revert to previous state on undo', () => {
+      const countBefore = service.getElements('header').length;
+      const el = createElement('text', { x: 5, y: 5 });
+      service.addElement('header', el);
+      expect(service.getElements('header').length).toBe(countBefore + 1);
+
+      service.undo();
+      expect(service.getElements('header').length).toBe(countBefore);
+    });
+
+    it('should restore undone state on redo', () => {
+      const el = createElement('text', { x: 5, y: 5 });
+      service.addElement('header', el);
+      const countAfterAdd = service.getElements('header').length;
+
+      service.undo();
+      service.redo();
+      expect(service.getElements('header').length).toBe(countAfterAdd);
+    });
+
+    it('should set canRedo to true after undo', () => {
+      const el = createElement('text', { x: 5, y: 5 });
+      service.addElement('header', el);
+      service.undo();
+      expect(service.canRedo).toBe(true);
+    });
+
+    it('should set canUndo to false after undoing all changes', () => {
+      const el = createElement('text', { x: 5, y: 5 });
+      service.addElement('header', el);
+      service.undo();
+      expect(service.canUndo).toBe(false);
+    });
+
+    it('should clear redo stack when a new change is made after undo', () => {
+      const el1 = createElement('text', { x: 5, y: 5 });
+      service.addElement('header', el1);
+      service.undo();
+      expect(service.canRedo).toBe(true);
+
+      // New change should clear redo
+      const el2 = createElement('text', { x: 20, y: 20 });
+      service.addElement('header', el2);
+      expect(service.canRedo).toBe(false);
+    });
+
+    it('should do nothing when undo is called with empty stack', () => {
+      const templateBefore = service.getCurrentTemplate();
+      service.undo();
+      const templateAfter = service.getCurrentTemplate();
+      expect(templateAfter.metadata.name).toBe(templateBefore.metadata.name);
+    });
+
+    it('should do nothing when redo is called with empty stack', () => {
+      const templateBefore = service.getCurrentTemplate();
+      service.redo();
+      const templateAfter = service.getCurrentTemplate();
+      expect(templateAfter.metadata.name).toBe(templateBefore.metadata.name);
+    });
+
+    it('should support undo after updateElement', () => {
+      const elements = service.getElements('header');
+      const firstEl = elements[0];
+      const originalName = firstEl.name;
+
+      service.updateElement('header', firstEl.id, { name: 'Modified' });
+      expect(service.getElement('header', firstEl.id)?.name).toBe('Modified');
+
+      service.undo();
+      expect(service.getElement('header', firstEl.id)?.name).toBe(originalName);
+    });
+
+    it('should support undo after removeElement', () => {
+      const el = createElement('text', { x: 5, y: 5 });
+      service.addElement('header', el);
+      const countWithEl = service.getElements('header').length;
+
+      service.removeElement('header', el.id);
+      expect(service.getElements('header').length).toBe(countWithEl - 1);
+
+      service.undo();
+      expect(service.getElements('header').length).toBe(countWithEl);
+    });
+
+    it('should support multiple sequential undos', () => {
+      const countInitial = service.getElements('header').length;
+
+      const el1 = createElement('text', { x: 5, y: 5 });
+      service.addElement('header', el1);
+
+      const el2 = createElement('text', { x: 15, y: 15 });
+      service.addElement('header', el2);
+
+      expect(service.getElements('header').length).toBe(countInitial + 2);
+
+      service.undo();
+      expect(service.getElements('header').length).toBe(countInitial + 1);
+
+      service.undo();
+      expect(service.getElements('header').length).toBe(countInitial);
+    });
+
+    it('should support multiple sequential redos', () => {
+      const countInitial = service.getElements('header').length;
+
+      const el1 = createElement('text', { x: 5, y: 5 });
+      service.addElement('header', el1);
+
+      const el2 = createElement('text', { x: 15, y: 15 });
+      service.addElement('header', el2);
+
+      service.undo();
+      service.undo();
+      expect(service.getElements('header').length).toBe(countInitial);
+
+      service.redo();
+      expect(service.getElements('header').length).toBe(countInitial + 1);
+
+      service.redo();
+      expect(service.getElements('header').length).toBe(countInitial + 2);
+    });
+
+    it('should clearHistory clearing both undo and redo stacks', () => {
+      // Make two changes so undo stack has 2 entries
+      const el = createElement('text', { x: 5, y: 5 });
+      service.addElement('header', el);
+      const el2 = createElement('text', { x: 10, y: 10 });
+      service.addElement('header', el2);
+      // undoStack has 2 entries now. Undo one to move it to redo
+      service.undo();
+      // Now canUndo should be true (1 entry left) and canRedo true (1 entry)
+      expect(service.canUndo).toBe(true);
+      expect(service.canRedo).toBe(true);
+
+      service.clearHistory();
+      expect(service.canUndo).toBe(false);
+      expect(service.canRedo).toBe(false);
+    });
+
+    it('should limit undo stack to 50 entries', () => {
+      // Perform 55 state changes
+      for (let i = 0; i < 55; i++) {
+        const el = createElement('text', { x: i, y: i });
+        service.addElement('header', el);
+      }
+
+      // Undo should work at most 50 times
+      let undoCount = 0;
+      while (service.canUndo) {
+        service.undo();
+        undoCount++;
+      }
+      expect(undoCount).toBe(50);
+    });
+
+    it('should not push to undo stack during undo operation itself', () => {
+      const el = createElement('text', { x: 5, y: 5 });
+      service.addElement('header', el);
+      // After addElement: undoStack has 1 entry
+      expect(service.canUndo).toBe(true);
+
+      service.undo();
+      // After undo: undoStack should be empty (not have gained a new entry)
+      expect(service.canUndo).toBe(false);
+    });
+
+    it('should not push to undo stack during redo operation itself', () => {
+      const el = createElement('text', { x: 5, y: 5 });
+      service.addElement('header', el);
+      service.undo();
+      service.redo();
+      // After redo: undoStack should have exactly 1 entry (from the redo push)
+      expect(service.canUndo).toBe(true);
+      service.undo();
+      expect(service.canUndo).toBe(false);
+    });
+  });
+
   // ─── setTemplate ───
 
   describe('setTemplate', () => {

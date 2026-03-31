@@ -4,6 +4,25 @@
   <!-- ─── Toolbar ─── -->
   <div class="canvas-toolbar">
     <div class="toolbar-group">
+      <button
+        class="toolbar-btn"
+        [disabled]="!templateState.canUndo"
+        (click)="templateState.undo(); cdr.markForCheck()"
+        title="Deshacer (Ctrl+Z)"
+      >
+        <span>↩</span>
+      </button>
+      <button
+        class="toolbar-btn"
+        [disabled]="!templateState.canRedo"
+        (click)="templateState.redo(); cdr.markForCheck()"
+        title="Rehacer (Ctrl+Y)"
+      >
+        <span>↪</span>
+      </button>
+    </div>
+    <div class="toolbar-separator"></div>
+    <div class="toolbar-group">
       <button class="toolbar-btn" (click)="zoomOut()" title="Alejar la vista del lienzo">
         <span>&minus;</span>
       </button>

@@ -134,9 +134,9 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
   private destroy$ = new Subject<void>();
 
   constructor(
-    private templateState: TemplateStateService,
+    public templateState: TemplateStateService,
     private selectionService: SelectionService,
-    private cdr: ChangeDetectorRef,
+    public cdr: ChangeDetectorRef,
     private ngZone: NgZone
   ) {}
 
@@ -246,13 +246,37 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
 
   @HostListener('document:keydown', ['$event'])
   onDocumentKeyDown(event: KeyboardEvent): void {
+    const target = event.target as HTMLElement;
+    const tag = target.tagName.toLowerCase();
+    const isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
+
+    // Ctrl+Z / Cmd+Z → Undo
+    if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
+      if (!isInput) {
+        event.preventDefault();
+        this.templateState.undo();
+        this.cdr.markForCheck();
+        return;
+      }
+    }
+
+    // Ctrl+Y / Cmd+Y / Ctrl+Shift+Z → Redo
+    if (
+      ((event.ctrlKey || event.metaKey) && event.key === 'y') ||
+      ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'z') ||
+      ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'Z')
+    ) {
+      if (!isInput) {
+        event.preventDefault();
+        this.templateState.redo();
+        this.cdr.markForCheck();
+        return;
+      }
+    }
+
     // Delete/Backspace → remove selected elements (skip if user is typing in an input)
     if (event.key === 'Delete' || event.key === 'Backspace') {
-      const target = event.target as HTMLElement;
-      const tag = target.tagName.toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable) {
-        return; // don't intercept form input
-      }
+      if (isInput) return;
 
       if (this.selectedIds.size > 0) {
         event.preventDefault();

@@ -72,14 +72,27 @@
   <!-- QR Code Element -->
   @if (element.type === 'qrCode') {
     <div class="element-content qrcode-element">
-      <div class="qr-placeholder">QR</div>
+      @if (qrSvg) {
+        <div class="qr-rendered" [innerHTML]="qrSvg"></div>
+      } @else {
+        <div class="qr-placeholder">
+          <span class="placeholder-icon">&#9641;</span>
+          <span class="placeholder-text">{{ asQRCode.dataBinding || 'QR Code' }}</span>
+        </div>
+      }
     </div>
   }
 
   <!-- Barcode Element -->
   @if (element.type === 'barcode') {
     <div class="element-content barcode-element">
-      <div class="barcode-placeholder">||||| ||||| |||||</div>
+      @if (barcodeSvg) {
+        <div class="barcode-rendered" [innerHTML]="barcodeSvg"></div>
+      } @else {
+        <div class="barcode-placeholder">
+          <span class="placeholder-text">{{ asBarcode.dataBinding || 'Barcode' }}</span>
+        </div>
+      }
     </div>
   }
 

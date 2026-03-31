@@ -170,17 +170,44 @@
   justify-content: center;
 }
 
-.qr-placeholder {
+.qr-rendered {
   width: 100%;
   height: 100%;
-  background: repeating-conic-gradient(#333 0% 25%, #fff 0% 50%) 50% / 6px 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14pt;
-  font-weight: bold;
-  color: #333;
-  text-shadow: 0 0 4px #fff, 0 0 4px #fff;
+
+  ::ng-deep svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.qr-placeholder {
+  width: 100%;
+  height: 100%;
+  background: #f8f8f8;
+  border: 1px dashed rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+
+  .placeholder-icon {
+    font-size: 18px;
+    color: #666;
+  }
+
+  .placeholder-text {
+    font-size: 8pt;
+    color: #9e9e9e;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 90%;
+    text-align: center;
+  }
 }
 
 // ─── Barcode Element ───
@@ -189,14 +216,37 @@
   align-items: center;
   justify-content: center;
   background: #fff;
-  border: 1px solid #e0e0e0;
+}
+
+.barcode-rendered {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+
+  ::ng-deep svg {
+    width: 100%;
+    height: 100%;
+  }
 }
 
 .barcode-placeholder {
-  font-family: 'Libre Barcode 128', monospace;
-  font-size: 20pt;
-  letter-spacing: 2px;
-  color: #333;
+  width: 100%;
+  height: 100%;
+  background: #f8f8f8;
+  border: 1px dashed rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .placeholder-text {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 9pt;
+    color: #9e9e9e;
+    letter-spacing: 1px;
+  }
 }
 
 // ─── Element Tooltip ───
