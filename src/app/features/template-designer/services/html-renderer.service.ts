@@ -346,6 +346,10 @@ ${footerHtml}
     opts: RenderOptions
   ): string {
     const isTicket = this.isTicketFormat(template);
+    // Check if the footer section has elements — if so, the user controls
+    // subtotals/totals via footer elements and we should NOT auto-render them
+    // inside the detail table to avoid duplication.
+    const footerHasElements = (template.sections.footer?.elements?.length ?? 0) > 0;
     let html = '';
 
     // Render any positioned elements in the detail section (column headers, etc.)
@@ -369,9 +373,9 @@ ${footerHtml}
     // Render the detail lines
     if (opts.resolveData && data.invoiceLines && data.invoiceLines.length > 0) {
       if (isTicket) {
-        html += this.renderTicketDetailTable(section, template, data, opts);
+        html += this.renderTicketDetailTable(section, template, data, opts, footerHasElements);
       } else {
-        html += this.renderDetailTable(section, data, opts, tableOffsetPx);
+        html += this.renderDetailTable(section, data, opts, tableOffsetPx, footerHasElements);
       }
     } else if (!opts.resolveData) {
       // Export mode: output z-code directives for the detail table
@@ -401,7 +405,8 @@ ${footerHtml}
     section: DetailSectionDefinition,
     data: InvoiceData,
     opts: RenderOptions,
-    tableOffsetPx: number = 0
+    tableOffsetPx: number = 0,
+    skipSubtotals: boolean = false
   ): string {
     const lines = data.invoiceLines || data.Articulos || [];
     const isImpIncluidos = data.isImpIncluidos;
@@ -440,8 +445,10 @@ ${footerHtml}
     html += `        </tbody>
       </table>\n`;
 
-    // Subtotals block
-    html += this.renderSubtotals(data, opts);
+    // Subtotals block — only if footer doesn't have its own elements
+    if (!skipSubtotals) {
+      html += this.renderSubtotals(data, opts);
+    }
 
     if (tableOffsetPx > 0) {
       html += `      </div>\n`;
@@ -461,7 +468,8 @@ ${footerHtml}
     section: DetailSectionDefinition,
     template: ReportTemplate,
     data: InvoiceData,
-    opts: RenderOptions
+    opts: RenderOptions,
+    skipSubtotals: boolean = false
   ): string {
     const lines = data.invoiceLines || data.Articulos || [];
     const isImpIncluidos = data.isImpIncluidos;
@@ -497,8 +505,10 @@ ${footerHtml}
       html += `      </div>\n`;
     }
 
-    // Subtotals in ticket format
-    html += this.renderTicketSubtotals(data, opts);
+    // Subtotals in ticket format — only if footer doesn't have its own elements
+    if (!skipSubtotals) {
+      html += this.renderTicketSubtotals(data, opts);
+    }
 
     return html;
   }

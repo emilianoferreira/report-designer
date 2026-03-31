@@ -566,6 +566,11 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
     const startH = mmToPx(state.startElHeight);
     const minSize = mmToPx(2); // minimum 2mm
 
+    // Compensate for zoom: mouse deltas are in screen pixels,
+    // but element dimensions are in canvas (unzoomed) pixels
+    const zoomedDx = dx / this.zoom;
+    const zoomedDy = dy / this.zoom;
+
     let newW = startW;
     let newH = startH;
     let offsetDx = 0;
@@ -573,20 +578,20 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
 
     // Right edge
     if (handle.includes('e')) {
-      newW = Math.max(minSize, startW + dx);
+      newW = Math.max(minSize, startW + zoomedDx);
     }
     // Left edge
     if (handle.includes('w')) {
-      newW = Math.max(minSize, startW - dx);
+      newW = Math.max(minSize, startW - zoomedDx);
       offsetDx = startW - newW; // shift position
     }
     // Bottom edge
     if (handle.includes('s')) {
-      newH = Math.max(minSize, startH + dy);
+      newH = Math.max(minSize, startH + zoomedDy);
     }
     // Top edge
     if (handle.includes('n')) {
-      newH = Math.max(minSize, startH - dy);
+      newH = Math.max(minSize, startH - zoomedDy);
       offsetDy = startH - newH;
     }
 
@@ -660,10 +665,12 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!this.dragState || this.dragState.type !== 'resize') return;
     const state = this.dragState as DragState;
 
-    let newWidth = pxToMm(state.currentWidth / this.zoom);
-    let newHeight = pxToMm(state.currentHeight / this.zoom);
-    let newX = state.startElX + pxToMm(state.currentDx / this.zoom);
-    let newY = state.startElY + pxToMm(state.currentDy / this.zoom);
+    // currentWidth/Height and currentDx/Dy are already zoom-compensated
+    // (zoom was applied in applyResizeDelta), so convert px→mm directly
+    let newWidth = pxToMm(state.currentWidth);
+    let newHeight = pxToMm(state.currentHeight);
+    let newX = state.startElX + pxToMm(state.currentDx);
+    let newY = state.startElY + pxToMm(state.currentDy);
 
     if (this.snapEnabled) {
       newWidth = snapToGrid(newWidth, this.gridSizeMm);
