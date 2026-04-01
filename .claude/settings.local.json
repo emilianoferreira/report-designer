@@ -30,7 +30,12 @@
       "Bash(psql -d bd_dis_reportes -c \"DROP SCHEMA public CASCADE; CREATE SCHEMA public;\")",
       "Bash(psql -d bd_dis_reportes -f /Users/user/Documents/GitHub/zureo-report-designer/database/003-view-invoice-data.sql)",
       "Bash(psql -d bd_dis_reportes -c \":*)",
-      "Bash(psql -d bd_dis_reportes -t -c \"SELECT jsonb_pretty\\(build_invoice_data\\(''''f1000000-0000-0000-0000-000000000002''''\\)\\);\")"
+      "Bash(psql -d bd_dis_reportes -t -c \"SELECT jsonb_pretty\\(build_invoice_data\\(''''f1000000-0000-0000-0000-000000000002''''\\)\\);\")",
+      "Bash(find /Users/user/Documents/GitHub/zureo-report-designer/src -name *.spec.ts -type f)",
+      "Bash(find /Users/user/Documents/GitHub/zureo-report-designer/src -name test.ts -o -name *.spec.ts -o -name karma.conf.js)",
+      "Bash(done)",
+      "Bash(npm i:*)",
+      "Bash(grep -A5 -B5 \"destroyComponent\\\\|destroy$\\\\|takeUntil\" /Users/user/Documents/GitHub/zureo-report-designer/src/app/features/template-designer/components/preview/preview.component.ts)"
     ]
   }
 }

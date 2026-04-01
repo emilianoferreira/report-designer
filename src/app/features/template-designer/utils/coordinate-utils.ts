@@ -238,3 +238,151 @@ export const A4_DIMENSIONS_PX = {
   width: mmToPx(210),
   height: mmToPx(297)
 };
+
+// ============================================================================
+// SNAP ENGINE
+// ============================================================================
+
+import { GuideLine, TemplateElement } from '../../../core/models/template.model';
+
+export interface SnapCandidate {
+  value: number;       // mm position of the snap target
+  source: 'grid' | 'guide' | 'element';
+}
+
+export interface SnapLine {
+  orientation: 'horizontal' | 'vertical';
+  position: number;    // mm
+  source: 'guide' | 'element';
+}
+
+export interface SnapResult {
+  x: number;
+  y: number;
+  snapLines: SnapLine[];
+}
+
+export interface SnapSettings {
+  snapToGrid: boolean;
+  snapToGuide: boolean;
+  snapToElement: boolean;
+  thresholdMm: number;
+}
+
+/**
+ * Collect all snap candidates from guides and sibling elements.
+ * Horizontal candidates = Y-axis snap targets, Vertical candidates = X-axis snap targets.
+ */
+export function collectSnapCandidates(
+  elements: TemplateElement[],
+  guides: GuideLine[],
+  excludeIds: Set<string>,
+  settings: SnapSettings
+): { horizontal: SnapCandidate[]; vertical: SnapCandidate[] } {
+  const horizontal: SnapCandidate[] = [];
+  const vertical: SnapCandidate[] = [];
+
+  if (settings.snapToGuide) {
+    for (const guide of guides) {
+      const candidate: SnapCandidate = { value: guide.position, source: 'guide' };
+      if (guide.orientation === 'horizontal') {
+        horizontal.push(candidate);
+      } else {
+        vertical.push(candidate);
+      }
+    }
+  }
+
+  if (settings.snapToElement) {
+    for (const el of elements) {
+      if (excludeIds.has(el.id)) continue;
+      // Vertical candidates (X axis): left edge, center, right edge
+      vertical.push(
+        { value: el.position.x, source: 'element' },
+        { value: el.position.x + el.size.width / 2, source: 'element' },
+        { value: el.position.x + el.size.width, source: 'element' }
+      );
+      // Horizontal candidates (Y axis): top edge, center, bottom edge
+      horizontal.push(
+        { value: el.position.y, source: 'element' },
+        { value: el.position.y + el.size.height / 2, source: 'element' },
+        { value: el.position.y + el.size.height, source: 'element' }
+      );
+    }
+  }
+
+  return { horizontal, vertical };
+}
+
+/**
+ * Find the best snap match for a single axis.
+ * Tests the element's start, center, and end edges against all candidates.
+ * Returns the delta to apply and the matched candidate (if any).
+ */
+function findBestSnap(
+  edgeStart: number,
+  size: number,
+  candidates: SnapCandidate[],
+  thresholdMm: number
+): { delta: number; matched: SnapCandidate | null } {
+  const edges = [edgeStart, edgeStart + size / 2, edgeStart + size];
+  let bestDelta = Infinity;
+  let bestCandidate: SnapCandidate | null = null;
+
+  for (const edge of edges) {
+    for (const candidate of candidates) {
+      const dist = Math.abs(edge - candidate.value);
+      if (dist < Math.abs(bestDelta) && dist <= thresholdMm) {
+        bestDelta = candidate.value - edge;
+        bestCandidate = candidate;
+      }
+    }
+  }
+
+  return { delta: bestDelta === Infinity ? 0 : bestDelta, matched: bestCandidate };
+}
+
+/**
+ * Compute snapped position for an element given all snap candidates.
+ * Falls back to grid snap if no guide/element snap matched.
+ */
+export function computeSnap(
+  proposedPos: { x: number; y: number },
+  elementSize: { width: number; height: number },
+  candidates: { horizontal: SnapCandidate[]; vertical: SnapCandidate[] },
+  thresholdMm: number,
+  gridSizeMm: number,
+  useGridSnap: boolean
+): SnapResult {
+  const snapLines: SnapLine[] = [];
+
+  // X axis (vertical candidates)
+  const xSnap = findBestSnap(proposedPos.x, elementSize.width, candidates.vertical, thresholdMm);
+  let finalX = proposedPos.x;
+  if (xSnap.matched) {
+    finalX = proposedPos.x + xSnap.delta;
+    snapLines.push({
+      orientation: 'vertical',
+      position: xSnap.matched.value,
+      source: xSnap.matched.source as 'guide' | 'element'
+    });
+  } else if (useGridSnap) {
+    finalX = snapToGrid(proposedPos.x, gridSizeMm);
+  }
+
+  // Y axis (horizontal candidates)
+  const ySnap = findBestSnap(proposedPos.y, elementSize.height, candidates.horizontal, thresholdMm);
+  let finalY = proposedPos.y;
+  if (ySnap.matched) {
+    finalY = proposedPos.y + ySnap.delta;
+    snapLines.push({
+      orientation: 'horizontal',
+      position: ySnap.matched.value,
+      source: ySnap.matched.source as 'guide' | 'element'
+    });
+  } else if (useGridSnap) {
+    finalY = snapToGrid(proposedPos.y, gridSizeMm);
+  }
+
+  return { x: finalX, y: finalY, snapLines };
+}

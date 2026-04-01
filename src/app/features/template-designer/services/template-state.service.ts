@@ -11,7 +11,8 @@ import {
   TemplateElement,
   TemplateSections,
   SectionDefinition,
-  PageSettings
+  PageSettings,
+  GuideLine
 } from '../../../core/models/template.model';
 import { cloneElement, updateElement } from '../utils/element-factory';
 import { createDefaultTemplate } from '../data/default-template';
@@ -404,6 +405,37 @@ export class TemplateStateService {
       }
     };
     this.setTemplate(updated);
+  }
+
+  // ─── Guide CRUD ───
+
+  addGuide(guide: GuideLine): void {
+    const current = this.getCurrentTemplate();
+    const guides = current.page.guides || [];
+    this.setTemplate({
+      ...current,
+      page: { ...current.page, guides: [...guides, guide] }
+    });
+  }
+
+  removeGuide(guideId: string): void {
+    const current = this.getCurrentTemplate();
+    const guides = (current.page.guides || []).filter(g => g.id !== guideId);
+    this.setTemplate({
+      ...current,
+      page: { ...current.page, guides }
+    });
+  }
+
+  updateGuidePosition(guideId: string, positionMm: number): void {
+    const current = this.getCurrentTemplate();
+    const guides = (current.page.guides || []).map(g =>
+      g.id === guideId ? { ...g, position: positionMm } : g
+    );
+    this.setTemplate({
+      ...current,
+      page: { ...current.page, guides }
+    });
   }
 
   /**

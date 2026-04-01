@@ -401,6 +401,25 @@ ${footerHtml}
   /**
    * Render the articles detail table with resolved data
    */
+  /**
+   * Build inline CSS from a dataField element's style (font, color, alignment).
+   */
+  private buildCellStyle(el: DataFieldElement | undefined, fallbackAlign: string): string {
+    if (!el) return `text-align:${fallbackAlign}`;
+    const parts: string[] = [];
+    parts.push(`text-align:${el.style.textAlign || fallbackAlign}`);
+    const font = el.style.font;
+    if (font) {
+      if (font.family) parts.push(`font-family:${font.family}, sans-serif`);
+      if (font.size) parts.push(`font-size:${font.size}pt`);
+      if (font.weight && font.weight !== 'normal') parts.push(`font-weight:${font.weight}`);
+      if (font.style && font.style !== 'normal') parts.push(`font-style:${font.style}`);
+      if (font.color) parts.push(`color:${font.color}`);
+    }
+    if (el.style.backgroundColor) parts.push(`background-color:${el.style.backgroundColor}`);
+    return parts.join(';');
+  }
+
   private renderDetailTable(
     section: DetailSectionDefinition,
     data: InvoiceData,
@@ -410,6 +429,20 @@ ${footerHtml}
   ): string {
     const lines = data.invoiceLines || data.Articulos || [];
     const isImpIncluidos = data.isImpIncluidos;
+
+    // Find dataField elements to extract their styles for each column
+    const dataFields = section.elements.filter(
+      (el): el is DataFieldElement => el.type === 'dataField'
+    );
+    const fieldByBinding = (binding: string) =>
+      dataFields.find(f => f.binding.source === binding);
+
+    const colCodigo = fieldByBinding('Articulo.Codigo');
+    const colNombre = fieldByBinding('Articulo.Nombre');
+    const colCantidad = fieldByBinding('Cantidad');
+    const colUnitario = fieldByBinding('PrecioUnitario') || fieldByBinding('PrecioUnitarioNeto');
+    const colDescuento = fieldByBinding('Descuento');
+    const colSubtotal = fieldByBinding('SubTotal');
 
     // Note: column headers are already rendered as positioned text elements
     // in the detail section, so we skip <thead> to avoid duplication.
@@ -433,12 +466,12 @@ ${footerHtml}
       const subtotal = line['SubTotal'] ?? 0;
 
       html += `          <tr>
-            <td style="text-align:left">${this.escapeHtml(String(codigo))}</td>
-            <td style="text-align:left">${this.escapeHtml(String(nombre))}</td>
-            <td style="text-align:center">${cantidad}</td>
-            <td style="text-align:right">${this.formatNumber(unitario)}</td>
-            <td style="text-align:right">${this.formatNumber(descuento)}</td>
-            <td style="text-align:right">${this.formatNumber(subtotal)}</td>
+            <td style="${this.buildCellStyle(colCodigo, 'left')}">${this.escapeHtml(String(codigo))}</td>
+            <td style="${this.buildCellStyle(colNombre, 'left')}">${this.escapeHtml(String(nombre))}</td>
+            <td style="${this.buildCellStyle(colCantidad, 'center')}">${cantidad}</td>
+            <td style="${this.buildCellStyle(colUnitario, 'right')}">${this.formatNumber(unitario)}</td>
+            <td style="${this.buildCellStyle(colDescuento, 'right')}">${this.formatNumber(descuento)}</td>
+            <td style="${this.buildCellStyle(colSubtotal, 'right')}">${this.formatNumber(subtotal)}</td>
           </tr>\n`;
     }
 

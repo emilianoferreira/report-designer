@@ -7,6 +7,7 @@
 $ruler-size: 30px;
 $ruler-bg: #f8f8f8;
 $ruler-border: #d0d0d0;
+$canvas-gap: 10px;
 $page-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
 $canvas-bg: #e8e8e8;
 $section-active-bg: rgba(123, 31, 162, 0.03);
@@ -163,8 +164,8 @@ $margin-color: rgba(255, 0, 0, 0.08);
   z-index: 10;
 
   .ruler-offset {
-    width: $ruler-size;
-    min-width: $ruler-size;
+    width: $ruler-size + $canvas-gap;
+    min-width: $ruler-size + $canvas-gap;
     border-right: 1px solid $ruler-border;
     background: $ruler-bg;
   }
@@ -194,6 +195,7 @@ $margin-color: rgba(255, 0, 0, 0.08);
     font-size: 8px;
     color: #888;
     white-space: nowrap;
+    transform-origin: left top;
   }
 }
 
@@ -210,6 +212,7 @@ $margin-color: rgba(255, 0, 0, 0.08);
   .ruler-track {
     position: relative;
     transform-origin: center top;
+    margin-top: $canvas-gap;
   }
 
   .ruler-mark {
@@ -232,6 +235,7 @@ $margin-color: rgba(255, 0, 0, 0.08);
     font-size: 8px;
     color: #888;
     white-space: nowrap;
+    transform-origin: right top;
   }
 }
 
@@ -250,7 +254,7 @@ $margin-color: rgba(255, 0, 0, 0.08);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  margin: 0;
+  margin: 10px 0 0 10px;
 }
 
 // ─── Grid Overlay ───
@@ -345,4 +349,72 @@ $margin-color: rgba(255, 0, 0, 0.08);
   opacity: 0.4;
   pointer-events: none;
   z-index: 3;
+}
+
+// ─── Guide Lines ───
+.guide-line {
+  position: absolute;
+  z-index: 4;
+  pointer-events: auto;
+
+  &.horizontal {
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: #00BCD4;
+    cursor: ns-resize;
+
+    // Expand hit area for easier grabbing
+    &::before {
+      content: '';
+      position: absolute;
+      top: -3px;
+      left: 0;
+      right: 0;
+      height: 7px;
+    }
+  }
+
+  &.vertical {
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: #00BCD4;
+    cursor: ew-resize;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: -3px;
+      top: 0;
+      bottom: 0;
+      width: 7px;
+    }
+  }
+
+  &.creating {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+}
+
+// ─── Smart Guide Lines (ephemeral snap indicators) ───
+.smart-guide-line {
+  position: absolute;
+  z-index: 9997;
+  pointer-events: none;
+
+  &.horizontal {
+    left: 0;
+    right: 0;
+    height: 0;
+    border-top: 1px dashed #FF4081;
+  }
+
+  &.vertical {
+    top: 0;
+    bottom: 0;
+    width: 0;
+    border-left: 1px dashed #FF4081;
+  }
 }

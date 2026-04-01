@@ -110,6 +110,10 @@ export class PreviewComponent implements OnInit, OnDestroy {
    */
   toggleRawHtml(): void {
     this.showRawHtml = !this.showRawHtml;
+    // When switching back to iframe view, re-render since the iframe was destroyed
+    if (!this.showRawHtml) {
+      this.renderPreview();
+    }
   }
 
   /**

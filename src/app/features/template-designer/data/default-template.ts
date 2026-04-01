@@ -609,6 +609,110 @@ export function createDefaultTemplate(): ReportTemplate {
             screenOnly: false,
             direction: 'horizontal' as const,
             lineStyle: { width: 0.5, style: 'solid' as const, color: '#b1b1b1' }
+          },
+
+          // ── Campos de datos de artículo (fila de datos) ──
+          {
+            id: uuid(),
+            type: 'dataField' as const,
+            name: 'Dato Código',
+            position: { x: 0, y: 8 },
+            size: { width: 34, height: 6 },
+            style: {
+              font: { family: 'Arial', size: 9, weight: 'normal' as const, style: 'normal' as const, color: '#000000' },
+              textAlign: 'left' as const
+            },
+            visibility: { type: 'always' as const },
+            locked: false,
+            zIndex: 2,
+            printOnly: false,
+            screenOnly: false,
+            binding: { source: 'Articulo.Codigo' }
+          },
+          {
+            id: uuid(),
+            type: 'dataField' as const,
+            name: 'Dato Descripción',
+            position: { x: 34, y: 8 },
+            size: { width: 67, height: 6 },
+            style: {
+              font: { family: 'Arial', size: 9, weight: 'normal' as const, style: 'normal' as const, color: '#000000' },
+              textAlign: 'left' as const
+            },
+            visibility: { type: 'always' as const },
+            locked: false,
+            zIndex: 2,
+            printOnly: false,
+            screenOnly: false,
+            binding: { source: 'Articulo.Nombre' }
+          },
+          {
+            id: uuid(),
+            type: 'dataField' as const,
+            name: 'Dato Cantidad',
+            position: { x: 101, y: 8 },
+            size: { width: 18, height: 6 },
+            style: {
+              font: { family: 'Arial', size: 9, weight: 'normal' as const, style: 'normal' as const, color: '#000000' },
+              textAlign: 'center' as const
+            },
+            visibility: { type: 'always' as const },
+            locked: false,
+            zIndex: 2,
+            printOnly: false,
+            screenOnly: false,
+            binding: { source: 'Cantidad', format: { type: 'number' as const, decimals: 0 } }
+          },
+          {
+            id: uuid(),
+            type: 'dataField' as const,
+            name: 'Dato Unitario',
+            position: { x: 119, y: 8 },
+            size: { width: 26, height: 6 },
+            style: {
+              font: { family: 'Arial', size: 9, weight: 'normal' as const, style: 'normal' as const, color: '#000000' },
+              textAlign: 'right' as const
+            },
+            visibility: { type: 'always' as const },
+            locked: false,
+            zIndex: 2,
+            printOnly: false,
+            screenOnly: false,
+            binding: { source: 'PrecioUnitario', format: { type: 'number' as const, decimals: 2 } }
+          },
+          {
+            id: uuid(),
+            type: 'dataField' as const,
+            name: 'Dato Descuento',
+            position: { x: 145, y: 8 },
+            size: { width: 18, height: 6 },
+            style: {
+              font: { family: 'Arial', size: 9, weight: 'normal' as const, style: 'normal' as const, color: '#000000' },
+              textAlign: 'right' as const
+            },
+            visibility: { type: 'always' as const },
+            locked: false,
+            zIndex: 2,
+            printOnly: false,
+            screenOnly: false,
+            binding: { source: 'Descuento', format: { type: 'percentage' as const, decimals: 0 } }
+          },
+          {
+            id: uuid(),
+            type: 'dataField' as const,
+            name: 'Dato Importe',
+            position: { x: 163, y: 8 },
+            size: { width: 27, height: 6 },
+            style: {
+              font: { family: 'Arial', size: 9, weight: 'normal' as const, style: 'normal' as const, color: '#000000' },
+              textAlign: 'right' as const
+            },
+            visibility: { type: 'always' as const },
+            locked: false,
+            zIndex: 2,
+            printOnly: false,
+            screenOnly: false,
+            binding: { source: 'SubTotal', format: { type: 'number' as const, decimals: 2 } }
           }
         ],
         printOnFirstPage: true,

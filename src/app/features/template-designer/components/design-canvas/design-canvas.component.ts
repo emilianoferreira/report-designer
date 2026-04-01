@@ -21,12 +21,17 @@ import { Subject, takeUntil, combineLatest } from 'rxjs';
 import {
   ReportTemplate,
   TemplateElement,
-  PageSettings
+  PageSettings,
+  GuideLine
 } from '../../../../core/models/template.model';
 import { TemplateStateService } from '../../services/template-state.service';
 import { SelectionService } from '../../services/selection.service';
-import { mmToPx, pxToMm, snapToGrid, PAPER_PRESETS, PaperPreset } from '../../utils/coordinate-utils';
+import {
+  mmToPx, pxToMm, snapToGrid, PAPER_PRESETS, PaperPreset,
+  SnapLine, SnapSettings, collectSnapCandidates, computeSnap
+} from '../../utils/coordinate-utils';
 import { createElement } from '../../utils/element-factory';
+import { v4 as uuid } from 'uuid';
 import { FormsModule } from '@angular/forms';
 import { ElementRendererComponent } from '../element-renderer/element-renderer.component';
 
@@ -106,7 +111,28 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
   // Grid settings
   gridSizeMm = 5;
   showGrid = true;
-  snapEnabled = true;
+  snapSettings: SnapSettings = {
+    snapToGrid: true,
+    snapToGuide: true,
+    snapToElement: true,
+    thresholdMm: 2
+  };
+
+  // Guide creation / drag state
+  guideCreationState: {
+    orientation: 'horizontal' | 'vertical';
+    currentPositionMm: number;
+  } | null = null;
+
+  guideDragState: {
+    guideId: string;
+    orientation: 'horizontal' | 'vertical';
+    startMousePos: number;
+    startGuideMm: number;
+  } | null = null;
+
+  // Smart snap lines (ephemeral, shown during element drag)
+  activeSnapLines: SnapLine[] = [];
 
   // Zoom
   readonly ZOOM_MIN = 0.25;
@@ -175,6 +201,37 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
 
   @HostListener('document:mousemove', ['$event'])
   onDocumentMouseMove(event: MouseEvent): void {
+    // ─── Guide creation drag ───
+    if (this.guideCreationState) {
+      event.preventDefault();
+      const pageEl = this.canvasPage?.nativeElement;
+      if (pageEl) {
+        const rect = pageEl.getBoundingClientRect();
+        if (this.guideCreationState.orientation === 'vertical') {
+          this.guideCreationState.currentPositionMm = pxToMm((event.clientX - rect.left) / this.zoom);
+        } else {
+          this.guideCreationState.currentPositionMm = pxToMm((event.clientY - rect.top) / this.zoom);
+        }
+      }
+      this.cdr.markForCheck();
+      return;
+    }
+
+    // ─── Guide repositioning drag ───
+    if (this.guideDragState) {
+      event.preventDefault();
+      const mousePos = this.guideDragState.orientation === 'horizontal'
+        ? event.clientY : event.clientX;
+      const deltaPx = mousePos - this.guideDragState.startMousePos;
+      const deltaMm = pxToMm(deltaPx / this.zoom);
+      this.guideDragState.startGuideMm; // preview handled via template binding
+      // Temporarily update guide position for preview
+      const newPos = this.guideDragState.startGuideMm + deltaMm;
+      this.templateState.updateGuidePosition(this.guideDragState.guideId, newPos);
+      this.cdr.markForCheck();
+      return;
+    }
+
     // ─── Marquee drag ───
     if (this.marqueeState) {
       event.preventDefault();
@@ -201,11 +258,48 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
     const dy = event.clientY - this.dragState.startMouseY;
 
     if (this.dragState.type === 'move') {
-      this.dragState.currentDx = dx;
-      this.dragState.currentDy = dy;
+      // Compute snap in real time for smart guides
+      const state = this.dragState as DragState;
+      const proposedX = state.startElX + pxToMm(dx / this.zoom);
+      const proposedY = state.startElY + pxToMm(dy / this.zoom);
+      const el = this.templateState.getElement(state.section as any, state.elementId);
+      if (el) {
+        const candidates = this.getSnapCandidates(state.section, new Set([state.elementId]));
+        const snap = computeSnap(
+          { x: proposedX, y: proposedY }, el.size,
+          candidates, this.snapSettings.thresholdMm,
+          this.gridSizeMm, this.snapSettings.snapToGrid
+        );
+        this.activeSnapLines = snap.snapLines;
+        // Convert snapped mm back to px offset for visual feedback
+        state.currentDx = mmToPx(snap.x - state.startElX) * this.zoom;
+        state.currentDy = mmToPx(snap.y - state.startElY) * this.zoom;
+      } else {
+        state.currentDx = dx;
+        state.currentDy = dy;
+      }
     } else if (this.dragState.type === 'multi-move') {
       this.dragState.currentDx = dx;
       this.dragState.currentDy = dy;
+      // Show snap lines for anchor element
+      const anchor = this.templateState.getElement(
+        this.dragState.section as any, this.dragState.anchorElementId
+      );
+      const startPos = this.dragState.startPositions.get(this.dragState.anchorElementId);
+      if (anchor && startPos) {
+        const proposedX = startPos.x + pxToMm(dx / this.zoom);
+        const proposedY = startPos.y + pxToMm(dy / this.zoom);
+        const candidates = this.getSnapCandidates(
+          this.dragState.section,
+          new Set(this.dragState.startPositions.keys())
+        );
+        const snap = computeSnap(
+          { x: proposedX, y: proposedY }, anchor.size,
+          candidates, this.snapSettings.thresholdMm,
+          this.gridSizeMm, this.snapSettings.snapToGrid
+        );
+        this.activeSnapLines = snap.snapLines;
+      }
     } else if (this.dragState.type === 'resize') {
       this.applyResizeDelta(dx, dy);
     }
@@ -215,6 +309,43 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
 
   @HostListener('document:mouseup', ['$event'])
   onDocumentMouseUp(event: MouseEvent): void {
+    // ─── End guide creation ───
+    if (this.guideCreationState) {
+      const pos = this.guideCreationState.currentPositionMm;
+      const orientation = this.guideCreationState.orientation;
+      const maxPos = orientation === 'vertical'
+        ? this.template.page.width : this.template.page.height;
+      // Only create if within page bounds
+      if (pos > 0 && pos < maxPos) {
+        this.templateState.addGuide({
+          id: uuid(),
+          orientation,
+          position: pos
+        });
+      }
+      this.guideCreationState = null;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    // ─── End guide drag ───
+    if (this.guideDragState) {
+      // If guide was dragged outside page bounds, delete it
+      const guide = (this.template.page.guides || []).find(
+        g => g.id === this.guideDragState!.guideId
+      );
+      if (guide) {
+        const maxPos = guide.orientation === 'vertical'
+          ? this.template.page.width : this.template.page.height;
+        if (guide.position <= 0 || guide.position >= maxPos) {
+          this.templateState.removeGuide(guide.id);
+        }
+      }
+      this.guideDragState = null;
+      this.cdr.markForCheck();
+      return;
+    }
+
     // ─── End marquee ───
     if (this.marqueeState) {
       const dx = event.clientX - this.marqueeState.startClientX;
@@ -239,6 +370,7 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     this.dragState = null;
+    this.activeSnapLines = [];
     this.cdr.markForCheck();
   }
 
@@ -612,13 +744,10 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return; // no meaningful move
 
+    // Snap was already applied during mousemove for real-time feedback.
+    // Convert the final visual offset back to mm.
     let newX = state.startElX + pxToMm(dx / this.zoom);
     let newY = state.startElY + pxToMm(dy / this.zoom);
-
-    if (this.snapEnabled) {
-      newX = snapToGrid(newX, this.gridSizeMm);
-      newY = snapToGrid(newY, this.gridSizeMm);
-    }
 
     newX = Math.max(0, newX);
     newY = Math.max(0, newY);
@@ -639,20 +768,34 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
     const dy = this.dragState.currentDy;
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
 
+    const excludeIds = new Set(this.dragState.startPositions.keys());
+    const anchor = this.templateState.getElement(
+      this.dragState.section as any, this.dragState.anchorElementId
+    );
+
+    // Compute snap delta from anchor element
+    let snapDeltaX = 0;
+    let snapDeltaY = 0;
+    const startPos = this.dragState.startPositions.get(this.dragState.anchorElementId);
+    if (anchor && startPos) {
+      const proposedX = startPos.x + pxToMm(dx / this.zoom);
+      const proposedY = startPos.y + pxToMm(dy / this.zoom);
+      const candidates = this.getSnapCandidates(this.dragState.section, excludeIds);
+      const snap = computeSnap(
+        { x: proposedX, y: proposedY }, anchor.size,
+        candidates, this.snapSettings.thresholdMm,
+        this.gridSizeMm, this.snapSettings.snapToGrid
+      );
+      snapDeltaX = snap.x - proposedX;
+      snapDeltaY = snap.y - proposedY;
+    }
+
     const updates: Array<{ id: string; changes: Partial<TemplateElement> }> = [];
-
-    this.dragState.startPositions.forEach((startPos, id) => {
-      let newX = startPos.x + pxToMm(dx / this.zoom);
-      let newY = startPos.y + pxToMm(dy / this.zoom);
-
-      if (this.snapEnabled) {
-        newX = snapToGrid(newX, this.gridSizeMm);
-        newY = snapToGrid(newY, this.gridSizeMm);
-      }
-
+    this.dragState.startPositions.forEach((sp, id) => {
+      let newX = sp.x + pxToMm(dx / this.zoom) + snapDeltaX;
+      let newY = sp.y + pxToMm(dy / this.zoom) + snapDeltaY;
       newX = Math.max(0, newX);
       newY = Math.max(0, newY);
-
       updates.push({ id, changes: { position: { x: newX, y: newY } } as any });
     });
 
@@ -672,11 +815,21 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
     let newX = state.startElX + pxToMm(state.currentDx);
     let newY = state.startElY + pxToMm(state.currentDy);
 
-    if (this.snapEnabled) {
+    // Apply snap to the resulting edges
+    const candidates = this.getSnapCandidates(state.section, new Set([state.elementId]));
+    const snap = computeSnap(
+      { x: newX, y: newY },
+      { width: newWidth, height: newHeight },
+      candidates, this.snapSettings.thresholdMm,
+      this.gridSizeMm, this.snapSettings.snapToGrid
+    );
+    newX = snap.x;
+    newY = snap.y;
+
+    // Also snap width/height to grid if grid snap is active
+    if (this.snapSettings.snapToGrid) {
       newWidth = snapToGrid(newWidth, this.gridSizeMm);
       newHeight = snapToGrid(newHeight, this.gridSizeMm);
-      newX = snapToGrid(newX, this.gridSizeMm);
-      newY = snapToGrid(newY, this.gridSizeMm);
     }
 
     newWidth = Math.max(2, newWidth);
@@ -708,7 +861,7 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
     let xMm = pxToMm(xPx / this.zoom);
     let yMm = pxToMm(yPx / this.zoom);
 
-    if (this.snapEnabled) {
+    if (this.snapSettings.snapToGrid) {
       xMm = snapToGrid(xMm, this.gridSizeMm);
       yMm = snapToGrid(yMm, this.gridSizeMm);
     }
@@ -791,8 +944,60 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
     this.showGrid = !this.showGrid;
   }
 
-  toggleSnap(): void {
-    this.snapEnabled = !this.snapEnabled;
+  // ─── Guide interaction ───
+
+  onHorizontalRulerMouseDown(event: MouseEvent): void {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    // Dragging down from horizontal ruler creates a horizontal guide
+    const pageEl = this.canvasPage?.nativeElement;
+    if (!pageEl) return;
+    const rect = pageEl.getBoundingClientRect();
+    const yMm = pxToMm((event.clientY - rect.top) / this.zoom);
+    this.guideCreationState = {
+      orientation: 'horizontal',
+      currentPositionMm: yMm
+    };
+  }
+
+  onVerticalRulerMouseDown(event: MouseEvent): void {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    // Dragging right from vertical ruler creates a vertical guide
+    const pageEl = this.canvasPage?.nativeElement;
+    if (!pageEl) return;
+    const rect = pageEl.getBoundingClientRect();
+    const xMm = pxToMm((event.clientX - rect.left) / this.zoom);
+    this.guideCreationState = {
+      orientation: 'vertical',
+      currentPositionMm: xMm
+    };
+  }
+
+  onGuideMouseDown(event: MouseEvent, guide: GuideLine): void {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.guideDragState = {
+      guideId: guide.id,
+      orientation: guide.orientation,
+      startMousePos: guide.orientation === 'horizontal' ? event.clientY : event.clientX,
+      startGuideMm: guide.position
+    };
+  }
+
+  onGuideDoubleClick(guide: GuideLine): void {
+    this.templateState.removeGuide(guide.id);
+  }
+
+  /** Collect snap candidates for the active section */
+  private getSnapCandidates(
+    section: SectionKey,
+    excludeIds: Set<string>
+  ): { horizontal: import('../../utils/coordinate-utils').SnapCandidate[]; vertical: import('../../utils/coordinate-utils').SnapCandidate[] } {
+    const elements = this.getSectionElements(section);
+    const guides = this.template.page.guides || [];
+    return collectSnapCandidates(elements, guides, excludeIds, this.snapSettings);
   }
 
   // ─── Paper size ───
