@@ -187,6 +187,7 @@ export function createDefaultTemplate(): ReportTemplate {
             id: uuid(),
             type: 'rectangle' as const,
             name: 'Recuadro Identificador',
+            shapeType: 'rectangle' as const,
             position: { x: 125, y: 30 },
             size: { width: 65, height: 12 },
             style: {},

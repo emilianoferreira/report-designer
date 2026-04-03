@@ -845,15 +845,40 @@ ${footerHtml}
   }
 
   private renderRectangleElement(el: RectangleElement, pos: string): string {
+    const shape = el.shapeType || 'rectangle';
     let style = pos;
+
     if (el.fillColor) style += ` background-color: ${el.fillColor};`;
-    if (el.strokeColor) {
-      style += ` border: ${mmToPx(el.strokeWidth || 0.3)}px ${el.strokeStyle || 'solid'} ${el.strokeColor};`;
+
+    if (shape === 'ellipse') {
+      style += ` border-radius: 50%;`;
+      if (el.strokeColor) {
+        style += ` border: ${mmToPx(el.strokeWidth || 0.3)}px ${el.strokeStyle || 'solid'} ${el.strokeColor};`;
+      }
+    } else if (shape === 'triangle') {
+      style += ` clip-path: polygon(50% 0%, 0% 100%, 100% 100%);`;
+    } else if (shape === 'diamond') {
+      style += ` clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);`;
+    } else {
+      // rectangle
+      if (el.strokeColor) {
+        style += ` border: ${mmToPx(el.strokeWidth || 0.3)}px ${el.strokeStyle || 'solid'} ${el.strokeColor};`;
+      }
+      if (el.style.borderRadius) {
+        style += ` border-radius: ${mmToPx(el.style.borderRadius)}px;`;
+      }
     }
-    if (el.style.borderRadius) {
-      style += ` border-radius: ${mmToPx(el.style.borderRadius)}px;`;
+
+    let inner = '';
+    // SVG stroke for triangle/diamond (clip-path clips borders)
+    if ((shape === 'triangle' || shape === 'diamond') && el.strokeColor) {
+      const path = shape === 'triangle'
+        ? 'M 50,0 L 100,100 L 0,100 Z'
+        : 'M 50,0 L 100,50 L 50,100 L 0,50 Z';
+      inner = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"><path d="${path}" fill="none" stroke="${el.strokeColor}" stroke-width="${mmToPx(el.strokeWidth || 0.3)}" vector-effect="non-scaling-stroke"/></svg>`;
     }
-    return `      <div class="element element-rectangle" style="${style}"></div>\n`;
+
+    return `      <div class="element element-rectangle" style="${style} position:relative;">${inner}</div>\n`;
   }
 
   private renderQRElement(

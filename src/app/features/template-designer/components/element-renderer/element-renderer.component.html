@@ -64,9 +64,21 @@
     <div class="element-content line-element" [ngStyle]="lineStyles"></div>
   }
 
-  <!-- Rectangle Element -->
+  <!-- Rectangle / Shape Element -->
   @if (element.type === 'rectangle') {
-    <div class="element-content rectangle-element" [ngStyle]="rectangleStyles"></div>
+    <div class="element-content rectangle-element" [ngStyle]="rectangleStyles">
+      @if (isClipPathShape && shapeSvgPath) {
+        <svg class="shape-stroke-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <path
+            [attr.d]="shapeSvgPath"
+            fill="none"
+            [attr.stroke]="shapeSvgStroke"
+            [attr.stroke-width]="shapeSvgStrokeWidth"
+            vector-effect="non-scaling-stroke"
+          />
+        </svg>
+      }
+    </div>
   }
 
   <!-- QR Code Element -->

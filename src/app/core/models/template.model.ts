@@ -221,8 +221,11 @@ export interface LineElement extends BaseElement {
   };
 }
 
+export type ShapeType = 'rectangle' | 'ellipse' | 'triangle' | 'diamond';
+
 export interface RectangleElement extends BaseElement {
   type: 'rectangle';
+  shapeType: ShapeType;
   fillColor?: string;
   strokeColor?: string;
   strokeWidth?: number;     // mm

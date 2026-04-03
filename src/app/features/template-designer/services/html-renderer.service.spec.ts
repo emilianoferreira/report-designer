@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { HtmlRendererService } from './html-renderer.service';
 import { SAMPLE_INVOICE_DATA } from '../data/sample-invoice';
 import { createDefaultTemplate } from '../data/default-template';
-import { ReportTemplate, QRCodeElement, BarcodeElement } from '../../../core/models/template.model';
+import { ReportTemplate, QRCodeElement, BarcodeElement, RectangleElement, ShapeType } from '../../../core/models/template.model';
 import { createElement } from '../utils/element-factory';
 
 describe('HtmlRendererService', () => {
@@ -331,6 +331,177 @@ describe('HtmlRendererService', () => {
     it('should render currency in ticket total', () => {
       const html = service.renderPreview(ticketTemplate, SAMPLE_INVOICE_DATA);
       expect(html).toContain('$');
+    });
+  });
+
+  // ─── Geometric shapes rendering ───
+
+  describe('geometric shapes rendering', () => {
+    function createShapeTemplate(shapeType: ShapeType, props: Partial<RectangleElement> = {}): ReportTemplate {
+      const t = createDefaultTemplate();
+      const el = createElement('rectangle', { x: 10, y: 10 }, { shapeType }) as RectangleElement;
+      // Apply properties directly since factory doesn't spread all overrides
+      Object.assign(el, props);
+      t.sections.header.elements.push(el);
+      return t;
+    }
+
+    // ─── Rectangle (default) ───
+
+    it('should render rectangle with border', () => {
+      const t = createShapeTemplate('rectangle', {
+        strokeColor: '#333333',
+        strokeWidth: 0.5,
+        strokeStyle: 'solid',
+      });
+      const html = service.renderPreview(t, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('element-rectangle');
+      expect(html).toContain('border:');
+      expect(html).toContain('#333333');
+    });
+
+    it('should render rectangle with fillColor', () => {
+      const t = createShapeTemplate('rectangle', {
+        fillColor: '#ff0000',
+      });
+      const html = service.renderPreview(t, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('background-color: #ff0000');
+    });
+
+    it('should render rectangle without stroke when strokeColor cleared', () => {
+      const t = createShapeTemplate('rectangle', {
+        strokeColor: undefined,
+      });
+      const html = service.renderPreview(t, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('element-rectangle');
+    });
+
+    // ─── Ellipse ───
+
+    it('should render ellipse with border-radius 50%', () => {
+      const t = createShapeTemplate('ellipse');
+      const html = service.renderPreview(t, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('border-radius: 50%');
+    });
+
+    it('should render ellipse with fillColor and strokeColor', () => {
+      const t = createShapeTemplate('ellipse', {
+        fillColor: '#00ff00',
+        strokeColor: '#0000ff',
+        strokeWidth: 0.5,
+      });
+      const html = service.renderPreview(t, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('border-radius: 50%');
+      expect(html).toContain('background-color: #00ff00');
+      expect(html).toContain('#0000ff');
+      expect(html).toContain('border:');
+    });
+
+    // ─── Triangle ───
+
+    it('should render triangle with clip-path polygon', () => {
+      const t = createShapeTemplate('triangle');
+      const html = service.renderPreview(t, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('clip-path: polygon(50% 0%, 0% 100%, 100% 100%)');
+    });
+
+    it('should render triangle with SVG stroke overlay', () => {
+      const t = createShapeTemplate('triangle', {
+        strokeColor: '#ff0000',
+        strokeWidth: 0.5,
+      });
+      const html = service.renderPreview(t, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('<svg');
+      expect(html).toContain('M 50,0 L 100,100 L 0,100 Z');
+      expect(html).toContain('stroke="#ff0000"');
+      expect(html).toContain('vector-effect="non-scaling-stroke"');
+    });
+
+    it('should render triangle with fill but no SVG when no stroke', () => {
+      const t = createShapeTemplate('triangle', {
+        fillColor: '#ffcc00',
+        strokeColor: undefined,
+      });
+      const html = service.renderPreview(t, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('clip-path: polygon');
+      expect(html).toContain('background-color: #ffcc00');
+      expect(html).not.toContain('<svg');
+    });
+
+    // ─── Diamond ───
+
+    it('should render diamond with clip-path polygon', () => {
+      const t = createShapeTemplate('diamond');
+      const html = service.renderPreview(t, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)');
+    });
+
+    it('should render diamond with SVG stroke overlay', () => {
+      const t = createShapeTemplate('diamond', {
+        strokeColor: '#0000ff',
+        strokeWidth: 1,
+      });
+      const html = service.renderPreview(t, SAMPLE_INVOICE_DATA);
+      expect(html).toContain('<svg');
+      expect(html).toContain('M 50,0 L 100,50 L 50,100 L 0,50 Z');
+      expect(html).toContain('stroke="#0000ff"');
+    });
+  });
+
+  // ─── Edge cases ───
+
+  describe('edge cases', () => {
+    it('should render template with zero invoice lines', () => {
+      const emptyData = {
+        ...SAMPLE_INVOICE_DATA,
+        invoiceLines: [],
+        Articulos: [],
+      };
+      const html = service.renderPreview(template, emptyData);
+      expect(html).toContain('<!DOCTYPE html>');
+      expect(html).toContain('detail-table');
+    });
+
+    it('should render template with many invoice lines', () => {
+      const manyLines = Array.from({ length: 20 }, (_, i) => ({
+        Articulo: { Codigo: `A${i}`, Nombre: `Articulo ${i}` },
+        Cantidad: i + 1,
+        PrecioUnitario: 10 * (i + 1),
+        PrecioUnitarioNeto: 12.2 * (i + 1),
+        Descuento: 0,
+        SubTotal: 10 * (i + 1) * (i + 1),
+      }));
+      const manyData = {
+        ...SAMPLE_INVOICE_DATA,
+        invoiceLines: manyLines,
+        Articulos: manyLines,
+      };
+      const html = service.renderPreview(template, manyData);
+      expect(html).toContain('A19'); // last article code
+      expect(html).toContain('Articulo 19');
+    });
+
+    it('should handle empty commentary gracefully', () => {
+      const noComment = {
+        ...SAMPLE_INVOICE_DATA,
+        invoice: { ...SAMPLE_INVOICE_DATA.invoice, Comentario: '' },
+      };
+      const html = service.renderPreview(template, noComment);
+      expect(html).toContain('<!DOCTYPE html>');
+    });
+
+    it('should render z-code export preserving all element types', () => {
+      // Create template with one of each type
+      const fullTemplate = createDefaultTemplate();
+      fullTemplate.sections.header.elements.push(
+        createElement('text', { x: 10, y: 10 }),
+        createElement('rectangle', { x: 50, y: 10 }, { shapeType: 'triangle' }) as any,
+        createElement('line', { x: 10, y: 30 }),
+      );
+      const html = service.exportAsZureoTemplate(fullTemplate);
+      expect(html).toContain('element-text');
+      expect(html).toContain('element-rectangle');
+      expect(html).toContain('element-line');
     });
   });
 });

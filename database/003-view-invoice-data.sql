@@ -20,6 +20,8 @@ DECLARE
   v_has_contacto BOOLEAN;
   v_has_dto_global BOOLEAN;
   v_has_redondeo BOOLEAN;
+  v_contact_nombre TEXT := '';
+  v_contact_direccion TEXT := '';
 BEGIN
   -- Cargar factura
   SELECT * INTO v_invoice FROM invoices WHERE id = p_invoice_id;
@@ -37,6 +39,8 @@ BEGIN
   v_has_contacto := v_invoice.contact_id IS NOT NULL;
   IF v_has_contacto THEN
     SELECT * INTO v_contact FROM contacts WHERE id = v_invoice.contact_id;
+    v_contact_nombre := v_contact.guardar_como;
+    v_contact_direccion := COALESCE(v_contact.direccion, '');
   END IF;
 
   -- Flags
@@ -92,7 +96,7 @@ BEGIN
       'TipoCambio', v_invoice.tipo_cambio,
       'PorcentajeDescGlobal', v_invoice.porcentaje_desc_global,
       'DireccionFactura', jsonb_build_object(
-        'Domicilio', COALESCE(v_invoice.direccion_factura, CASE WHEN v_has_contacto THEN v_contact.direccion ELSE '' END)
+        'Domicilio', COALESCE(v_invoice.direccion_factura, v_contact_direccion)
       ),
       'Empresa', jsonb_build_object(
         'Parametros', v_company.parametros
@@ -115,7 +119,7 @@ BEGIN
       'Simbolo', v_currency.simbolo
     ),
     'Contacto', jsonb_build_object(
-      'GuardarComo', CASE WHEN v_has_contacto THEN v_contact.guardar_como ELSE '' END
+      'GuardarComo', v_contact_nombre
     ),
     'CFE', jsonb_build_object(
       'TipoComprobanteFiscal', jsonb_build_object('Nombre', ''),

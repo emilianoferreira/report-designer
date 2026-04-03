@@ -320,6 +320,7 @@ export class ElementRendererComponent implements OnChanges {
   get rectangleStyles(): Record<string, string> {
     if (this.element.type !== 'rectangle') return {};
     const rect = this.asRectangle;
+    const shape = rect.shapeType || 'rectangle';
     const styles: Record<string, string> = {
       'width': '100%',
       'height': '100%'
@@ -327,12 +328,50 @@ export class ElementRendererComponent implements OnChanges {
     if (rect.fillColor) {
       styles['background-color'] = rect.fillColor;
     }
-    if (rect.strokeColor) {
+    if (rect.strokeColor && shape === 'rectangle') {
       styles['border'] = `${mmToPx(rect.strokeWidth || 0.3)}px ${rect.strokeStyle || 'solid'} ${rect.strokeColor}`;
     }
-    if (rect.style.borderRadius) {
+    if (shape === 'ellipse') {
+      styles['border-radius'] = '50%';
+      if (rect.strokeColor) {
+        styles['border'] = `${mmToPx(rect.strokeWidth || 0.3)}px ${rect.strokeStyle || 'solid'} ${rect.strokeColor}`;
+      }
+    } else if (rect.style.borderRadius && shape === 'rectangle') {
       styles['border-radius'] = `${mmToPx(rect.style.borderRadius)}px`;
     }
+    if (shape === 'triangle' || shape === 'diamond') {
+      styles['clip-path'] = shape === 'triangle'
+        ? 'polygon(50% 0%, 0% 100%, 100% 100%)'
+        : 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)';
+    }
     return styles;
+  }
+
+  /** SVG outline for triangle/diamond shapes (rendered behind the clipped fill) */
+  get shapeSvgPath(): string {
+    if (this.element.type !== 'rectangle') return '';
+    const rect = this.asRectangle;
+    const shape = rect.shapeType || 'rectangle';
+    if (shape === 'triangle') return 'M 50,0 L 100,100 L 0,100 Z';
+    if (shape === 'diamond') return 'M 50,0 L 100,50 L 50,100 L 0,50 Z';
+    return '';
+  }
+
+  get shapeSvgStroke(): string {
+    if (this.element.type !== 'rectangle') return '';
+    const rect = this.asRectangle;
+    return rect.strokeColor || 'none';
+  }
+
+  get shapeSvgStrokeWidth(): number {
+    if (this.element.type !== 'rectangle') return 0;
+    const rect = this.asRectangle;
+    return rect.strokeColor ? mmToPx(rect.strokeWidth || 0.3) : 0;
+  }
+
+  get isClipPathShape(): boolean {
+    if (this.element.type !== 'rectangle') return false;
+    const shape = this.asRectangle.shapeType || 'rectangle';
+    return shape === 'triangle' || shape === 'diamond';
   }
 }

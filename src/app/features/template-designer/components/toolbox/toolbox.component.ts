@@ -12,7 +12,8 @@ interface ToolItem {
   label: string;
   icon: string;
   description: string;
-  category: 'basic' | 'data' | 'visual';
+  category: 'basic' | 'data' | 'shape';
+  shapeType?: string;
 }
 
 @Component({
@@ -25,6 +26,8 @@ interface ToolItem {
 })
 export class ToolboxComponent {
 
+  shapesExpanded = false;
+
   tools: ToolItem[] = [
     // Basic elements
     {
@@ -34,6 +37,14 @@ export class ToolboxComponent {
       description: 'Texto fijo estático',
       category: 'basic'
     },
+    {
+      type: 'image',
+      label: 'Imagen',
+      icon: '⊞',
+      description: 'Imagen o logo',
+      category: 'basic'
+    },
+    // Data elements
     {
       type: 'dataField',
       label: 'Campo',
@@ -49,27 +60,6 @@ export class ToolboxComponent {
       category: 'data'
     },
     {
-      type: 'image',
-      label: 'Imagen',
-      icon: '⊞',
-      description: 'Imagen o logo',
-      category: 'visual'
-    },
-    {
-      type: 'line',
-      label: 'Línea',
-      icon: '—',
-      description: 'Línea horizontal/vertical',
-      category: 'visual'
-    },
-    {
-      type: 'rectangle',
-      label: 'Rectángulo',
-      icon: '▢',
-      description: 'Rectángulo o cuadro',
-      category: 'visual'
-    },
-    {
       type: 'qrCode',
       label: 'QR',
       icon: '⊞',
@@ -82,6 +72,45 @@ export class ToolboxComponent {
       icon: '|||',
       description: 'Código de barras',
       category: 'data'
+    },
+    // Shape elements
+    {
+      type: 'line',
+      label: 'Línea',
+      icon: '—',
+      description: 'Línea horizontal/vertical',
+      category: 'shape'
+    },
+    {
+      type: 'rectangle',
+      label: 'Rectángulo',
+      icon: '▢',
+      description: 'Rectángulo o cuadro',
+      category: 'shape'
+    },
+    {
+      type: 'rectangle',
+      label: 'Elipse',
+      icon: '⬭',
+      description: 'Elipse o círculo',
+      category: 'shape',
+      shapeType: 'ellipse'
+    },
+    {
+      type: 'rectangle',
+      label: 'Triángulo',
+      icon: '△',
+      description: 'Triángulo',
+      category: 'shape',
+      shapeType: 'triangle'
+    },
+    {
+      type: 'rectangle',
+      label: 'Diamante',
+      icon: '◇',
+      description: 'Rombo o diamante',
+      category: 'shape',
+      shapeType: 'diamond'
     }
   ];
 
@@ -93,8 +122,12 @@ export class ToolboxComponent {
     return this.tools.filter(t => t.category === 'data');
   }
 
-  get visualTools(): ToolItem[] {
-    return this.tools.filter(t => t.category === 'visual');
+  get shapeTools(): ToolItem[] {
+    return this.tools.filter(t => t.category === 'shape');
+  }
+
+  toggleShapes(): void {
+    this.shapesExpanded = !this.shapesExpanded;
   }
 
   /**
@@ -103,6 +136,9 @@ export class ToolboxComponent {
   onDragStart(event: DragEvent, tool: ToolItem): void {
     if (event.dataTransfer) {
       event.dataTransfer.setData('element-type', tool.type);
+      if (tool.shapeType) {
+        event.dataTransfer.setData('shape-type', tool.shapeType);
+      }
       event.dataTransfer.effectAllowed = 'copy';
     }
   }

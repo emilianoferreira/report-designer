@@ -866,8 +866,11 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
       yMm = snapToGrid(yMm, this.gridSizeMm);
     }
 
+    const shapeType = event.dataTransfer?.getData('shape-type') || undefined;
+
     this.ngZone.run(() => {
-      const newElement = createElement(elementType as any, { x: xMm, y: yMm });
+      const overrides = shapeType ? { shapeType } : undefined;
+      const newElement = createElement(elementType as any, { x: xMm, y: yMm }, overrides);
       this.templateState.addElement(section as any, newElement);
       this.selectionService.select(newElement.id, section);
       this.cdr.markForCheck();

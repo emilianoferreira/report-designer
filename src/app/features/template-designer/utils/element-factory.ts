@@ -16,7 +16,8 @@ import {
   BarcodeElement,
   TemplateElement,
   ElementType,
-  FontSettings
+  FontSettings,
+  ShapeType
 } from '../../../core/models/template.model';
 
 /**
@@ -251,6 +252,7 @@ function createRectangleElement(
     zIndex: 0,
     printOnly: false,
     screenOnly: false,
+    shapeType: (overrides?.shapeType as ShapeType) || 'rectangle',
     strokeColor: '#cccccc',
     strokeWidth: 0.3,
     strokeStyle: 'solid'

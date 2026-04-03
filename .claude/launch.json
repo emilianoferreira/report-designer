@@ -3,9 +3,15 @@
   "configurations": [
     {
       "name": "Angular Dev Server",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["start"],
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": ["-c", "export PATH=/Users/user/.nvm/versions/node/v18.20.4/bin:$PATH && npm start"],
       "port": 4200
+    },
+    {
+      "name": "NestJS API Server",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": ["-c", "export PATH=/Users/user/.nvm/versions/node/v18.20.4/bin:$PATH && npm run server"],
+      "port": 3000
     }
   ]
 }

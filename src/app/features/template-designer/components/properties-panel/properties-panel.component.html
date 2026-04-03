@@ -368,19 +368,91 @@
           </div>
         }
 
-        <!-- Background Color -->
-        <div class="field-group">
-          <label class="field-label">Fondo</label>
-          <div class="field-row compact">
-            <input
-              type="color"
-              class="field-input color-input"
-              [(ngModel)]="backgroundColor"
+        <!-- Shape Properties (rectangle/ellipse/triangle/diamond) -->
+        @if (selectedElement.type === 'rectangle') {
+          <div class="field-group">
+            <label class="field-label">Forma</label>
+            <select
+              class="field-input"
+              [(ngModel)]="shapeType"
               (change)="onFieldChange()"
-            />
-            <button class="small-btn" (click)="backgroundColor = ''; onFieldChange()" title="Sin fondo">✕</button>
+            >
+              <option value="rectangle">Rectángulo</option>
+              <option value="ellipse">Elipse</option>
+              <option value="triangle">Triángulo</option>
+              <option value="diamond">Diamante</option>
+            </select>
           </div>
-        </div>
+
+          <div class="field-group">
+            <label class="field-label">Relleno</label>
+            <div class="field-row compact">
+              <input
+                type="color"
+                class="field-input color-input"
+                [(ngModel)]="shapeFillColor"
+                (change)="onFieldChange()"
+              />
+              <button class="small-btn" (click)="shapeFillColor = ''; onFieldChange()" title="Sin relleno">✕</button>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Borde color</label>
+            <div class="field-row compact">
+              <input
+                type="color"
+                class="field-input color-input"
+                [(ngModel)]="shapeStrokeColor"
+                (change)="onFieldChange()"
+              />
+              <button class="small-btn" (click)="shapeStrokeColor = ''; onFieldChange()" title="Sin borde">✕</button>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field-group half">
+              <label class="field-label">Grosor</label>
+              <input
+                type="number"
+                class="field-input"
+                [(ngModel)]="shapeStrokeWidth"
+                (change)="onFieldChange()"
+                min="0.1"
+                max="5"
+                step="0.1"
+              />
+            </div>
+            <div class="field-group half">
+              <label class="field-label">Estilo borde</label>
+              <select
+                class="field-input"
+                [(ngModel)]="shapeStrokeStyle"
+                (change)="onFieldChange()"
+              >
+                <option value="solid">Sólido</option>
+                <option value="dashed">Guiones</option>
+                <option value="dotted">Puntos</option>
+              </select>
+            </div>
+          </div>
+        }
+
+        <!-- Background Color -->
+        @if (selectedElement.type !== 'rectangle') {
+          <div class="field-group">
+            <label class="field-label">Fondo</label>
+            <div class="field-row compact">
+              <input
+                type="color"
+                class="field-input color-input"
+                [(ngModel)]="backgroundColor"
+                (change)="onFieldChange()"
+              />
+              <button class="small-btn" (click)="backgroundColor = ''; onFieldChange()" title="Sin fondo">✕</button>
+            </div>
+          </div>
+        }
 
         <!-- Opacity -->
         <div class="field-group">

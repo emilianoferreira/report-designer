@@ -77,17 +77,17 @@ export class TemplateListComponent implements OnInit, OnDestroy {
     this.showForm = true;
   }
 
-  onFormSaved(data: MoldFormData): void {
+  async onFormSaved(data: MoldFormData): Promise<void> {
     if (this.editingMold) {
       // Edit mode
-      this.storage.updateMetadata(this.editingMold.id, {
+      await this.storage.updateMetadata(this.editingMold.id, {
         name: data.name,
         documentType: data.documentType,
         description: data.description
       });
     } else {
       // Create mode
-      const created = this.storage.create(data.name, data.documentType, data.description);
+      const created = await this.storage.create(data.name, data.documentType, data.description);
       // Navigate to the designer with the new mold
       this.router.navigate(['/designer', created.id]);
     }
@@ -104,17 +104,17 @@ export class TemplateListComponent implements OnInit, OnDestroy {
     this.router.navigate(['/designer', mold.id]);
   }
 
-  duplicateMold(mold: TemplateMold): void {
-    this.storage.duplicate(mold.id);
+  async duplicateMold(mold: TemplateMold): Promise<void> {
+    await this.storage.duplicate(mold.id);
   }
 
   requestDelete(mold: TemplateMold): void {
     this.confirmDeleteId = mold.id;
   }
 
-  confirmDelete(): void {
+  async confirmDelete(): Promise<void> {
     if (this.confirmDeleteId) {
-      this.storage.delete(this.confirmDeleteId);
+      await this.storage.delete(this.confirmDeleteId);
       this.confirmDeleteId = null;
     }
   }

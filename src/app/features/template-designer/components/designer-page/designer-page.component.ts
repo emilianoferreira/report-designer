@@ -132,10 +132,10 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
 
   // ─── Save ───
 
-  saveTemplate(): void {
+  async saveTemplate(): Promise<void> {
     if (!this.currentMold) return;
     const template = this.templateState.getCurrentTemplate();
-    const updated = this.templateStorage.saveTemplate(this.currentMold.id, template);
+    const updated = await this.templateStorage.saveTemplate(this.currentMold.id, template);
     if (updated) {
       this.currentMold = updated;
       this.initialTemplateJson = JSON.stringify(template);

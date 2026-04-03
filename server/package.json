@@ -1,0 +1,38 @@
+{
+  "name": "zureo-report-designer-api",
+  "version": "0.0.1",
+  "description": "Backend API for Zureo Report Designer",
+  "private": true,
+  "scripts": {
+    "build": "nest build",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "seed": "psql -d bd_dis_reportes -f ../database/001-schema.sql && psql -d bd_dis_reportes -f ../database/002-seed.sql && psql -d bd_dis_reportes -f ../database/003-view-invoice-data.sql",
+    "db:reset": "dropdb --if-exists bd_dis_reportes && createdb bd_dis_reportes && npm run seed",
+    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand --forceExit"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.4.0",
+    "@nestjs/config": "^3.2.0",
+    "@nestjs/core": "^10.4.0",
+    "@nestjs/platform-express": "^10.4.0",
+    "@nestjs/typeorm": "^10.0.2",
+    "pg": "^8.12.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.0",
+    "typeorm": "^0.3.20"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.4.0",
+    "@nestjs/testing": "^11.1.17",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.14.0",
+    "@types/supertest": "^7.2.0",
+    "jest": "^30.3.0",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.9",
+    "typescript": "~5.5.2"
+  }
+}

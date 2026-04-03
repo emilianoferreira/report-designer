@@ -37,11 +37,38 @@
   margin-bottom: 8px;
 }
 
+.category-toggle {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 0;
+  border-radius: 4px;
+  transition: color 0.15s;
+
+  &:hover {
+    color: #7B1FA2;
+  }
+}
+
+.toggle-icon {
+  font-size: 12px;
+  transition: transform 0.2s;
+
+  &.expanded {
+    transform: rotate(90deg);
+  }
+}
+
 // ─── Tool Grid ───
 .tool-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 6px;
+}
+
+.shapes-grid {
+  grid-template-columns: 1fr;
 }
 
 // ─── Tool Item ───

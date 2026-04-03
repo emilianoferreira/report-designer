@@ -23,7 +23,8 @@ import {
   RectangleElement,
   QRCodeElement,
   BarcodeElement,
-  FontSettings
+  FontSettings,
+  ShapeType
 } from '../../../../core/models/template.model';
 import { TemplateStateService } from '../../services/template-state.service';
 import { SelectionService } from '../../services/selection.service';
@@ -82,6 +83,13 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
   barcodeDataBinding = '';
   barcodeType: 'CODE128' | 'EAN13' | 'EAN8' | 'CODE39' = 'CODE128';
   barcodeShowText = true;
+
+  // Shape (rectangle element) specific
+  shapeType: ShapeType = 'rectangle';
+  shapeFillColor = '';
+  shapeStrokeColor = '#cccccc';
+  shapeStrokeWidth = 0.3;
+  shapeStrokeStyle: 'solid' | 'dashed' | 'dotted' = 'solid';
 
   // Available barcode types
   barcodeTypes = [
@@ -277,6 +285,14 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
       this.barcodeDataBinding = bc.dataBinding || '';
       this.barcodeType = bc.barcodeType || 'CODE128';
       this.barcodeShowText = bc.showText !== false;
+    }
+    if (el.type === 'rectangle') {
+      const rect = el as RectangleElement;
+      this.shapeType = rect.shapeType || 'rectangle';
+      this.shapeFillColor = rect.fillColor || '';
+      this.shapeStrokeColor = rect.strokeColor || '';
+      this.shapeStrokeWidth = rect.strokeWidth || 0.3;
+      this.shapeStrokeStyle = rect.strokeStyle || 'solid';
     }
   }
 
@@ -482,6 +498,13 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
       updates.barcodeType = this.barcodeType;
       updates.showText = this.barcodeShowText;
     }
+    if (this.selectedElement.type === 'rectangle') {
+      updates.shapeType = this.shapeType;
+      updates.fillColor = this.shapeFillColor || undefined;
+      updates.strokeColor = this.shapeStrokeColor || undefined;
+      updates.strokeWidth = this.shapeStrokeWidth;
+      updates.strokeStyle = this.shapeStrokeStyle;
+    }
 
     this.templateState.updateElement(
       this.activeSection as any,
@@ -570,7 +593,7 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
       formula: 'Fórmula',
       image: 'Imagen',
       line: 'Línea',
-      rectangle: 'Rectángulo',
+      rectangle: 'Forma',
       qrCode: 'Código QR',
       barcode: 'Código de Barras'
     };
