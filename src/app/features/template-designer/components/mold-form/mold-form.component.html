@@ -1,0 +1,48 @@
+<div class="mold-form-overlay" (click)="onCancel()">
+  <div class="mold-form-modal" (click)="$event.stopPropagation()">
+    <h2 class="form-title">{{ title }}</h2>
+
+    <div class="form-group">
+      <label class="form-label">Nombre <span class="required">*</span></label>
+      <input
+        type="text"
+        class="form-input"
+        [(ngModel)]="name"
+        placeholder="Ej: Factura Contado - Empresa"
+        maxlength="100"
+        autofocus
+      />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Tipo de comprobante</label>
+      <select class="form-input" [(ngModel)]="documentType">
+        @for (dt of documentTypes; track dt.value) {
+          <option [value]="dt.value">{{ dt.label }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Descripción</label>
+      <textarea
+        class="form-input form-textarea"
+        [(ngModel)]="description"
+        placeholder="Descripción opcional del molde"
+        rows="3"
+        maxlength="500"
+      ></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button class="form-btn cancel" (click)="onCancel()">Cancelar</button>
+      <button
+        class="form-btn primary"
+        (click)="onSubmit()"
+        [disabled]="!isValid"
+      >
+        {{ isEdit ? 'Guardar cambios' : 'Crear molde' }}
+      </button>
+    </div>
+  </div>
+</div>

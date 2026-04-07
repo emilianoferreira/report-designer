@@ -1,0 +1,87 @@
+<!-- Template List - Grid of saved molds -->
+<div class="template-list-page">
+
+  <!-- Header -->
+  <header class="list-header">
+    <div class="header-left">
+      <span class="app-logo">Diseñador</span>
+      <span class="header-separator">|</span>
+      <h1 class="page-title">Moldes de impresión</h1>
+    </div>
+    <div class="header-right">
+      <button class="btn-new" (click)="openNewForm()">
+        + Nuevo molde
+      </button>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <div class="list-content">
+    @if (molds.length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon">📄</div>
+        <h2 class="empty-title">No hay moldes creados</h2>
+        <p class="empty-text">Crea tu primer molde de impresión para diseñar facturas, tickets y otros comprobantes.</p>
+        <button class="btn-new btn-new-lg" (click)="openNewForm()">
+          + Crear primer molde
+        </button>
+      </div>
+    } @else {
+      <div class="mold-grid">
+        @for (mold of molds; track mold.id) {
+          <div class="mold-card" (dblclick)="openDesigner(mold)">
+            <div class="card-header">
+              <span class="card-doctype">{{ getDocTypeLabel(mold.documentType) }}</span>
+              <div class="card-menu">
+                <button class="card-action" title="Editar metadatos" (click)="openEditForm(mold); $event.stopPropagation()">
+                  ✏️
+                </button>
+                <button class="card-action" title="Duplicar" (click)="duplicateMold(mold); $event.stopPropagation()">
+                  📋
+                </button>
+                <button class="card-action delete" title="Eliminar" (click)="requestDelete(mold); $event.stopPropagation()">
+                  🗑️
+                </button>
+              </div>
+            </div>
+            <h3 class="card-name">{{ mold.name }}</h3>
+            @if (mold.description) {
+              <p class="card-description">{{ mold.description }}</p>
+            }
+            <div class="card-footer">
+              <span class="card-date">Modificado: {{ formatDate(mold.updatedAt) }}</span>
+              <button class="btn-open" (click)="openDesigner(mold)">
+                Editar
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Mold Form Modal -->
+  @if (showForm) {
+    <app-mold-form
+      [mold]="editingMold"
+      (saved)="onFormSaved($event)"
+      (cancelled)="onFormCancelled()"
+    />
+  }
+
+  <!-- Delete Confirmation Modal -->
+  @if (confirmDeleteId) {
+    <div class="delete-overlay" (click)="cancelDelete()">
+      <div class="delete-modal" (click)="$event.stopPropagation()">
+        <h3 class="delete-title">Eliminar molde</h3>
+        <p class="delete-text">
+          Esta acción eliminará el molde y su diseño de forma permanente. No se puede deshacer.
+        </p>
+        <div class="delete-actions">
+          <button class="form-btn cancel" (click)="cancelDelete()">Cancelar</button>
+          <button class="form-btn danger" (click)="confirmDelete()">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

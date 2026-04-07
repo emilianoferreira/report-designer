@@ -1,0 +1,63 @@
+<!-- Toolbox - Draggable element tools organized by category -->
+<div class="toolbox">
+  <h3 class="toolbox-title">Herramientas</h3>
+
+  <!-- Basic Elements -->
+  <div class="tool-category">
+    <div class="category-label">Básicos</div>
+    <div class="tool-grid">
+      @for (tool of basicTools; track tool.label) {
+        <div
+          class="tool-item"
+          draggable="true"
+          (dragstart)="onDragStart($event, tool)"
+          [title]="tool.description"
+        >
+          <div class="tool-icon">{{ tool.icon }}</div>
+          <div class="tool-label">{{ tool.label }}</div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Data Elements -->
+  <div class="tool-category">
+    <div class="category-label">Datos</div>
+    <div class="tool-grid">
+      @for (tool of dataTools; track tool.label) {
+        <div
+          class="tool-item"
+          draggable="true"
+          (dragstart)="onDragStart($event, tool)"
+          [title]="tool.description"
+        >
+          <div class="tool-icon">{{ tool.icon }}</div>
+          <div class="tool-label">{{ tool.label }}</div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Shape Elements (collapsible) -->
+  <div class="tool-category">
+    <div class="category-label category-toggle" (click)="toggleShapes()">
+      <span>Formas</span>
+      <span class="toggle-icon" [class.expanded]="shapesExpanded">▸</span>
+    </div>
+    @if (shapesExpanded) {
+      <div class="tool-grid shapes-grid">
+        @for (tool of shapeTools; track tool.label) {
+          <div
+            class="tool-item"
+            draggable="true"
+            (dragstart)="onDragStart($event, tool)"
+            [title]="tool.description"
+          >
+            <div class="tool-icon">{{ tool.icon }}</div>
+            <div class="tool-label">{{ tool.label }}</div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>
