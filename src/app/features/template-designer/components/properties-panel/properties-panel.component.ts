@@ -482,9 +482,11 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
       updates.expression = this.formulaExpression;
     }
     if (this.selectedElement.type === 'image') {
+      const img = this.selectedElement as ImageElement;
       updates.source = {
-        ...(this.selectedElement as ImageElement).source,
-        url: this.imageUrl
+        ...img.source,
+        url: this.imageUrl,
+        type: this.imageUrl ? 'static' : (img.source.binding ? 'dataField' : 'static'),
       };
     }
     if (this.selectedElement.type === 'qrCode') {

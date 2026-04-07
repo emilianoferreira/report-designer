@@ -65,8 +65,8 @@ $margin-color: rgba(255, 0, 0, 0.08);
 
   &.active {
     background: #F3E5F5;
-    border-color: #7B1FA2;
-    color: #6A1B9A;
+    border-color: #4b0534;
+    color: #66164b;
   }
 }
 
@@ -107,7 +107,7 @@ $margin-color: rgba(255, 0, 0, 0.08);
   outline: none;
 
   &:focus {
-    border-color: #7B1FA2;
+    border-color: #4b0534;
   }
 }
 
@@ -123,7 +123,7 @@ $margin-color: rgba(255, 0, 0, 0.08);
   outline: none;
 
   &:focus {
-    border-color: #7B1FA2;
+    border-color: #4b0534;
   }
 
   // Hide number spinners
@@ -312,7 +312,7 @@ $margin-color: rgba(255, 0, 0, 0.08);
 
   .section-area.active & {
     background: #F3E5F5;
-    color: #6A1B9A;
+    color: #66164b;
     border-color: #BA68C8;
   }
 }
@@ -327,7 +327,7 @@ $margin-color: rgba(255, 0, 0, 0.08);
 // ─── Marquee Overlay ───
 .marquee-overlay {
   position: absolute;
-  border: 1px solid #7B1FA2;
+  border: 1px solid #4b0534;
   background: rgba(123, 31, 162, 0.08);
   pointer-events: none;
   z-index: 9998;
@@ -341,8 +341,8 @@ $margin-color: rgba(255, 0, 0, 0.08);
   height: 1px;
   background: repeating-linear-gradient(
     90deg,
-    #7B1FA2 0,
-    #7B1FA2 4px,
+    #4b0534 0,
+    #4b0534 4px,
     transparent 4px,
     transparent 8px
   );

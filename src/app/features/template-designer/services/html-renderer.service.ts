@@ -823,7 +823,8 @@ ${footerHtml}
     data: InvoiceData, opts: RenderOptions
   ): string {
     let src = '';
-    if (el.source.type === 'static' && el.source.url) {
+    if (el.source.url) {
+      // Static URL always takes priority
       src = el.source.url;
     } else if (el.source.type === 'dataField' && el.source.binding && opts.resolveData) {
       src = this.resolveBinding(el.source.binding, data) || '';

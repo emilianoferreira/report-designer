@@ -20,7 +20,7 @@
 .form-title {
   font-size: 18px;
   font-weight: 700;
-  color: #4A148C;
+  color: #4b0534;
   margin: 0 0 20px 0;
 }
 
@@ -53,7 +53,7 @@
   transition: border-color 0.15s;
 
   &:focus {
-    border-color: #7B1FA2;
+    border-color: #66164b;
     box-shadow: 0 0 0 2px rgba(123, 31, 162, 0.1);
   }
 }
@@ -90,11 +90,11 @@
   }
 
   &.primary {
-    background: #7B1FA2;
+    background: #66164b;
     color: #fff;
 
     &:hover {
-      background: #6A1B9A;
+      background: #4b0534;
     }
 
     &:disabled {

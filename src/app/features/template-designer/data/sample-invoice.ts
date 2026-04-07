@@ -71,7 +71,7 @@ export const SAMPLE_INVOICE_DATA: InvoiceData = {
     RUT: '21-123456-0012',
     Direccion: 'Av. 18 de Julio 1234',
     Ciudad: 'Montevideo',
-    logoUrl: ''
+    logoUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCAxMDAgNDAiPjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iNDAiIGZpbGw9IiMzMzY2Y2MiIHJ4PSI0Ii8+PHRleHQgeD0iNTAiIHk9IjI1IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTYiIGZvbnQtd2VpZ2h0PSJib2xkIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TE9HTzwvdGV4dD48L3N2Zz4='
   },
 
   // ─── Contexto adicional Zureo ───

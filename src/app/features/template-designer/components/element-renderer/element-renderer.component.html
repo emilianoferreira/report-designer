@@ -43,7 +43,7 @@
   <!-- Image Element -->
   @if (element.type === 'image') {
     <div class="element-content image-element">
-      @if (asImage.source.type === 'static' && asImage.source.url) {
+      @if (asImage.source.url) {
         <img
           [src]="asImage.source.url"
           [alt]="element.name"

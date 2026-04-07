@@ -35,7 +35,16 @@
       "Bash(find /Users/user/Documents/GitHub/zureo-report-designer/src -name test.ts -o -name *.spec.ts -o -name karma.conf.js)",
       "Bash(done)",
       "Bash(npm i:*)",
-      "Bash(grep -A5 -B5 \"destroyComponent\\\\|destroy$\\\\|takeUntil\" /Users/user/Documents/GitHub/zureo-report-designer/src/app/features/template-designer/components/preview/preview.component.ts)"
+      "Bash(grep -A5 -B5 \"destroyComponent\\\\|destroy$\\\\|takeUntil\" /Users/user/Documents/GitHub/zureo-report-designer/src/app/features/template-designer/components/preview/preview.component.ts)",
+      "Bash(find /Users/user/Documents/GitHub/zureo-report-designer -type f -name *toolbox*)",
+      "Bash(find /Users/user/Documents/GitHub/zureo-report-designer/src -type f \\\\\\(-name *.service.ts -o -name *database* -o -name *db* -o -name *config* \\\\\\))",
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
+      "Bash(npx tsc:*)",
+      "Bash(pg_isready)",
+      "Bash(psql -l)",
+      "Bash(psql -d bd_dis_reportes -c \"\\\\dt\")",
+      "Bash(psql -d bd_dis_reportes -c \"SELECT count\\(*\\) FROM invoices;\" -c \"SELECT count\\(*\\) FROM companies;\" -c \"SELECT count\\(*\\) FROM report_templates;\")",
+      "Bash(npx nest:*)"
     ]
   }
 }
