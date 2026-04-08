@@ -6,27 +6,27 @@ Diseñador visual de plantillas de impresion para el ERP Zureo. Permite crear, e
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Frontend (Angular 18)                     │
-│                        http://localhost:4200                      │
-│  ┌──────────┐  ┌──────────────┐  ┌───────────┐  ┌───────────┐  │
-│  │ Template  │  │   Design     │  │Properties │  │  Preview   │  │
-│  │   List    │→ │   Canvas     │  │  Panel    │  │  (HTML)    │  │
-│  └──────────┘  │  (interact.js)│  └───────────┘  └───────────┘  │
-│                └──────────────┘                                  │
-│  Services: TemplateState | Selection | HtmlRenderer | Storage    │
+│                        Frontend (Angular 18)                    │
+│                        http://localhost:4200                    │
+│  ┌──────────┐  ┌──────────────┐  ┌───────────┐  ┌───────────┐   │
+│  │ Template │  │   Design     │  │Properties │  │  Preview  │   │
+│  │   List   │→ │   Canvas     │  │  Panel    │  │  (HTML)   │   │
+│  └──────────┘  │ (interact.js)│  └───────────┘  └───────────┘   │
+│                └──────────────┘                                 │
+│  Services: TemplateState | Selection | HtmlRenderer | Storage   │
 └──────────────────────┬──────────────────────────────────────────┘
                        │ /api/* (proxy)
 ┌──────────────────────▼──────────────────────────────────────────┐
-│                    Backend (NestJS 10)                            │
-│                    http://localhost:3000                           │
-│  Modules: Templates (CRUD) | Invoices (datos de prueba)          │
-│  Entities: Company, Invoice, Article, Contact, Currency, ...     │
+│                    Backend (NestJS 10)                          │
+│                    http://localhost:3000                        │
+│  Modules: Templates (CRUD) | Invoices (datos de prueba)         │
+│  Entities: Company, Invoice, Article, Contact, Currency, ...    │
 └──────────────────────┬──────────────────────────────────────────┘
                        │ TypeORM
 ┌──────────────────────▼──────────────────────────────────────────┐
-│                    PostgreSQL 16                                  │
-│                    bd_dis_reportes                                │
-│  Funcion: build_invoice_data() → JSON para renderizado           │
+│                    PostgreSQL 16                                │
+│                    bd_dis_reportes                              │
+│  Funcion: build_invoice_data() → JSON para renderizado          │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -237,15 +237,15 @@ npm run test:e2e
 
 El seed carga las siguientes entidades de ejemplo:
 
-| Entidad        | Cantidad | Detalles                                           |
-|----------------|----------|-----------------------------------------------------|
-| Empresas       | 2        | Soluciones Tech S.A., Distribuidora del Este S.R.L. |
+| Entidad        | Cantidad | Detalles                                                     |
+|----------------|----------|--------------------------------------------------------------|
+| Empresas       | 2        | Soluciones Tech S.A., Distribuidora del Este S.R.L.          |
 | Sucursales     | 3        | Casa Central + Sucursal Pocitos (Tech), Casa Central (Dist.) |
-| Contactos      | 6        | Clientes de ambas empresas                          |
-| Monedas        | 3        | UYU, USD, EUR                                       |
-| Tipos factura  | 5        | Venta contado, credito, e-Factura, e-Ticket         |
-| Articulos      | 13       | Notebooks, monitores, agua, etc.                    |
-| Facturas       | 5        | Contado, credito, dto global, USD, distribuidora    |
+| Contactos      | 6        | Clientes de ambas empresas                                   |
+| Monedas        | 3        | UYU, USD, EUR                                                |
+| Tipos factura  | 5        | Venta contado, credito, e-Factura, e-Ticket                  |
+| Articulos      | 13       | Notebooks, monitores, agua, etc.                             |
+| Facturas       | 5        | Contado, credito, dto global, USD, distribuidora             |
 
 ID de empresa por defecto: `c1000000-0000-0000-0000-000000000001`
 
