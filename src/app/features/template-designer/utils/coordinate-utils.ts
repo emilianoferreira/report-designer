@@ -243,17 +243,17 @@ export const A4_DIMENSIONS_PX = {
 // SNAP ENGINE
 // ============================================================================
 
-import { GuideLine, TemplateElement } from '../../../core/models/template.model';
+import { TemplateElement } from '../../../core/models/template.model';
 
 export interface SnapCandidate {
   value: number;       // mm position of the snap target
-  source: 'grid' | 'guide' | 'element';
+  source: 'grid' | 'element';
 }
 
 export interface SnapLine {
   orientation: 'horizontal' | 'vertical';
   position: number;    // mm
-  source: 'guide' | 'element';
+  source: 'element';
 }
 
 export interface SnapResult {
@@ -264,34 +264,21 @@ export interface SnapResult {
 
 export interface SnapSettings {
   snapToGrid: boolean;
-  snapToGuide: boolean;
   snapToElement: boolean;
   thresholdMm: number;
 }
 
 /**
- * Collect all snap candidates from guides and sibling elements.
+ * Collect all snap candidates from sibling elements.
  * Horizontal candidates = Y-axis snap targets, Vertical candidates = X-axis snap targets.
  */
 export function collectSnapCandidates(
   elements: TemplateElement[],
-  guides: GuideLine[],
   excludeIds: Set<string>,
   settings: SnapSettings
 ): { horizontal: SnapCandidate[]; vertical: SnapCandidate[] } {
   const horizontal: SnapCandidate[] = [];
   const vertical: SnapCandidate[] = [];
-
-  if (settings.snapToGuide) {
-    for (const guide of guides) {
-      const candidate: SnapCandidate = { value: guide.position, source: 'guide' };
-      if (guide.orientation === 'horizontal') {
-        horizontal.push(candidate);
-      } else {
-        vertical.push(candidate);
-      }
-    }
-  }
 
   if (settings.snapToElement) {
     for (const el of elements) {
@@ -344,7 +331,7 @@ function findBestSnap(
 
 /**
  * Compute snapped position for an element given all snap candidates.
- * Falls back to grid snap if no guide/element snap matched.
+ * Falls back to grid snap if no element snap matched.
  */
 export function computeSnap(
   proposedPos: { x: number; y: number },
@@ -364,7 +351,7 @@ export function computeSnap(
     snapLines.push({
       orientation: 'vertical',
       position: xSnap.matched.value,
-      source: xSnap.matched.source as 'guide' | 'element'
+      source: 'element'
     });
   } else if (useGridSnap) {
     finalX = snapToGrid(proposedPos.x, gridSizeMm);
@@ -378,7 +365,7 @@ export function computeSnap(
     snapLines.push({
       orientation: 'horizontal',
       position: ySnap.matched.value,
-      source: ySnap.matched.source as 'guide' | 'element'
+      source: 'element'
     });
   } else if (useGridSnap) {
     finalY = snapToGrid(proposedPos.y, gridSizeMm);

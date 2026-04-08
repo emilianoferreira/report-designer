@@ -1,60 +1,88 @@
-<!-- Preview Component - Shows rendered HTML output -->
+<!-- Preview Component - Shows rendered HTML output + export/copy hub -->
 <div class="preview-container">
 
-  <!-- Toolbar -->
+  <!-- Toolbar — single row: zoom · datos · imprimir · vista · exportar · copiar -->
   <div class="preview-toolbar">
-    <div class="toolbar-group">
-      <button class="toolbar-btn" (click)="zoomOut()">−</button>
-      <span class="zoom-label">{{ (zoom * 100) | number:'1.0-0' }}%</span>
-      <button class="toolbar-btn" (click)="zoomIn()">+</button>
-    </div>
+    <div class="toolbar-row">
+      <div class="toolbar-group">
+        <button class="toolbar-btn" (click)="zoomOut()">−</button>
+        <span class="zoom-label">{{ (zoom * 100) | number:'1.0-0' }}%</span>
+        <button class="toolbar-btn" (click)="zoomIn()">+</button>
+      </div>
 
-    <div class="toolbar-group">
-      <button
-        class="toolbar-btn"
-        [class.active]="sampleDataMode === 'multi'"
-        (click)="toggleSampleData()"
-      >
-        {{ sampleDataMode === 'single' ? '1 artículo' : '5 artículos' }}
-      </button>
-    </div>
+      <div class="toolbar-group">
+        <button
+          class="toolbar-btn"
+          [class.active]="sampleDataMode === 'multi'"
+          (click)="toggleSampleData()"
+        >
+          {{ sampleDataMode === 'single' ? '1 artículo' : '5 artículos' }}
+        </button>
+      </div>
 
-    <div class="toolbar-group">
-      <button class="toolbar-btn" (click)="toggleRawHtml()">
-        {{ showRawHtml ? 'Preview' : 'HTML' }}
-      </button>
-      <button class="toolbar-btn" (click)="printPreview()">
-        Imprimir
-      </button>
-    </div>
+      <div class="toolbar-group">
+        <button class="toolbar-btn" (click)="printPreview()">Imprimir</button>
+      </div>
 
-    <div class="toolbar-group">
-      <button class="toolbar-btn primary" (click)="exportHtmlTemplate()">
-        Exportar Template
-      </button>
-      <button class="toolbar-btn" (click)="exportRenderedHtml()">
-        Exportar HTML
-      </button>
+      <div class="toolbar-group">
+        <span class="toolbar-label">Vista:</span>
+        <button class="toolbar-btn" [class.active]="viewMode === 'render'" (click)="setViewMode('render')">Render</button>
+        <button class="toolbar-btn" [class.active]="viewMode === 'html'"   (click)="setViewMode('html')">HTML</button>
+        <button class="toolbar-btn" [class.active]="viewMode === 'json'"   (click)="setViewMode('json')">JSON</button>
+      </div>
+
+      <div class="toolbar-group">
+        <span class="toolbar-label">Exportar:</span>
+        <button class="toolbar-btn" (click)="exportHtmlRendered()" title="Descargar HTML con datos resueltos">HTML render</button>
+        <button class="toolbar-btn" (click)="exportHtmlTemplate()" title="Descargar HTML con directivas z-code para el motor PDF de Zureo">HTML z-code</button>
+        <button class="toolbar-btn" (click)="exportJson()" title="Descargar la definición del template como JSON">JSON</button>
+      </div>
+
+      <div class="toolbar-group">
+        <span class="toolbar-label">Copiar:</span>
+        <button class="toolbar-btn" (click)="copyHtmlRendered()" title="Copiar HTML con datos resueltos al portapapeles">HTML render</button>
+        <button class="toolbar-btn" (click)="copyHtmlTemplate()" title="Copiar HTML z-code al portapapeles">HTML z-code</button>
+        <button class="toolbar-btn" (click)="copyJson()" title="Copiar la definición del template (JSON) al portapapeles">JSON</button>
+
+        @if (copyStatus !== 'idle') {
+          <span
+            class="copy-toast"
+            [class.success]="copyStatus === 'success'"
+            [class.error]="copyStatus === 'error'"
+          >
+            {{ copyStatusMessage }}
+          </span>
+        }
+      </div>
     </div>
   </div>
 
-  <!-- Preview content -->
+  <!-- Preview content — switches by viewMode -->
   <div class="preview-body">
-    @if (!showRawHtml) {
-      <!-- Rendered preview in iframe -->
-      <div class="preview-frame-wrapper" [style.transform]="'scale(' + zoom + ')'" [style.transform-origin]="'top center'">
-        <iframe
-          #previewFrame
-          class="preview-frame"
-          sandbox="allow-same-origin allow-scripts"
-          title="Vista previa"
-        ></iframe>
-      </div>
-    } @else {
-      <!-- Raw HTML source -->
-      <div class="raw-html-wrapper">
-        <pre class="raw-html">{{ rawHtml }}</pre>
-      </div>
+    @switch (viewMode) {
+      @case ('render') {
+        <div
+          class="preview-frame-wrapper"
+          [style.width.px]="pageWidthPx"
+          [style.transform]="'scale(' + zoom + ')'"
+          [style.transform-origin]="'top center'"
+        >
+          <iframe
+            #previewFrame
+            class="preview-frame"
+            [style.width.px]="pageWidthPx"
+            [style.height.px]="pageHeightPx"
+            sandbox="allow-same-origin allow-scripts"
+            title="Vista previa"
+          ></iframe>
+        </div>
+      }
+      @case ('html') {
+        <pre class="raw-block">{{ previewHtml }}</pre>
+      }
+      @case ('json') {
+        <pre class="raw-block">{{ templateJson }}</pre>
+      }
     }
   </div>
 </div>

@@ -585,4 +585,111 @@ describe('TemplateStateService', () => {
       sub.unsubscribe();
     });
   });
+
+  // ─── moveElementToSection ───
+
+  describe('moveElementToSection', () => {
+    it('should move an element from header to detail', () => {
+      const el = createElement('dataField', { x: 10, y: 10 });
+      service.addElement('header', el);
+      const headerBefore = service.getElements('header').length;
+      const detailBefore = service.getElements('detail').length;
+
+      service.moveElementToSection('header', 'detail', el.id, { x: 20, y: 5 });
+
+      expect(service.getElements('header').length).toBe(headerBefore - 1);
+      expect(service.getElements('detail').length).toBe(detailBefore + 1);
+      expect(service.getElement('header', el.id)).toBeUndefined();
+      const moved = service.getElement('detail', el.id);
+      expect(moved).toBeDefined();
+      expect(moved!.position).toEqual({ x: 20, y: 5 });
+    });
+
+    it('should behave like updateElement when from === to', () => {
+      const el = createElement('text', { x: 10, y: 10 });
+      service.addElement('header', el);
+      const countBefore = service.getElements('header').length;
+
+      service.moveElementToSection('header', 'header', el.id, { x: 30, y: 15 });
+
+      expect(service.getElements('header').length).toBe(countBefore); // no duplicate
+      const updated = service.getElement('header', el.id);
+      expect(updated!.position).toEqual({ x: 30, y: 15 });
+    });
+
+    it('should be undoable', () => {
+      const el = createElement('dataField', { x: 5, y: 5 });
+      service.addElement('header', el);
+      service.moveElementToSection('header', 'footer', el.id, { x: 1, y: 1 });
+
+      expect(service.getElement('footer', el.id)).toBeDefined();
+      expect(service.getElement('header', el.id)).toBeUndefined();
+
+      service.undo();
+
+      expect(service.getElement('header', el.id)).toBeDefined();
+      expect(service.getElement('footer', el.id)).toBeUndefined();
+
+      service.redo();
+
+      expect(service.getElement('footer', el.id)).toBeDefined();
+      expect(service.getElement('header', el.id)).toBeUndefined();
+    });
+
+    it('should produce a single emission (atomic)', () => {
+      const el = createElement('text', { x: 0, y: 0 });
+      service.addElement('header', el);
+
+      let emissions = 0;
+      const sub = service.template$.subscribe(() => emissions++);
+      emissions = 0;
+
+      service.moveElementToSection('header', 'detail', el.id, { x: 5, y: 5 });
+
+      expect(emissions).toBe(1);
+      sub.unsubscribe();
+    });
+
+    it('should no-op when the element does not exist', () => {
+      const before = JSON.stringify(service.getCurrentTemplate());
+      expect(() => service.moveElementToSection('header', 'detail', 'missing-id', { x: 0, y: 0 })).not.toThrow();
+      expect(JSON.stringify(service.getCurrentTemplate())).toBe(before);
+    });
+  });
+
+  // ─── moveMultipleElementsToSection ───
+
+  describe('moveMultipleElementsToSection', () => {
+    it('should move multiple elements atomically across sections', () => {
+      const a = createElement('text', { x: 0, y: 0 });
+      const b = createElement('dataField', { x: 0, y: 0 });
+      service.addElement('header', a);
+      service.addElement('header', b);
+      const headerBefore = service.getElements('header').length;
+      const detailBefore = service.getElements('detail').length;
+
+      service.moveMultipleElementsToSection('header', 'detail', [
+        { id: a.id, position: { x: 10, y: 10 } },
+        { id: b.id, position: { x: 20, y: 20 } }
+      ]);
+
+      expect(service.getElements('header').length).toBe(headerBefore - 2);
+      expect(service.getElements('detail').length).toBe(detailBefore + 2);
+      expect(service.getElement('detail', a.id)!.position).toEqual({ x: 10, y: 10 });
+      expect(service.getElement('detail', b.id)!.position).toEqual({ x: 20, y: 20 });
+    });
+
+    it('should degrade to updateMultipleElements when from === to', () => {
+      const a = createElement('text', { x: 0, y: 0 });
+      service.addElement('header', a);
+      const count = service.getElements('header').length;
+
+      service.moveMultipleElementsToSection('header', 'header', [
+        { id: a.id, position: { x: 42, y: 42 } }
+      ]);
+
+      expect(service.getElements('header').length).toBe(count);
+      expect(service.getElement('header', a.id)!.position).toEqual({ x: 42, y: 42 });
+    });
+  });
 });

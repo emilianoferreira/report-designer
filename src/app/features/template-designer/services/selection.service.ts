@@ -53,12 +53,15 @@ export class SelectionService {
   }
 
   /**
-   * Select a single element, deselecting others
+   * Select a single element, deselecting others.
+   * No-ops if the element is already the sole current selection.
    */
   select(elementId: string, section?: 'header' | 'detail' | 'footer'): void {
-    if (section) {
+    if (section && section !== this.activeSectionSubject.getValue()) {
       this.activeSectionSubject.next(section);
     }
+    const current = this.selectedIdsSubject.getValue();
+    if (current.size === 1 && current.has(elementId)) return;
     this.selectedIdsSubject.next(new Set([elementId]));
   }
 
@@ -80,11 +83,25 @@ export class SelectionService {
   }
 
   /**
-   * Select multiple elements
+   * Select multiple elements.
+   *
+   * If the incoming id list is equivalent to the current selection (same
+   * size and same members) this is a no-op — important because marquee
+   * selection calls this on every mousemove and we don't want to emit a
+   * cascade of observable updates (and the downstream CD) when nothing
+   * actually changed.
    */
   selectMultiple(elementIds: string[], section?: 'header' | 'detail' | 'footer'): void {
-    if (section) {
+    if (section && section !== this.activeSectionSubject.getValue()) {
       this.activeSectionSubject.next(section);
+    }
+    const current = this.selectedIdsSubject.getValue();
+    if (current.size === elementIds.length) {
+      let same = true;
+      for (const id of elementIds) {
+        if (!current.has(id)) { same = false; break; }
+      }
+      if (same) return;
     }
     this.selectedIdsSubject.next(new Set(elementIds));
   }

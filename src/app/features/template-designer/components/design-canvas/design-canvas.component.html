@@ -53,14 +53,6 @@
       </button>
       <button
         class="toolbar-btn"
-        [class.active]="snapSettings.snapToGuide"
-        (click)="snapSettings.snapToGuide = !snapSettings.snapToGuide"
-        title="Ajustar a guías"
-      >
-        Guías
-      </button>
-      <button
-        class="toolbar-btn"
         [class.active]="snapSettings.snapToElement"
         (click)="snapSettings.snapToElement = !snapSettings.snapToElement"
         title="Ajustar a otros elementos"
@@ -109,9 +101,8 @@
   <!-- ─── Scroll area ─── -->
   <div class="canvas-scroll-area" #scrollArea>
 
-    <!-- ─── Horizontal Ruler (drag down to create horizontal guide) ─── -->
-    <div class="ruler ruler-horizontal" [style.width.px]="pageWidthPx * zoom + 40"
-         (mousedown)="onHorizontalRulerMouseDown($event)">
+    <!-- ─── Horizontal Ruler ─── -->
+    <div class="ruler ruler-horizontal" [style.width.px]="pageWidthPx * zoom + 40">
       <div class="ruler-offset"></div>
       <div class="ruler-track" [style.transform]="'scaleX(' + zoom + ')'">
         @for (mark of horizontalMarks; track mark) {
@@ -129,9 +120,8 @@
     </div>
 
     <div class="canvas-body">
-      <!-- ─── Vertical Ruler (drag right to create vertical guide) ─── -->
-      <div class="ruler ruler-vertical" [style.height.px]="pageHeightPx * zoom + 10"
-           (mousedown)="onVerticalRulerMouseDown($event)">
+      <!-- ─── Vertical Ruler ─── -->
+      <div class="ruler ruler-vertical" [style.height.px]="pageHeightPx * zoom + 10">
         <div class="ruler-track" [style.transform]="'scaleY(' + zoom + ')'">
           @for (mark of verticalMarks; track mark) {
             <div
@@ -173,30 +163,6 @@
           [style.right.px]="mmToPx(template.page.margins.right)"
           [style.bottom.px]="mmToPx(template.page.margins.bottom)"
         ></div>
-
-        <!-- User guide lines -->
-        @for (guide of (template.page.guides || []); track guide.id) {
-          <div
-            class="guide-line"
-            [class.horizontal]="guide.orientation === 'horizontal'"
-            [class.vertical]="guide.orientation === 'vertical'"
-            [style.top.px]="guide.orientation === 'horizontal' ? mmToPx(guide.position) : 0"
-            [style.left.px]="guide.orientation === 'vertical' ? mmToPx(guide.position) : 0"
-            (mousedown)="onGuideMouseDown($event, guide)"
-            (dblclick)="onGuideDoubleClick(guide)"
-          ></div>
-        }
-
-        <!-- Guide creation preview -->
-        @if (guideCreationState) {
-          <div
-            class="guide-line creating"
-            [class.horizontal]="guideCreationState.orientation === 'horizontal'"
-            [class.vertical]="guideCreationState.orientation === 'vertical'"
-            [style.top.px]="guideCreationState.orientation === 'horizontal' ? mmToPx(guideCreationState.currentPositionMm) : 0"
-            [style.left.px]="guideCreationState.orientation === 'vertical' ? mmToPx(guideCreationState.currentPositionMm) : 0"
-          ></div>
-        }
 
         <!-- Smart snap lines (ephemeral during element drag) -->
         @for (line of activeSnapLines; track $index) {

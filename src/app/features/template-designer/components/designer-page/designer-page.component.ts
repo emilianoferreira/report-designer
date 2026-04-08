@@ -14,7 +14,6 @@ import { PropertiesPanelComponent } from '../properties-panel/properties-panel.c
 import { PreviewComponent } from '../preview/preview.component';
 import { TemplateStateService } from '../../services/template-state.service';
 import { TemplateStorageService } from '../../services/template-storage.service';
-import { HtmlRendererService } from '../../services/html-renderer.service';
 import { TemplateMold } from '../../../../core/models/template.model';
 import { HasUnsavedChanges } from '../../guards/unsaved-changes.guard';
 
@@ -62,6 +61,7 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
     { id: 'selection', label: 'Seleccionar y mover' },
     { id: 'paper', label: 'Tamaño de papel' },
     { id: 'zoom', label: 'Zoom y navegación' },
+    { id: 'grid', label: 'Grilla y snap' },
     { id: 'properties', label: 'Propiedades' },
     { id: 'data', label: 'Campos de datos' },
     { id: 'export', label: 'Exportación' },
@@ -74,7 +74,6 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
   constructor(
     private templateState: TemplateStateService,
     private templateStorage: TemplateStorageService,
-    private htmlRenderer: HtmlRendererService,
     private route: ActivatedRoute,
     private router: Router,
     private cdr: ChangeDetectorRef
@@ -182,33 +181,7 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
     this.viewMode = mode;
   }
 
-  /**
-   * Export template JSON (for debug/development)
-   */
-  exportTemplateJson(): void {
-    const template = this.templateState.getCurrentTemplate();
-    const json = JSON.stringify(template, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${template.metadata.name || 'template'}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  /**
-   * Export as HTML template with Zureo directives
-   */
-  exportHtmlTemplate(): void {
-    const template = this.templateState.getCurrentTemplate();
-    const html = this.htmlRenderer.exportAsZureoTemplate(template);
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${template.metadata.name || 'template'}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+  // Note: JSON / HTML export was moved to PreviewComponent to centralize
+  // all export & copy actions in a single place. The header now only shows
+  // Guardar + Info; the user goes to "Vista Previa" to export.
 }

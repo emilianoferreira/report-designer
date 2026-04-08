@@ -351,53 +351,6 @@ $margin-color: rgba(255, 0, 0, 0.08);
   z-index: 3;
 }
 
-// ─── Guide Lines ───
-.guide-line {
-  position: absolute;
-  z-index: 4;
-  pointer-events: auto;
-
-  &.horizontal {
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: #00BCD4;
-    cursor: ns-resize;
-
-    // Expand hit area for easier grabbing
-    &::before {
-      content: '';
-      position: absolute;
-      top: -3px;
-      left: 0;
-      right: 0;
-      height: 7px;
-    }
-  }
-
-  &.vertical {
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: #00BCD4;
-    cursor: ew-resize;
-
-    &::before {
-      content: '';
-      position: absolute;
-      left: -3px;
-      top: 0;
-      bottom: 0;
-      width: 7px;
-    }
-  }
-
-  &.creating {
-    opacity: 0.6;
-    pointer-events: none;
-  }
-}
-
 // ─── Smart Guide Lines (ephemeral snap indicators) ───
 .smart-guide-line {
   position: absolute;

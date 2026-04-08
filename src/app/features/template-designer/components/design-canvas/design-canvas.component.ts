@@ -17,25 +17,30 @@ import {
   HostListener
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subject, takeUntil, combineLatest } from 'rxjs';
+import { Subject, takeUntil } from 'rxjs';
+import { distinctUntilChanged } from 'rxjs/operators';
 import {
   ReportTemplate,
   TemplateElement,
-  PageSettings,
-  GuideLine
+  PageSettings
 } from '../../../../core/models/template.model';
 import { TemplateStateService } from '../../services/template-state.service';
 import { SelectionService } from '../../services/selection.service';
 import {
   mmToPx, pxToMm, snapToGrid, PAPER_PRESETS, PaperPreset,
-  SnapLine, SnapSettings, collectSnapCandidates, computeSnap
+  SnapLine, SnapCandidate, SnapSettings, collectSnapCandidates, computeSnap
 } from '../../utils/coordinate-utils';
 import { createElement } from '../../utils/element-factory';
-import { v4 as uuid } from 'uuid';
 import { FormsModule } from '@angular/forms';
 import { ElementRendererComponent } from '../element-renderer/element-renderer.component';
 
 type SectionKey = 'header' | 'detail' | 'footer';
+
+/** Cached snap candidates valid for the entire drag duration */
+interface CachedSnapCandidates {
+  horizontal: SnapCandidate[];
+  vertical: SnapCandidate[];
+}
 
 /** Tracks an active drag or resize operation (single element) */
 interface DragState {
@@ -54,6 +59,10 @@ interface DragState {
   currentDy: number;
   currentWidth: number;   // in px, for resize visual feedback
   currentHeight: number;  // in px, for resize visual feedback
+  /** Cached snap candidates (other elements don't move during drag) */
+  snapCandidates: CachedSnapCandidates;
+  /** Cached size at drag start (avoid repeated getElement lookups in mousemove) */
+  cachedSize: { width: number; height: number };
 }
 
 /** Tracks a multi-element move operation */
@@ -66,6 +75,8 @@ interface MultiDragState {
   startPositions: Map<string, { x: number; y: number }>;
   currentDx: number;
   currentDy: number;
+  snapCandidates: CachedSnapCandidates;
+  anchorSize: { width: number; height: number };
 }
 
 /** Tracks an active marquee (rubber-band) selection */
@@ -113,23 +124,9 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
   showGrid = true;
   snapSettings: SnapSettings = {
     snapToGrid: true,
-    snapToGuide: true,
     snapToElement: true,
     thresholdMm: 2
   };
-
-  // Guide creation / drag state
-  guideCreationState: {
-    orientation: 'horizontal' | 'vertical';
-    currentPositionMm: number;
-  } | null = null;
-
-  guideDragState: {
-    guideId: string;
-    orientation: 'horizontal' | 'vertical';
-    startMousePos: number;
-    startGuideMm: number;
-  } | null = null;
 
   // Smart snap lines (ephemeral, shown during element drag)
   activeSnapLines: SnapLine[] = [];
@@ -147,15 +144,25 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
   customWidth = 210;
   customHeight = 297;
 
-  // Ruler marks
+  // Ruler marks (only rebuilt when page dimensions change)
   horizontalMarks: number[] = [];
   verticalMarks: number[] = [];
+  private lastMarkedWidth = -1;
+  private lastMarkedHeight = -1;
 
   // Drag/resize state
   dragState: DragState | MultiDragState | null = null;
 
   // Marquee selection state
   marqueeState: MarqueeState | null = null;
+
+  // rAF throttle for mousemove → CD
+  private rafHandle: number | null = null;
+  private pendingMouseEvent: MouseEvent | null = null;
+
+  // Document-level listeners (managed manually to run outside NgZone)
+  private docMouseMoveHandler: ((e: MouseEvent) => void) | null = null;
+  private docMouseUpHandler: ((e: MouseEvent) => void) | null = null;
 
   private destroy$ = new Subject<void>();
 
@@ -167,135 +174,143 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
   ) {}
 
   ngOnInit(): void {
-    combineLatest([
-      this.templateState.template$,
-      this.selectionService.selectedIds$,
-      this.selectionService.activeSection$
-    ])
+    // Split subscriptions so high-frequency selection updates (during marquee)
+    // don't re-run the page-dimension recompute. Each stream only drives the
+    // state it actually owns, then calls markForCheck once.
+    this.templateState.template$
       .pipe(takeUntil(this.destroy$))
-      .subscribe(([template, selectedIds, activeSection]) => {
+      .subscribe(template => {
         this.template = template;
-        this.selectedIds = selectedIds;
-        this.activeSection = activeSection;
         this.computeDimensions();
+        this.cdr.markForCheck();
+      });
+
+    this.selectionService.selectedIds$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(selectedIds => {
+        this.selectedIds = selectedIds;
+        this.cdr.markForCheck();
+      });
+
+    this.selectionService.activeSection$
+      .pipe(takeUntil(this.destroy$), distinctUntilChanged())
+      .subscribe(activeSection => {
+        this.activeSection = activeSection;
         this.cdr.markForCheck();
       });
   }
 
   ngAfterViewInit(): void {
-    // Bind wheel event with passive:false so we can preventDefault for zoom
-    this.wheelHandler = (e: WheelEvent) => this.onWheel(e);
-    this.scrollArea.nativeElement.addEventListener('wheel', this.wheelHandler, { passive: false });
+    // Register wheel + document mouse listeners OUTSIDE Angular zone.
+    // This prevents change detection from firing on every mousemove
+    // globally — a huge perf win because mousemove is extremely noisy.
+    // We manually re-enter the zone (or call markForCheck) only when
+    // the drag/marquee state actually needs to update the UI.
+    this.ngZone.runOutsideAngular(() => {
+      this.wheelHandler = (e: WheelEvent) => this.onWheel(e);
+      this.scrollArea.nativeElement.addEventListener('wheel', this.wheelHandler, { passive: false });
+
+      this.docMouseMoveHandler = (e: MouseEvent) => this.onDocumentMouseMove(e);
+      this.docMouseUpHandler = (e: MouseEvent) => this.onDocumentMouseUp(e);
+      document.addEventListener('mousemove', this.docMouseMoveHandler);
+      document.addEventListener('mouseup', this.docMouseUpHandler);
+    });
   }
 
   ngOnDestroy(): void {
-    // Clean up wheel listener
     if (this.wheelHandler && this.scrollArea?.nativeElement) {
       this.scrollArea.nativeElement.removeEventListener('wheel', this.wheelHandler);
+    }
+    if (this.docMouseMoveHandler) {
+      document.removeEventListener('mousemove', this.docMouseMoveHandler);
+    }
+    if (this.docMouseUpHandler) {
+      document.removeEventListener('mouseup', this.docMouseUpHandler);
+    }
+    if (this.rafHandle !== null) {
+      cancelAnimationFrame(this.rafHandle);
+      this.rafHandle = null;
     }
     this.destroy$.next();
     this.destroy$.complete();
   }
 
-  // ─── Global mouse listeners (must be on document to catch moves outside canvas) ───
+  // ─── Global mouse listeners (registered outside NgZone in ngAfterViewInit) ───
 
-  @HostListener('document:mousemove', ['$event'])
-  onDocumentMouseMove(event: MouseEvent): void {
-    // ─── Guide creation drag ───
-    if (this.guideCreationState) {
-      event.preventDefault();
-      const pageEl = this.canvasPage?.nativeElement;
-      if (pageEl) {
-        const rect = pageEl.getBoundingClientRect();
-        if (this.guideCreationState.orientation === 'vertical') {
-          this.guideCreationState.currentPositionMm = pxToMm((event.clientX - rect.left) / this.zoom);
-        } else {
-          this.guideCreationState.currentPositionMm = pxToMm((event.clientY - rect.top) / this.zoom);
-        }
-      }
-      this.cdr.markForCheck();
-      return;
+  /**
+   * Fast path: runs OUTSIDE NgZone on every mousemove. Stores the latest
+   * event and schedules a single rAF tick to apply updates + trigger CD.
+   * This coalesces bursts of mousemove events into one frame's worth of work.
+   */
+  private onDocumentMouseMove(event: MouseEvent): void {
+    // Cheap early exit when idle — no zone entry, no CD.
+    if (!this.dragState && !this.marqueeState) return;
+
+    // Prevent selection while dragging; cheap enough to do synchronously.
+    event.preventDefault();
+
+    this.pendingMouseEvent = event;
+    if (this.rafHandle === null) {
+      this.rafHandle = requestAnimationFrame(() => {
+        this.rafHandle = null;
+        const ev = this.pendingMouseEvent;
+        this.pendingMouseEvent = null;
+        if (ev) this.processMouseMove(ev);
+      });
     }
+  }
 
-    // ─── Guide repositioning drag ───
-    if (this.guideDragState) {
-      event.preventDefault();
-      const mousePos = this.guideDragState.orientation === 'horizontal'
-        ? event.clientY : event.clientX;
-      const deltaPx = mousePos - this.guideDragState.startMousePos;
-      const deltaMm = pxToMm(deltaPx / this.zoom);
-      this.guideDragState.startGuideMm; // preview handled via template binding
-      // Temporarily update guide position for preview
-      const newPos = this.guideDragState.startGuideMm + deltaMm;
-      this.templateState.updateGuidePosition(this.guideDragState.guideId, newPos);
-      this.cdr.markForCheck();
-      return;
-    }
-
+  /** Runs once per animation frame. May enter NgZone to trigger CD. */
+  private processMouseMove(event: MouseEvent): void {
     // ─── Marquee drag ───
     if (this.marqueeState) {
-      event.preventDefault();
       const rect = this.marqueeState.sectionBodyRect;
       this.marqueeState.currentXMm = pxToMm((event.clientX - rect.left) / this.zoom);
       this.marqueeState.currentYMm = pxToMm((event.clientY - rect.top) / this.zoom);
 
       // Compute which elements intersect the marquee
       const ids = this.getElementsInMarquee();
-      if (this.marqueeState.additive) {
-        const union = new Set([...this.marqueeState.previousIds, ...ids]);
-        this.selectionService.selectMultiple(Array.from(union), this.marqueeState.section);
-      } else {
-        this.selectionService.selectMultiple(ids, this.marqueeState.section);
-      }
-      this.cdr.markForCheck();
+      // Run selection updates inside the zone so observers fire through CD.
+      this.ngZone.run(() => {
+        if (this.marqueeState!.additive) {
+          const union = new Set([...this.marqueeState!.previousIds, ...ids]);
+          this.selectionService.selectMultiple(Array.from(union), this.marqueeState!.section);
+        } else {
+          this.selectionService.selectMultiple(ids, this.marqueeState!.section);
+        }
+        this.cdr.markForCheck();
+      });
       return;
     }
 
     if (!this.dragState) return;
-    event.preventDefault();
 
     const dx = event.clientX - this.dragState.startMouseX;
     const dy = event.clientY - this.dragState.startMouseY;
 
     if (this.dragState.type === 'move') {
-      // Compute snap in real time for smart guides
       const state = this.dragState as DragState;
       const proposedX = state.startElX + pxToMm(dx / this.zoom);
       const proposedY = state.startElY + pxToMm(dy / this.zoom);
-      const el = this.templateState.getElement(state.section as any, state.elementId);
-      if (el) {
-        const candidates = this.getSnapCandidates(state.section, new Set([state.elementId]));
-        const snap = computeSnap(
-          { x: proposedX, y: proposedY }, el.size,
-          candidates, this.snapSettings.thresholdMm,
-          this.gridSizeMm, this.snapSettings.snapToGrid
-        );
-        this.activeSnapLines = snap.snapLines;
-        // Convert snapped mm back to px offset for visual feedback
-        state.currentDx = mmToPx(snap.x - state.startElX) * this.zoom;
-        state.currentDy = mmToPx(snap.y - state.startElY) * this.zoom;
-      } else {
-        state.currentDx = dx;
-        state.currentDy = dy;
-      }
-    } else if (this.dragState.type === 'multi-move') {
-      this.dragState.currentDx = dx;
-      this.dragState.currentDy = dy;
-      // Show snap lines for anchor element
-      const anchor = this.templateState.getElement(
-        this.dragState.section as any, this.dragState.anchorElementId
+      const snap = computeSnap(
+        { x: proposedX, y: proposedY }, state.cachedSize,
+        state.snapCandidates, this.snapSettings.thresholdMm,
+        this.gridSizeMm, this.snapSettings.snapToGrid
       );
-      const startPos = this.dragState.startPositions.get(this.dragState.anchorElementId);
-      if (anchor && startPos) {
+      this.activeSnapLines = snap.snapLines;
+      state.currentDx = mmToPx(snap.x - state.startElX) * this.zoom;
+      state.currentDy = mmToPx(snap.y - state.startElY) * this.zoom;
+    } else if (this.dragState.type === 'multi-move') {
+      const state = this.dragState;
+      state.currentDx = dx;
+      state.currentDy = dy;
+      const startPos = state.startPositions.get(state.anchorElementId);
+      if (startPos) {
         const proposedX = startPos.x + pxToMm(dx / this.zoom);
         const proposedY = startPos.y + pxToMm(dy / this.zoom);
-        const candidates = this.getSnapCandidates(
-          this.dragState.section,
-          new Set(this.dragState.startPositions.keys())
-        );
         const snap = computeSnap(
-          { x: proposedX, y: proposedY }, anchor.size,
-          candidates, this.snapSettings.thresholdMm,
+          { x: proposedX, y: proposedY }, state.anchorSize,
+          state.snapCandidates, this.snapSettings.thresholdMm,
           this.gridSizeMm, this.snapSettings.snapToGrid
         );
         this.activeSnapLines = snap.snapLines;
@@ -304,74 +319,48 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
       this.applyResizeDelta(dx, dy);
     }
 
+    // Only trigger CD; no observable updates, so no need to enter the zone.
     this.cdr.markForCheck();
   }
 
-  @HostListener('document:mouseup', ['$event'])
-  onDocumentMouseUp(event: MouseEvent): void {
-    // ─── End guide creation ───
-    if (this.guideCreationState) {
-      const pos = this.guideCreationState.currentPositionMm;
-      const orientation = this.guideCreationState.orientation;
-      const maxPos = orientation === 'vertical'
-        ? this.template.page.width : this.template.page.height;
-      // Only create if within page bounds
-      if (pos > 0 && pos < maxPos) {
-        this.templateState.addGuide({
-          id: uuid(),
-          orientation,
-          position: pos
-        });
-      }
-      this.guideCreationState = null;
-      this.cdr.markForCheck();
-      return;
+  private onDocumentMouseUp(event: MouseEvent): void {
+    if (!this.marqueeState && !this.dragState) return;
+
+    // Cancel any pending rAF tick to avoid stale state writes after teardown.
+    if (this.rafHandle !== null) {
+      cancelAnimationFrame(this.rafHandle);
+      this.rafHandle = null;
+      this.pendingMouseEvent = null;
     }
 
-    // ─── End guide drag ───
-    if (this.guideDragState) {
-      // If guide was dragged outside page bounds, delete it
-      const guide = (this.template.page.guides || []).find(
-        g => g.id === this.guideDragState!.guideId
-      );
-      if (guide) {
-        const maxPos = guide.orientation === 'vertical'
-          ? this.template.page.width : this.template.page.height;
-        if (guide.position <= 0 || guide.position >= maxPos) {
-          this.templateState.removeGuide(guide.id);
+    // State mutations that emit through observables must run in the zone.
+    this.ngZone.run(() => {
+      // ─── End marquee ───
+      if (this.marqueeState) {
+        const dx = event.clientX - this.marqueeState.startClientX;
+        const dy = event.clientY - this.marqueeState.startClientY;
+        if (Math.abs(dx) < 3 && Math.abs(dy) < 3) {
+          this.selectionService.clearSelection();
         }
+        this.marqueeState = null;
+        this.cdr.markForCheck();
+        return;
       }
-      this.guideDragState = null;
-      this.cdr.markForCheck();
-      return;
-    }
 
-    // ─── End marquee ───
-    if (this.marqueeState) {
-      const dx = event.clientX - this.marqueeState.startClientX;
-      const dy = event.clientY - this.marqueeState.startClientY;
-      // If barely moved, treat as a click → clear selection
-      if (Math.abs(dx) < 3 && Math.abs(dy) < 3) {
-        this.selectionService.clearSelection();
+      if (!this.dragState) return;
+
+      if (this.dragState.type === 'move') {
+        this.commitMove();
+      } else if (this.dragState.type === 'multi-move') {
+        this.commitMultiMove();
+      } else if (this.dragState.type === 'resize') {
+        this.commitResize();
       }
-      this.marqueeState = null;
+
+      this.dragState = null;
+      this.activeSnapLines = [];
       this.cdr.markForCheck();
-      return;
-    }
-
-    if (!this.dragState) return;
-
-    if (this.dragState.type === 'move') {
-      this.commitMove();
-    } else if (this.dragState.type === 'multi-move') {
-      this.commitMultiMove();
-    } else if (this.dragState.type === 'resize') {
-      this.commitResize();
-    }
-
-    this.dragState = null;
-    this.activeSnapLines = [];
-    this.cdr.markForCheck();
+    });
   }
 
   // ─── Keyboard shortcuts ───
@@ -443,13 +432,19 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
       this.customHeight = page.height;
     }
 
-    this.horizontalMarks = [];
-    for (let mm = 0; mm <= page.width; mm += 5) {
-      this.horizontalMarks.push(mm);
+    // Only rebuild ruler marks when paper dimensions actually change.
+    // Avoids thrashing the two large @for loops on every template emission.
+    if (page.width !== this.lastMarkedWidth) {
+      const hm: number[] = [];
+      for (let mm = 0; mm <= page.width; mm += 5) hm.push(mm);
+      this.horizontalMarks = hm;
+      this.lastMarkedWidth = page.width;
     }
-    this.verticalMarks = [];
-    for (let mm = 0; mm <= page.height; mm += 5) {
-      this.verticalMarks.push(mm);
+    if (page.height !== this.lastMarkedHeight) {
+      const vm: number[] = [];
+      for (let mm = 0; mm <= page.height; mm += 5) vm.push(mm);
+      this.verticalMarks = vm;
+      this.lastMarkedHeight = page.height;
     }
   }
 
@@ -615,6 +610,13 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
         }
       });
 
+      // Cache snap candidates for the duration of the drag — other
+      // elements don't move, so recomputing per-mousemove is wasted work.
+      const excludeIds = new Set(startPositions.keys());
+      const snapCandidates = collectSnapCandidates(
+        this.getSectionElements(event.section), excludeIds, this.snapSettings
+      );
+
       this.dragState = {
         type: 'multi-move',
         anchorElementId: event.elementId,
@@ -623,10 +625,18 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
         startMouseY: event.mouseEvent.clientY,
         startPositions,
         currentDx: 0,
-        currentDy: 0
+        currentDy: 0,
+        snapCandidates,
+        anchorSize: { width: el.size.width, height: el.size.height }
       };
       return;
     }
+
+    // Single-element drag: cache candidates + size
+    const excludeIds = new Set([event.elementId]);
+    const snapCandidates = collectSnapCandidates(
+      this.getSectionElements(event.section), excludeIds, this.snapSettings
+    );
 
     this.dragState = {
       type: isResize ? 'resize' : 'move',
@@ -642,7 +652,9 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
       currentDx: 0,
       currentDy: 0,
       currentWidth: mmToPx(el.size.width),
-      currentHeight: mmToPx(el.size.height)
+      currentHeight: mmToPx(el.size.height),
+      snapCandidates,
+      cachedSize: { width: el.size.width, height: el.size.height }
     };
   }
 
@@ -733,6 +745,45 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
     state.currentDy = offsetDy;
   }
 
+  // ─── Section-offset helpers (for cross-section drag) ───
+
+  /**
+   * Vertical offset (in mm) of the top edge of a section measured from
+   * the top of the content stack (header.top = 0).
+   */
+  private getSectionOffsetMm(section: SectionKey): number {
+    const s = this.template.sections;
+    switch (section) {
+      case 'header': return 0;
+      case 'detail': return s.header.height;
+      case 'footer': return s.header.height + s.detail.height;
+    }
+  }
+
+  /**
+   * Given an absolute Y (mm from the top of the content stack), return
+   * which section owns that Y and the Y rebased to that section's local
+   * origin. The absoluteY is clamped to [0, totalStackHeight) so an
+   * element dragged far above/below always lands in a valid section.
+   */
+  private resolveTargetSection(absoluteYmm: number): {
+    section: SectionKey;
+    localY: number;
+  } {
+    const s = this.template.sections;
+    const hH = s.header.height;
+    const hD = s.detail.height;
+    const hF = s.footer.height;
+    const total = hH + hD + hF;
+
+    // Clamp inside the full stack (epsilon keeps footer reachable)
+    const y = Math.max(0, Math.min(total - 0.001, absoluteYmm));
+
+    if (y < hH) return { section: 'header', localY: y };
+    if (y < hH + hD) return { section: 'detail', localY: y - hH };
+    return { section: 'footer', localY: y - hH - hD };
+  }
+
   // ─── Commit move to state ───
 
   private commitMove(): void {
@@ -744,19 +795,43 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return; // no meaningful move
 
-    // Snap was already applied during mousemove for real-time feedback.
-    // Convert the final visual offset back to mm.
-    let newX = state.startElX + pxToMm(dx / this.zoom);
-    let newY = state.startElY + pxToMm(dy / this.zoom);
+    const el = this.templateState.getElement(state.section as any, state.elementId);
 
-    newX = Math.max(0, newX);
-    newY = Math.max(0, newY);
+    // X: clamp to [0, pageWidth - elementWidth]
+    const pageW = this.template.page.width;
+    const elW = el?.size.width ?? 0;
+    const elH = el?.size.height ?? 0;
+    const maxX = Math.max(0, pageW - elW);
+    const proposedX = state.startElX + pxToMm(dx / this.zoom);
+    const newX = Math.max(0, Math.min(maxX, proposedX));
 
-    this.templateState.updateElement(
-      state.section as any,
-      state.elementId,
-      { position: { x: newX, y: newY } } as any
-    );
+    // Y: compute absolute page-Y, resolve target section, rebase.
+    const proposedLocalY = state.startElY + pxToMm(dy / this.zoom);
+    const absoluteY = this.getSectionOffsetMm(state.section) + proposedLocalY;
+    const { section: targetSection, localY } = this.resolveTargetSection(absoluteY);
+
+    // Clamp Y inside the destination section
+    const sectionH = this.template.sections[targetSection].height;
+    const maxLocalY = Math.max(0, sectionH - elH);
+    const newY = Math.max(0, Math.min(maxLocalY, localY));
+
+    if (targetSection === state.section) {
+      this.templateState.updateElement(
+        state.section as any,
+        state.elementId,
+        { position: { x: newX, y: newY } } as any
+      );
+    } else {
+      this.templateState.moveElementToSection(
+        state.section as any,
+        targetSection as any,
+        state.elementId,
+        { x: newX, y: newY }
+      );
+      // Re-select in the destination section so the Properties panel
+      // and active-section tracking stay in sync.
+      this.selectionService.select(state.elementId, targetSection);
+    }
   }
 
   // ─── Commit multi-move to state ───
@@ -768,38 +843,66 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
     const dy = this.dragState.currentDy;
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
 
-    const excludeIds = new Set(this.dragState.startPositions.keys());
-    const anchor = this.templateState.getElement(
-      this.dragState.section as any, this.dragState.anchorElementId
-    );
-
-    // Compute snap delta from anchor element
+    // Compute snap delta from anchor element (reuse candidates cached at drag start)
     let snapDeltaX = 0;
     let snapDeltaY = 0;
     const startPos = this.dragState.startPositions.get(this.dragState.anchorElementId);
-    if (anchor && startPos) {
+    if (startPos) {
       const proposedX = startPos.x + pxToMm(dx / this.zoom);
       const proposedY = startPos.y + pxToMm(dy / this.zoom);
-      const candidates = this.getSnapCandidates(this.dragState.section, excludeIds);
       const snap = computeSnap(
-        { x: proposedX, y: proposedY }, anchor.size,
-        candidates, this.snapSettings.thresholdMm,
+        { x: proposedX, y: proposedY }, this.dragState.anchorSize,
+        this.dragState.snapCandidates, this.snapSettings.thresholdMm,
         this.gridSizeMm, this.snapSettings.snapToGrid
       );
       snapDeltaX = snap.x - proposedX;
       snapDeltaY = snap.y - proposedY;
     }
 
-    const updates: Array<{ id: string; changes: Partial<TemplateElement> }> = [];
+    // Determine destination section from the anchor's absolute y
+    const anchorStart = this.dragState.startPositions.get(this.dragState.anchorElementId);
+    let targetSection: SectionKey = this.dragState.section;
+    let sectionDeltaMm = 0;
+    if (anchorStart) {
+      const anchorNewLocalY = anchorStart.y + pxToMm(dy / this.zoom) + snapDeltaY;
+      const anchorAbsY = this.getSectionOffsetMm(this.dragState.section) + anchorNewLocalY;
+      const resolved = this.resolveTargetSection(anchorAbsY);
+      targetSection = resolved.section;
+      // Offset to rebase every element's local y from origin→destination
+      sectionDeltaMm =
+        this.getSectionOffsetMm(this.dragState.section) -
+        this.getSectionOffsetMm(targetSection);
+    }
+
+    const pageW = this.template.page.width;
+    const targetH = this.template.sections[targetSection].height;
+    const updates: Array<{ id: string; position: { x: number; y: number } }> = [];
+
     this.dragState.startPositions.forEach((sp, id) => {
+      const el = this.templateState.getElement(this.dragState!.section as any, id);
+      const elW = el?.size.width ?? 0;
+      const elH = el?.size.height ?? 0;
+
       let newX = sp.x + pxToMm(dx / this.zoom) + snapDeltaX;
-      let newY = sp.y + pxToMm(dy / this.zoom) + snapDeltaY;
-      newX = Math.max(0, newX);
-      newY = Math.max(0, newY);
-      updates.push({ id, changes: { position: { x: newX, y: newY } } as any });
+      let newY = sp.y + pxToMm(dy / this.zoom) + snapDeltaY + sectionDeltaMm;
+
+      newX = Math.max(0, Math.min(Math.max(0, pageW - elW), newX));
+      newY = Math.max(0, Math.min(Math.max(0, targetH - elH), newY));
+      updates.push({ id, position: { x: newX, y: newY } });
     });
 
-    this.templateState.updateMultipleElements(this.dragState.section as any, updates);
+    this.templateState.moveMultipleElementsToSection(
+      this.dragState.section as any,
+      targetSection as any,
+      updates
+    );
+
+    if (targetSection !== this.dragState.section) {
+      this.selectionService.selectMultiple(
+        updates.map(u => u.id),
+        targetSection
+      );
+    }
   }
 
   // ─── Commit resize to state ───
@@ -815,8 +918,8 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
     let newX = state.startElX + pxToMm(state.currentDx);
     let newY = state.startElY + pxToMm(state.currentDy);
 
-    // Apply snap to the resulting edges
-    const candidates = this.getSnapCandidates(state.section, new Set([state.elementId]));
+    // Apply snap to the resulting edges (use cached candidates from drag start)
+    const candidates = state.snapCandidates;
     const snap = computeSnap(
       { x: newX, y: newY },
       { width: newWidth, height: newHeight },
@@ -945,62 +1048,6 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
 
   toggleGrid(): void {
     this.showGrid = !this.showGrid;
-  }
-
-  // ─── Guide interaction ───
-
-  onHorizontalRulerMouseDown(event: MouseEvent): void {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    // Dragging down from horizontal ruler creates a horizontal guide
-    const pageEl = this.canvasPage?.nativeElement;
-    if (!pageEl) return;
-    const rect = pageEl.getBoundingClientRect();
-    const yMm = pxToMm((event.clientY - rect.top) / this.zoom);
-    this.guideCreationState = {
-      orientation: 'horizontal',
-      currentPositionMm: yMm
-    };
-  }
-
-  onVerticalRulerMouseDown(event: MouseEvent): void {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    // Dragging right from vertical ruler creates a vertical guide
-    const pageEl = this.canvasPage?.nativeElement;
-    if (!pageEl) return;
-    const rect = pageEl.getBoundingClientRect();
-    const xMm = pxToMm((event.clientX - rect.left) / this.zoom);
-    this.guideCreationState = {
-      orientation: 'vertical',
-      currentPositionMm: xMm
-    };
-  }
-
-  onGuideMouseDown(event: MouseEvent, guide: GuideLine): void {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    event.stopPropagation();
-    this.guideDragState = {
-      guideId: guide.id,
-      orientation: guide.orientation,
-      startMousePos: guide.orientation === 'horizontal' ? event.clientY : event.clientX,
-      startGuideMm: guide.position
-    };
-  }
-
-  onGuideDoubleClick(guide: GuideLine): void {
-    this.templateState.removeGuide(guide.id);
-  }
-
-  /** Collect snap candidates for the active section */
-  private getSnapCandidates(
-    section: SectionKey,
-    excludeIds: Set<string>
-  ): { horizontal: import('../../utils/coordinate-utils').SnapCandidate[]; vertical: import('../../utils/coordinate-utils').SnapCandidate[] } {
-    const elements = this.getSectionElements(section);
-    const guides = this.template.page.guides || [];
-    return collectSnapCandidates(elements, guides, excludeIds, this.snapSettings);
   }
 
   // ─── Paper size ───

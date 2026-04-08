@@ -11,8 +11,7 @@ import {
   TemplateElement,
   TemplateSections,
   SectionDefinition,
-  PageSettings,
-  GuideLine
+  PageSettings
 } from '../../../core/models/template.model';
 import { cloneElement, updateElement } from '../utils/element-factory';
 import { createDefaultTemplate } from '../data/default-template';
@@ -276,6 +275,63 @@ export class TemplateStateService {
   }
 
   /**
+   * Move an element from one section to another in a single atomic
+   * operation (one history snapshot). If `fromSection === toSection`
+   * this degrades to `updateElement` with the new position.
+   *
+   * The new position is applied in the **destination** section's local
+   * coordinate space — callers are responsible for rebasing y from the
+   * origin section to the destination section before invoking.
+   */
+  moveElementToSection(
+    fromSection: SectionKey,
+    toSection: SectionKey,
+    elementId: string,
+    newPosition: { x: number; y: number }
+  ): void {
+    const current = this.getCurrentTemplate();
+    const from = current.sections[fromSection];
+    const to = current.sections[toSection];
+
+    if (!from || !to) {
+      console.error(`moveElementToSection: section not found (${fromSection} or ${toSection})`);
+      return;
+    }
+
+    const element = from.elements.find(el => el.id === elementId);
+    if (!element) {
+      console.error(`moveElementToSection: element ${elementId} not found in ${fromSection}`);
+      return;
+    }
+
+    // Same section → delegate to updateElement (single snapshot, no reparent).
+    if (fromSection === toSection) {
+      this.updateElement(fromSection, elementId, { position: newPosition } as Partial<TemplateElement>);
+      return;
+    }
+
+    const movedElement = updateElement(element, {
+      position: newPosition
+    } as Partial<TemplateElement>);
+
+    const updated: ReportTemplate = {
+      ...current,
+      sections: {
+        ...current.sections,
+        [fromSection]: {
+          ...from,
+          elements: from.elements.filter(el => el.id !== elementId)
+        },
+        [toSection]: {
+          ...to,
+          elements: [...to.elements, movedElement]
+        }
+      }
+    };
+    this.setTemplate(updated);
+  }
+
+  /**
    * Remove an element
    */
   removeElement(sectionKey: SectionKey, elementId: string): void {
@@ -407,35 +463,55 @@ export class TemplateStateService {
     this.setTemplate(updated);
   }
 
-  // ─── Guide CRUD ───
+  /**
+   * Move multiple elements from one section to another in a single atomic
+   * operation. All elements must originate from `fromSection`. If
+   * `fromSection === toSection`, degrades to `updateMultipleElements`.
+   */
+  moveMultipleElementsToSection(
+    fromSection: SectionKey,
+    toSection: SectionKey,
+    updates: Array<{ id: string; position: { x: number; y: number } }>
+  ): void {
+    if (fromSection === toSection) {
+      this.updateMultipleElements(
+        fromSection,
+        updates.map(u => ({ id: u.id, changes: { position: u.position } as Partial<TemplateElement> }))
+      );
+      return;
+    }
 
-  addGuide(guide: GuideLine): void {
     const current = this.getCurrentTemplate();
-    const guides = current.page.guides || [];
-    this.setTemplate({
-      ...current,
-      page: { ...current.page, guides: [...guides, guide] }
-    });
-  }
+    const from = current.sections[fromSection];
+    const to = current.sections[toSection];
 
-  removeGuide(guideId: string): void {
-    const current = this.getCurrentTemplate();
-    const guides = (current.page.guides || []).filter(g => g.id !== guideId);
-    this.setTemplate({
-      ...current,
-      page: { ...current.page, guides }
-    });
-  }
+    if (!from || !to) {
+      console.error(`moveMultipleElementsToSection: section not found (${fromSection} or ${toSection})`);
+      return;
+    }
 
-  updateGuidePosition(guideId: string, positionMm: number): void {
-    const current = this.getCurrentTemplate();
-    const guides = (current.page.guides || []).map(g =>
-      g.id === guideId ? { ...g, position: positionMm } : g
-    );
-    this.setTemplate({
+    const moveMap = new Map(updates.map(u => [u.id, u.position]));
+    const moving: TemplateElement[] = [];
+    const remaining: TemplateElement[] = [];
+    for (const el of from.elements) {
+      if (moveMap.has(el.id)) {
+        moving.push(updateElement(el, { position: moveMap.get(el.id)! } as Partial<TemplateElement>));
+      } else {
+        remaining.push(el);
+      }
+    }
+
+    if (moving.length === 0) return;
+
+    const updated: ReportTemplate = {
       ...current,
-      page: { ...current.page, guides }
-    });
+      sections: {
+        ...current.sections,
+        [fromSection]: { ...from, elements: remaining },
+        [toSection]: { ...to, elements: [...to.elements, ...moving] }
+      }
+    };
+    this.setTemplate(updated);
   }
 
   /**
