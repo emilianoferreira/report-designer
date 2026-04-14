@@ -51,12 +51,6 @@
           Guardar
         </button>
       }
-      <button class="header-btn" (click)="exportTemplateJson()" title="Descargar la plantilla en formato JSON para respaldo o importar en otro entorno">
-        JSON
-      </button>
-      <button class="header-btn primary" (click)="exportHtmlTemplate()" title="Exportar la plantilla como archivo HTML listo para renderizar con Puppeteer">
-        Exportar HTML
-      </button>
       <button class="header-btn info-btn" (click)="toggleHelp()" title="Documentación y ayuda del diseñador">
         Info
       </button>
@@ -172,6 +166,23 @@
             <p>Use la rueda del mouse (sin Ctrl) o las barras de scroll para desplazarse por el canvas cuando el contenido excede el área visible.</p>
           }
 
+          @if (helpSection === 'grid') {
+            <h2>Grilla y snap</h2>
+            <p>Arriba del lienzo hay tres botones que controlan las ayudas visuales y de alineación. Cada uno es independiente y se prende o apaga con clic.</p>
+
+            <h3>Grilla</h3>
+            <p>Muestra u oculta la cuadrícula de referencia (puntos cada 5mm) sobre el lienzo. <strong>No afecta</strong> cómo se mueven los elementos — es solo una guía visual para medir a ojo.</p>
+
+            <h3>Snap (ajustar a la grilla)</h3>
+            <p>Cuando está activo, al arrastrar o redimensionar un elemento sus bordes saltan a la cuadrícula más cercana (paso de 5mm). Útil para alinear elementos sin pensar en coordenadas exactas. Se puede usar con o sin la grilla visual.</p>
+
+            <h3>Elem (ajustar a otros elementos)</h3>
+            <p>Cuando está activo, al arrastrar un elemento aparecen líneas de alineación inteligente con los otros elementos cercanos: sus bordes izquierdo/derecho/superior/inferior y sus centros. El elemento se "pega" a esas líneas cuando pasa cerca. Es la forma más rápida de alinear dos textos sin usar coordenadas.</p>
+
+            <h3>Combinarlos</h3>
+            <p>Los dos tipos de snap (<strong>Snap</strong> y <strong>Elem</strong>) se pueden usar juntos. El motor de ajuste evalúa ambas fuentes y elige el objetivo más cercano dentro del umbral.</p>
+          }
+
           @if (helpSection === 'properties') {
             <h2>Panel de propiedades</h2>
             <p>Al seleccionar un elemento, el panel derecho muestra sus propiedades organizadas en pestañas:</p>
@@ -214,17 +225,25 @@
 
           @if (helpSection === 'export') {
             <h2>Exportación</h2>
-            <h3>JSON</h3>
-            <p>El botón <strong>JSON</strong> descarga la plantilla completa en formato JSON. Este archivo contiene toda la configuración del diseño y puede usarse para:</p>
+            <p>Toda la exportación vive en la pestaña <strong>Vista Previa</strong>. El toolbar tiene tres grupos dedicados en la barra superior:</p>
             <ul>
-              <li>Respaldo de la plantilla.</li>
-              <li>Importar en otro entorno o empresa.</li>
-              <li>Versionado manual del diseño.</li>
+              <li><strong>Vista:</strong> <code>Render</code> · <code>HTML</code> · <code>JSON</code> — cambia el contenido del área de previsualización.</li>
+              <li><strong>Exportar:</strong> descarga un archivo en el formato elegido.</li>
+              <li><strong>Copiar:</strong> copia el contenido al portapapeles con confirmación visual.</li>
             </ul>
-            <h3>Exportar HTML</h3>
-            <p>El botón <strong>Exportar HTML</strong> genera un archivo HTML con directivas Zureo, listo para ser renderizado por el motor de impresión (Puppeteer) en el servidor.</p>
-            <h3>Vista Previa</h3>
-            <p>La pestaña <strong>Vista Previa</strong> muestra cómo se verá el comprobante con datos de ejemplo, permitiendo validar el diseño antes de exportar.</p>
+
+            <h3>Formatos disponibles</h3>
+            <h4>HTML render — HTML con datos resueltos</h4>
+            <p>HTML completo "WYSIWYG" con los datos de la factura de prueba ya resueltos. Listo para abrir en un navegador o pegar en un email HTML.</p>
+
+            <h4>HTML z-code — HTML con directivas Zureo</h4>
+            <p>HTML con directivas <code>z-code</code> sin datos resueltos. Es el formato que consume el motor PDF de Zureo: sirve para subir el molde al ERP y generar PDFs reales.</p>
+
+            <h4>JSON — Definición del template</h4>
+            <p>Estructura interna completa del molde (secciones, elementos, posiciones, bindings). Útil para respaldo, versionado manual o importar el molde en otra instalación.</p>
+
+            <h3>Copiar vs Exportar</h3>
+            <p>Cualquiera de los 3 formatos puede descargarse como archivo (grupo <strong>Exportar</strong>) o copiarse al portapapeles (grupo <strong>Copiar</strong>). Al copiar, aparece un indicador <em>Copiado ✓</em> verde durante 2 segundos para confirmar la acción.</p>
           }
 
           @if (helpSection === 'shortcuts') {

@@ -18,19 +18,38 @@
 // ─── Toolbar ───
 .preview-toolbar {
   display: flex;
-  align-items: center;
-  gap: 12px;
   padding: 6px 12px;
   background: #fafafa;
   border-bottom: 1px solid #e0e0e0;
-  min-height: 36px;
+}
+
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   flex-wrap: wrap;
+  min-height: 28px;
+  width: 100%;
 }
 
 .toolbar-group {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+// Separator between toolbar groups for visual grouping
+.toolbar-group + .toolbar-group {
+  border-left: 1px solid #e0e0e0;
+  padding-left: 12px;
+}
+
+.toolbar-label {
+  font-size: 11px;
+  color: #616161;
+  font-weight: 600;
+  margin-right: 2px;
+  min-width: 56px;
 }
 
 .toolbar-btn {
@@ -77,6 +96,35 @@
   font-variant-numeric: tabular-nums;
 }
 
+// ─── Copy feedback toast ───
+.copy-toast {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 6px;
+  animation: fadeIn 0.15s ease-out;
+
+  &.success {
+    background: #E8F5E9;
+    color: #2E7D32;
+    border: 1px solid #A5D6A7;
+  }
+
+  &.error {
+    background: #FFEBEE;
+    color: #C62828;
+    border: 1px solid #EF9A9A;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 // ─── Preview Body ───
 .preview-body {
   flex: 1;
@@ -88,26 +136,21 @@
 }
 
 // ─── iframe wrapper ───
+// Width/height are bound from the component using the active template's
+// page size (template.page.width × template.page.height in mm → px),
+// so the preview matches the selected paper format (A4, A5, ticket, custom).
 .preview-frame-wrapper {
-  width: 794px; // A4 at 96dpi
   flex-shrink: 0;
 }
 
 .preview-frame {
-  width: 794px;
-  height: 1123px; // A4 at 96dpi
   border: none;
   background: #fff;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
 }
 
-// ─── Raw HTML ───
-.raw-html-wrapper {
-  width: 100%;
-  max-width: 900px;
-}
-
-.raw-html {
+// ─── Raw block (HTML / TXT / JSON views) ───
+.raw-block {
   background: #1e1e1e;
   color: #d4d4d4;
   padding: 16px;
@@ -115,9 +158,11 @@
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 11px;
   line-height: 1.5;
-  overflow: auto;
   white-space: pre-wrap;
   word-break: break-all;
-  max-height: 100%;
+  width: 100%;
+  max-width: 900px;
   margin: 0;
+  overflow: auto;
+  max-height: 100%;
 }

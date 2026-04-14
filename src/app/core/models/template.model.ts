@@ -34,12 +34,6 @@ export interface TemplateMetadata {
 
 export type PaperType = 'a4' | 'a5' | 'ticket-58' | 'ticket-80' | 'custom';
 
-export interface GuideLine {
-  id: string;
-  orientation: 'horizontal' | 'vertical';
-  position: number;  // mm from top (horizontal) or left (vertical)
-}
-
 export interface PageSettings {
   paperType: PaperType;    // preset identifier
   width: number;           // mm, default 210 (A4)
@@ -53,7 +47,6 @@ export interface PageSettings {
   };
   orientation: 'portrait' | 'landscape';
   defaultFont: FontSettings;
-  guides?: GuideLine[];
 }
 
 export interface FontSettings {

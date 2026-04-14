@@ -86,10 +86,9 @@ export class TemplateListComponent implements OnInit, OnDestroy {
         description: data.description
       });
     } else {
-      // Create mode
-      const created = await this.storage.create(data.name, data.documentType, data.description);
-      // Navigate to the designer with the new mold
-      this.router.navigate(['/designer', created.id]);
+      // Create mode — stay on the list so the user can see the new mold
+      // alongside the existing ones and decide when to open it.
+      await this.storage.create(data.name, data.documentType, data.description);
     }
     this.showForm = false;
     this.editingMold = null;
