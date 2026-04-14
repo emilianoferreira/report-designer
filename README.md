@@ -318,7 +318,7 @@ ID de empresa por defecto: `c1000000-0000-0000-0000-000000000001`
 
 ## Tecnologias principales
 
-**Frontend:** Angular 18, RxJS, interact.js, jsbarcode, qrcode
+**Frontend:** Angular 18, RxJS, jsbarcode, qrcode
 **Backend:** NestJS 10, TypeORM 0.3, PostgreSQL 16
 **Testing:** Karma/Jasmine (unit), Jest/Supertest (backend E2E), Playwright (browser E2E)
 **Unidad de medida:** Todas las coordenadas en milimetros (1mm = 3.7795px @ 96 DPI)

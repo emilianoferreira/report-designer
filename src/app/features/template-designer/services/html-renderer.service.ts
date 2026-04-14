@@ -222,6 +222,8 @@ ${footerHtml}
     .subtotals-table td {
       padding: 2px 4px;
     }
+    .st-lbl { width: 50%; }
+    .st-val { text-align: right; width: 50%; }
     .total-row td {
       font-weight: bold;
       font-size: 14px;
@@ -287,6 +289,8 @@ ${footerHtml}
     .ticket-subtotals-table td {
       padding: 1px 0;
     }
+    .tst-lbl { text-align: left; width: 60%; }
+    .tst-val { text-align: right; width: 40%; }
     .ticket-total-row td {
       font-weight: bold;
       font-size: ${Math.min(defaultFont.size + 2, 14)}pt;
@@ -446,8 +450,23 @@ ${footerHtml}
 
     // Note: column headers are already rendered as positioned text elements
     // in the detail section, so we skip <thead> to avoid duplication.
+    // Generate column CSS classes once instead of repeating inline styles per cell.
+    const colDefs = [
+      { cls: 'dc-cod', el: colCodigo, fallback: 'left' },
+      { cls: 'dc-nom', el: colNombre, fallback: 'left' },
+      { cls: 'dc-qty', el: colCantidad, fallback: 'center' },
+      { cls: 'dc-unit', el: colUnitario, fallback: 'right' },
+      { cls: 'dc-desc', el: colDescuento, fallback: 'right' },
+      { cls: 'dc-sub', el: colSubtotal, fallback: 'right' }
+    ];
+    let colCss = '<style>';
+    for (const col of colDefs) {
+      colCss += `.${col.cls}{${this.buildCellStyle(col.el, col.fallback)}}`;
+    }
+    colCss += '</style>\n';
+
     // Wrap in a div with padding-top to clear the absolutely positioned headers.
-    let html = '';
+    let html = colCss;
     if (tableOffsetPx > 0) {
       html += `      <div style="padding-top: ${tableOffsetPx}px;">\n`;
     }
@@ -466,12 +485,12 @@ ${footerHtml}
       const subtotal = line['SubTotal'] ?? 0;
 
       html += `          <tr>
-            <td style="${this.buildCellStyle(colCodigo, 'left')}">${this.escapeHtml(String(codigo))}</td>
-            <td style="${this.buildCellStyle(colNombre, 'left')}">${this.escapeHtml(String(nombre))}</td>
-            <td style="${this.buildCellStyle(colCantidad, 'center')}">${cantidad}</td>
-            <td style="${this.buildCellStyle(colUnitario, 'right')}">${this.formatNumber(unitario)}</td>
-            <td style="${this.buildCellStyle(colDescuento, 'right')}">${this.formatNumber(descuento)}</td>
-            <td style="${this.buildCellStyle(colSubtotal, 'right')}">${this.formatNumber(subtotal)}</td>
+            <td class="dc-cod">${this.escapeHtml(String(codigo))}</td>
+            <td class="dc-nom">${this.escapeHtml(String(nombre))}</td>
+            <td class="dc-qty">${cantidad}</td>
+            <td class="dc-unit">${this.formatNumber(unitario)}</td>
+            <td class="dc-desc">${this.formatNumber(descuento)}</td>
+            <td class="dc-sub">${this.formatNumber(subtotal)}</td>
           </tr>\n`;
     }
 
@@ -558,24 +577,24 @@ ${footerHtml}
     // Discount global
     if (data.hasDtoGlobal) {
       html += `            <tr>
-              <td style="text-align:left; width:60%">Descuento:</td>
-              <td style="text-align:right; width:40%">${this.formatNumber(data.MontoDtoGlobal || 0)}</td>
+              <td class="tst-lbl">Descuento:</td>
+              <td class="tst-val">${this.formatNumber(data.MontoDtoGlobal || 0)}</td>
             </tr>\n`;
     }
 
     // Subtotal
     if (!data.isCFE) {
       html += `            <tr>
-              <td style="text-align:left; width:60%">Subtotal:</td>
-              <td style="text-align:right; width:40%">${this.formatNumber(data.Subtotal || 0)}</td>
+              <td class="tst-lbl">Subtotal:</td>
+              <td class="tst-val">${this.formatNumber(data.Subtotal || 0)}</td>
             </tr>\n`;
 
       // Impuestos
       const impuestos = data.Impuestos || [];
       for (const imp of impuestos) {
         html += `            <tr>
-              <td style="text-align:left; width:60%">${this.escapeHtml(imp.Nombre)}:</td>
-              <td style="text-align:right; width:40%">${this.formatNumber(imp.Valor)}</td>
+              <td class="tst-lbl">${this.escapeHtml(imp.Nombre)}:</td>
+              <td class="tst-val">${this.formatNumber(imp.Valor)}</td>
             </tr>\n`;
       }
     } else {
@@ -583,8 +602,8 @@ ${footerHtml}
       const desglosados = data.SubtotalesDesglosados || [];
       for (const s of desglosados) {
         html += `            <tr>
-              <td style="text-align:left; width:60%">${this.escapeHtml(s.Key)}:</td>
-              <td style="text-align:right; width:40%">${this.formatNumber(s.Value)}</td>
+              <td class="tst-lbl">${this.escapeHtml(s.Key)}:</td>
+              <td class="tst-val">${this.formatNumber(s.Value)}</td>
             </tr>\n`;
       }
     }
@@ -592,16 +611,16 @@ ${footerHtml}
     // Redondeo
     if (data.hasRedondeo) {
       html += `            <tr>
-              <td style="text-align:left; width:60%">Redondeo:</td>
-              <td style="text-align:right; width:40%">${this.formatNumber(data.Redondeo || 0)}</td>
+              <td class="tst-lbl">Redondeo:</td>
+              <td class="tst-val">${this.formatNumber(data.Redondeo || 0)}</td>
             </tr>\n`;
     }
 
     // Total
     const simbolo = data.Moneda?.Simbolo || '$';
     html += `            <tr class="ticket-total-row">
-              <td style="text-align:left; width:60%">Total:</td>
-              <td style="text-align:right; width:40%">${simbolo} ${this.formatNumber(data.Total || 0)}</td>
+              <td class="tst-lbl">Total:</td>
+              <td class="tst-val">${simbolo} ${this.formatNumber(data.Total || 0)}</td>
             </tr>\n`;
 
     html += `          </tbody>
@@ -650,24 +669,24 @@ ${footerHtml}
     // Discount global
     if (data.hasDtoGlobal) {
       html += `            <tr>
-              <td style="width: 50%">Descuento:</td>
-              <td style="text-align: right; width: 50%">(${this.formatNumber(data.invoice?.['PorcentajeDescGlobal'] || 0)} %) ${this.formatNumber(data.MontoDtoGlobal || 0)}</td>
+              <td class="st-lbl">Descuento:</td>
+              <td class="st-val">(${this.formatNumber(data.invoice?.['PorcentajeDescGlobal'] || 0)} %) ${this.formatNumber(data.MontoDtoGlobal || 0)}</td>
             </tr>\n`;
     }
 
     // Subtotal
     if (!data.isCFE) {
       html += `            <tr>
-              <td style="width: 50%">Subtotal:</td>
-              <td style="text-align: right; width: 50%">${this.formatNumber(data.Subtotal || 0)}</td>
+              <td class="st-lbl">Subtotal:</td>
+              <td class="st-val">${this.formatNumber(data.Subtotal || 0)}</td>
             </tr>\n`;
 
       // Impuestos
       const impuestos = data.Impuestos || [];
       for (const imp of impuestos) {
         html += `            <tr>
-              <td style="width: 50%">${this.escapeHtml(imp.Nombre)} :</td>
-              <td style="text-align: right; width: 50%">${this.formatNumber(imp.Valor)}</td>
+              <td class="st-lbl">${this.escapeHtml(imp.Nombre)} :</td>
+              <td class="st-val">${this.formatNumber(imp.Valor)}</td>
             </tr>\n`;
       }
     } else {
@@ -675,8 +694,8 @@ ${footerHtml}
       const desglosados = data.SubtotalesDesglosados || [];
       for (const s of desglosados) {
         html += `            <tr>
-              <td style="width: 50%">${this.escapeHtml(s.Key)} :</td>
-              <td style="text-align: right; width: 50%">${this.formatNumber(s.Value)}</td>
+              <td class="st-lbl">${this.escapeHtml(s.Key)} :</td>
+              <td class="st-val">${this.formatNumber(s.Value)}</td>
             </tr>\n`;
       }
     }
@@ -684,16 +703,16 @@ ${footerHtml}
     // Redondeo
     if (data.hasRedondeo) {
       html += `            <tr>
-              <td style="width: 50%">Redondeo:</td>
-              <td style="text-align: right; width: 50%">${this.formatNumber(data.Redondeo || 0)}</td>
+              <td class="st-lbl">Redondeo:</td>
+              <td class="st-val">${this.formatNumber(data.Redondeo || 0)}</td>
             </tr>\n`;
     }
 
     // Total
     const simbolo = data.Moneda?.Simbolo || '$';
     html += `            <tr class="total-row">
-              <td style="width: 50%">Total:</td>
-              <td style="text-align: right; width: 50%">${simbolo} ${this.formatNumber(data.Total || 0)}</td>
+              <td class="st-lbl">Total:</td>
+              <td class="st-val">${simbolo} ${this.formatNumber(data.Total || 0)}</td>
             </tr>\n`;
 
     html += `          </tbody>
@@ -920,15 +939,23 @@ ${footerHtml}
       const moduleCount = modules.size;
       const size = moduleCount;
 
-      let rects = '';
+      // Build a single <path> using run-length encoding per row
+      // instead of one <rect> per dark module (~70% smaller SVG)
+      let path = '';
       for (let row = 0; row < moduleCount; row++) {
-        for (let col = 0; col < moduleCount; col++) {
+        let col = 0;
+        while (col < moduleCount) {
           if (modules.get(row, col)) {
-            rects += `<rect x="${col}" y="${row}" width="1" height="1" fill="${fgColor}"/>`;
+            const startCol = col;
+            while (col < moduleCount && modules.get(row, col)) col++;
+            const width = col - startCol;
+            path += `M${startCol} ${row}h${width}v1h-${width}z`;
+          } else {
+            col++;
           }
         }
       }
-      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" style="width:100%;height:100%;"><rect width="${size}" height="${size}" fill="${bgColor}"/>${rects}</svg>`;
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" style="width:100%;height:100%;"><rect width="${size}" height="${size}" fill="${bgColor}"/><path d="${path}" fill="${fgColor}"/></svg>`;
     } catch (e) {
       return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#f5f5f5;font-size:10px;color:#999;">QR Error</div>`;
     }
@@ -966,22 +993,29 @@ ${footerHtml}
     const width = mmToPx(el.size.width);
     const height = mmToPx(el.size.height);
 
-    return `position: absolute; left: ${left}px; top: ${top}px; width: ${width}px; height: ${height}px; z-index: ${el.zIndex};`;
+    return `left: ${left}px; top: ${top}px; width: ${width}px; height: ${height}px; z-index: ${el.zIndex};`;
   }
 
   private getContentCSS(el: TemplateElement, template: ReportTemplate): string {
     let css = '';
-    const font = el.style.font || template.page.defaultFont;
+    const font = el.style.font;
+    const defaultFont = template.page.defaultFont;
 
     if (font) {
-      css += ` font-family: ${font.family}, sans-serif;`;
-      css += ` font-size: ${font.size}pt;`;
-      css += ` font-weight: ${font.weight};`;
-      css += ` font-style: ${font.style};`;
-      css += ` color: ${font.color};`;
+      // Only emit font properties that differ from the page default (body inherits defaultFont)
+      const family = font.family !== defaultFont.family ? font.family : '';
+      const size = font.size !== defaultFont.size ? font.size : 0;
+      const weight = font.weight && font.weight !== 'normal' && font.weight !== defaultFont.weight ? font.weight : '';
+      const style = font.style && font.style !== 'normal' && font.style !== defaultFont.style ? font.style : '';
+
+      if (family) css += ` font-family: ${family}, sans-serif;`;
+      if (size) css += ` font-size: ${size}pt;`;
+      if (weight) css += ` font-weight: ${weight};`;
+      if (style) css += ` font-style: ${style};`;
+      if (font.color && font.color !== defaultFont.color) css += ` color: ${font.color};`;
     }
 
-    if (el.style.textAlign) css += ` text-align: ${el.style.textAlign};`;
+    if (el.style.textAlign && el.style.textAlign !== 'left') css += ` text-align: ${el.style.textAlign};`;
     if (el.style.backgroundColor) css += ` background-color: ${el.style.backgroundColor};`;
     if (el.style.opacity != null && el.style.opacity < 1) css += ` opacity: ${el.style.opacity};`;
 
