@@ -1,4 +1,4 @@
-# Zureo Report Designer
+# Report Designer
 
 Diseñador visual de plantillas de impresion para el ERP Zureo. Permite crear, editar y previsualizar moldes de facturas, tickets, remitos y otros comprobantes fiscales con datos reales.
 
