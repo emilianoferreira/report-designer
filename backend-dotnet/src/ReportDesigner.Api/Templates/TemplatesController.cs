@@ -1,13 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
 using ReportDesigner.Application.Templates;
+using System.Text.Json;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace ReportDesigner.Api.Templates;
 
 [ApiController]
 [Route("api/templates")]
 [Produces("application/json")]
-[ServiceFilter(typeof(LegacyQueryExceptionFilter))]
-public sealed class TemplatesController(ITemplateQueries queries) : ControllerBase
+[ServiceFilter(typeof(LegacyTemplateExceptionFilter))]
+public sealed class TemplatesController(ITemplateQueries queries, ITemplateCommands commands) : ControllerBase
 {
     private const string DefaultCompany = "c1000000-0000-0000-0000-000000000001";
 
@@ -30,4 +32,55 @@ public sealed class TemplatesController(ITemplateQueries queries) : ControllerBa
             ? NotFound(new { message = $"Template {id} not found", error = "Not Found", statusCode = 404 })
             : Ok(TemplateResponse.From(row));
     }
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] JsonElement body, CancellationToken cancellationToken)
+    {
+        var name = Property(body, "nombre");
+        var company = Property(body, "company_id");
+        var description = Property(body, "descripcion");
+        var command = new CreateTemplate(name.ValueKind == JsonValueKind.Undefined || name.ValueKind == JsonValueKind.Null ? null : name.GetString(),
+            Truthy(company) ? company.GetString()! : DefaultCompany,
+            Truthy(description) ? description.GetString()! : "", Property(body, "template_json"));
+        var result = await commands.CreateAsync(command, cancellationToken);
+        return StatusCode(201, TemplateResponse.From(result));
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] JsonElement body, CancellationToken cancellationToken)
+    {
+        var fields = body.ValueKind == JsonValueKind.Object
+            ? body.EnumerateObject().ToDictionary(field => field.Name, field => field.Value)
+            : new Dictionary<string, JsonElement>();
+        return Ok(TemplateResponse.From(await commands.UpdateAsync(Id, new TemplateChanges(fields), cancellationToken)));
+    }
+
+    [HttpPut("{id}/design")]
+    public async Task<IActionResult> SaveDesign([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] JsonElement body, CancellationToken cancellationToken)
+    {
+        var result = await commands.SaveDesignAsync(Id, Property(body, "template_json"), cancellationToken);
+        var response = TemplateResponse.From(result.Template);
+        return Ok(result.OmitDesign ? response with { TemplateJson = null } : response);
+    }
+
+    [HttpPost("{id}/duplicate")]
+    public async Task<IActionResult> Duplicate(CancellationToken cancellationToken) =>
+        StatusCode(201, TemplateResponse.From(await commands.DuplicateAsync(Id, cancellationToken)));
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(CancellationToken cancellationToken)
+    {
+        await commands.DeleteAsync(Id, cancellationToken);
+        return new EmptyResult(); // NestJS returns 200 with an empty body.
+    }
+
+    private string Id => (string)RouteData.Values["id"]!;
+    private static JsonElement Property(JsonElement body, string name) =>
+        body.ValueKind == JsonValueKind.Object && body.TryGetProperty(name, out var value) ? value : default;
+    private static bool Truthy(JsonElement value) => value.ValueKind switch {
+        JsonValueKind.Undefined or JsonValueKind.Null or JsonValueKind.False => false,
+        JsonValueKind.String => value.GetString() != "",
+        JsonValueKind.Number => value.GetDouble() != 0,
+        _ => true
+    };
 }

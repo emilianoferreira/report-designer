@@ -13,7 +13,7 @@ builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.Strict;
 });
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddScoped<LegacyQueryExceptionFilter>();
+builder.Services.AddScoped<LegacyTemplateExceptionFilter>();
 
 var app = builder.Build();
 app.MapControllers();

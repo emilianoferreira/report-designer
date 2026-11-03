@@ -14,7 +14,7 @@ public sealed record TemplateResponse(
     [property: JsonPropertyName("autor")] string? Autor,
     [property: JsonPropertyName("tags")] string[]? Tags,
     [property: JsonPropertyName("estado")] string? Estado,
-    [property: JsonPropertyName("template_json")] JsonElement TemplateJson,
+    [property: JsonPropertyName("template_json"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JsonElement? TemplateJson,
     [property: JsonPropertyName("based_on")] Guid? BasedOn,
     [property: JsonPropertyName("created_at")] string? CreatedAt,
     [property: JsonPropertyName("updated_at")] string? UpdatedAt)

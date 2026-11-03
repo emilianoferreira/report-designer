@@ -54,7 +54,7 @@ export async function checkFoundation({ root, env, dbPort, database, password, f
     const contract = JSON.parse(await readFile(path.join(root, 'contracts/openapi.json'), 'utf8'));
     for (const [route, operations] of Object.entries(contract.paths)) {
       for (const method of Object.keys(operations).filter(key => key !== 'parameters')) {
-        if (method === 'get' && ['/api/templates', '/api/templates/{id}'].includes(route)) continue;
+        if (route.startsWith('/api/templates')) continue;
         const result = await fetch(baseUrl + route.replace('{id}', '00000000-0000-0000-0000-000000000000'), { method: method.toUpperCase() });
         assert.ok([404, 405].includes(result.status), `${method} ${route} must remain unimplemented`);
       }
@@ -78,8 +78,13 @@ export async function checkFoundation({ root, env, dbPort, database, password, f
     new Promise((_, reject) => { const timer = setTimeout(() => reject(new Error('Missing configuration did not stop startup')), 15_000); timer.unref(); }),
   ]);
   assert.notEqual(exit.code, 0, 'Missing database configuration must fail startup');
+  const writable = start('dotnet-writes', connection.replace(';Options=-c default_transaction_read_only=on', ''));
+  await response(writable, '/health/ready', 200);
+  const { checkTemplateCommands } = await import('../stage3/check-template-commands.mjs');
+  await checkTemplateCommands({ root, env, baseUrl, resultsDir });
   await writeFile(path.join(resultsDir, 'stage1.json'), JSON.stringify({
     passed: true, checks: ['build', 'liveness', 'postgres-readiness', 'unchanged-contract-reference', 'unmigrated-routes-unavailable', 'unavailable-database-errors', 'missing-config-fails-startup'],
   }, null, 2));
   console.log('[stage1] Foundation checks passed; continuing with all NestJS stage0 tests.');
+  return { baseUrl };
 }

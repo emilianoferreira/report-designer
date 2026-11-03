@@ -24,6 +24,7 @@ const logs = [];
 let postgres;
 let pgStarted = false;
 let cleanupPromise;
+let dotnet;
 
 const args = process.argv.slice(2);
 if (args.some(arg => !['--record', '--with-dotnet'].includes(arg))) throw new Error('Only --record and --with-dotnet are supported.');
@@ -190,7 +191,7 @@ try {
   finally { await probeClient.end(); }
   if (args.includes('--with-dotnet')) {
     const { checkFoundation } = await import('../stage1/check-foundation.mjs');
-    await checkFoundation({ root, env, dbPort, database, password, freePort, launchExecutable, waitForExit, resultsDir });
+    dotnet = await checkFoundation({ root, env, dbPort, database, password, freePort, launchExecutable, waitForExit, resultsDir });
   }
   const ui = launch('angular', path.join(root, 'node_modules/@angular/cli/bin/ng.js'), [
     'serve', '--host', '127.0.0.1', '--port', String(uiPort), '--proxy-config', proxyFile,
@@ -212,6 +213,28 @@ try {
   jest.stdout.pipe(process.stdout);
   jest.stderr.pipe(process.stderr);
   await waitForExit(jest, 'Existing backend tests');
+
+  if (dotnet) {
+    console.log('[stage3] Running the 15 Templates/editor baseline tests against .NET with a temporary proxy; Invoices remain on NestJS.');
+    const dotnetUiPort = await freePort();
+    const dotnetProxy = path.join(runDir, 'dotnet-proxy.json');
+    await writeFile(dotnetProxy, JSON.stringify({ '/api': { target: dotnet.baseUrl, secure: false } }));
+    const dotnetResults = path.join(resultsDir, 'dotnet-regression');
+    await mkdir(dotnetResults, { recursive: true });
+    const dotnetEnv = { ...env, STAGE0_API_URL: dotnet.baseUrl, STAGE0_UI_URL: `http://127.0.0.1:${dotnetUiPort}`,
+      STAGE0_RESULTS_DIR: dotnetResults, STAGE0_RECORD: '0' };
+    const dotnetUi = launch('angular-dotnet', path.join(root, 'node_modules/@angular/cli/bin/ng.js'), [
+      'serve', '--host', '127.0.0.1', '--port', String(dotnetUiPort), '--proxy-config', dotnetProxy,
+    ], dotnetEnv);
+    await ready(dotnetEnv.STAGE0_UI_URL, dotnetUi, 'Angular .NET test proxy');
+    const regression = launch('playwright-dotnet', path.join(root, 'node_modules/@playwright/test/cli.js'), [
+      'test', '--config', 'e2e/playwright.stage0.config.ts',
+      '--grep-invert', 'invoice|invalid company query',
+    ], dotnetEnv);
+    regression.stdout.pipe(process.stdout);
+    regression.stderr.pipe(process.stderr);
+    await waitForExit(regression, 'ASP.NET Core baseline regression');
+  }
 
   // A final connection confirms which cluster was used, without relying on UI fallback.
   const client = new Client({ host: '127.0.0.1', port: dbPort, user: 'stage0_app', password, database });

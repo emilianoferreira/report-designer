@@ -8,7 +8,7 @@ Diseñador visual de plantillas de impresion para el ERP Zureo. Permite crear, e
 
 Pruebas de referencia para la migración del backend: [Etapa 0 — contratos, fixtures y PostgreSQL aislado](e2e/stage0/README.md). Ejecutar `npm run test:migration`.
 
-Backend paralelo ASP.NET Core: [Etapas 1 y 2 — estructura, PostgreSQL y consultas Templates con paridad](backend-dotnet/README.md). Verificar con `npm run test:dotnet`.
+Backend paralelo ASP.NET Core: [Etapas 1 a 3 — PostgreSQL y Templates completo con paridad](backend-dotnet/README.md). Verificar con `npm run test:dotnet`.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐

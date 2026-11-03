@@ -26,6 +26,7 @@ public static class DependencyInjection
 
         services.AddDbContext<ReportDesignerDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<ITemplateQueries, EfTemplateQueries>();
+        services.AddScoped<ITemplateCommands, PostgresTemplateCommands>();
         services.AddHealthChecks().AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"]);
         return services;
     }
