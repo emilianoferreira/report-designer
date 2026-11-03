@@ -5,6 +5,8 @@ using Npgsql;
 using ReportDesigner.Infrastructure.Persistence;
 using ReportDesigner.Application.Templates;
 using ReportDesigner.Infrastructure.Templates;
+using ReportDesigner.Application.Invoices;
+using ReportDesigner.Infrastructure.Invoices;
 
 namespace ReportDesigner.Infrastructure;
 
@@ -27,6 +29,7 @@ public static class DependencyInjection
         services.AddDbContext<ReportDesignerDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<ITemplateQueries, EfTemplateQueries>();
         services.AddScoped<ITemplateCommands, PostgresTemplateCommands>();
+        services.AddScoped<IInvoiceQueries, PostgresInvoiceQueries>();
         services.AddHealthChecks().AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"]);
         return services;
     }

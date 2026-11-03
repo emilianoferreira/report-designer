@@ -1,4 +1,4 @@
-using System.Globalization;
+using ReportDesigner.Api.Compatibility;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ReportDesigner.Application.Templates;
@@ -21,9 +21,5 @@ public sealed record TemplateResponse(
 {
     public static TemplateResponse From(TemplateReadModel row) => new(
         row.Id, row.CompanyId, row.Nombre, row.Descripcion, row.Version, row.Autor,
-        row.Tags, row.Estado, row.TemplateJson, row.BasedOn, Timestamp(row.CreatedAt), Timestamp(row.UpdatedAt));
-
-    // JavaScript Date.toJSON emits UTC milliseconds, truncating PostgreSQL microseconds.
-    private static string? Timestamp(DateTime? value) => value?.ToUniversalTime()
-        .ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
+        row.Tags, row.Estado, row.TemplateJson, row.BasedOn, LegacyTimestamp.Format(row.CreatedAt), LegacyTimestamp.Format(row.UpdatedAt));
 }

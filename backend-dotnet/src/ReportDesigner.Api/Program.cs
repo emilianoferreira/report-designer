@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using ReportDesigner.Infrastructure;
-using ReportDesigner.Api.Templates;
+using ReportDesigner.Api.Compatibility;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers().AddJsonOptions(options =>
@@ -13,7 +13,7 @@ builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.Strict;
 });
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddScoped<LegacyTemplateExceptionFilter>();
+builder.Services.AddScoped<LegacyApiExceptionFilter>();
 
 var app = builder.Build();
 app.MapControllers();

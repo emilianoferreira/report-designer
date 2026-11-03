@@ -1,6 +1,6 @@
-# Backend ASP.NET Core — etapas 1 a 3
+# Backend ASP.NET Core — etapas 1 a 4
 
-Base de la migración progresiva. El host ASP.NET Core arranca junto a NestJS y utiliza PostgreSQL mediante EF Core/Npgsql. Implementa las dos consultas y las cinco escrituras de Templates en paralelo. Angular mantiene su proxy actual hacia NestJS; los contratos y snapshots originales se conservan.
+Base de la migración progresiva. El host ASP.NET Core arranca junto a NestJS y utiliza PostgreSQL mediante EF Core/Npgsql. Implementa las siete operaciones de Templates y las dos consultas de Invoices en paralelo. Angular mantiene su proxy actual hacia NestJS; los contratos y snapshots originales se conservan.
 
 ## Estructura y límites
 
@@ -11,9 +11,9 @@ ReportDesigner.Api ────────────> Infrastructure ──�
 
 | Proyecto | Responsabilidad en esta etapa |
 |---|---|
-| `src/ReportDesigner.Api` | Host, controlador y DTO de Templates, compatibilidad de errores, salud y referencia del contrato |
-| `src/ReportDesigner.Infrastructure` | Mapeo de report_templates, consultas sin tracking, comandos SQL parametrizados y salud PostgreSQL |
-| `src/ReportDesigner.Application` | Puertos ITemplateQueries/ITemplateCommands, comandos y resultados independientes de HTTP/EF Core |
+| `src/ReportDesigner.Api` | Controladores y DTO de Templates/Invoices, compatibilidad compartida de fechas/errores, salud y referencia del contrato |
+| `src/ReportDesigner.Infrastructure` | Mapeo de report_templates, consultas sin tracking, proyección de resúmenes Invoices, función SQL existente y comandos parametrizados |
+| `src/ReportDesigner.Application` | Puertos ITemplateQueries/ITemplateCommands/IInvoiceQueries, comandos y modelos de lectura independientes de HTTP/EF Core |
 | `src/ReportDesigner.Domain` | Límite reservado para entidades/reglas; todavía sin modelo duplicado del servidor NestJS |
 
 Las futuras funcionalidades se agruparán por Templates e Invoices dentro de estas capas. API traduce HTTP/DTO; Application coordina casos de uso; Infrastructure implementa persistencia; Domain no depende de frameworks. No se agregan repositorios genéricos, mediadores ni abstracciones sin uso en esta etapa.
@@ -51,16 +51,28 @@ También puede usarse `dotnet user-secrets set 'ConnectionStrings:Postgres' '<ca
 | `PUT /api/templates/{id}/design` | 200; reemplaza JSON completo y actualiza versión |
 | `POST /api/templates/{id}/duplicate` | 201; nueva identidad, sufijo ` (copia)`, versión 1 y mismo JSON interno |
 | `DELETE /api/templates/{id}` | 200 con cuerpo vacío; 404 si falta y 500 ante referencias que impiden borrar |
+| `GET /api/invoices?companyId=...` | Resúmenes de la empresa por fecha DESC, total decimal como string y relaciones seleccionadas |
+| `GET /api/invoices/{id}/data` | JSON completo de build_invoice_data; 404 con el mensaje SQL original si falta |
 
 Readiness comprueba conectividad, no existencia ni compatibilidad del esquema. Los cuerpos de salud no exponen errores SQL ni credenciales. La API puede arrancar con una base inaccesible y seguir viva; readiness indica que aún no está lista.
 
-El contrato compartido se copia desde `contracts/openapi.json` al compilar/publicar. La ruta `reference` sirve una referencia de migración, no un documento generado de operaciones ya disponibles en ASP.NET Core. Las operaciones de Invoices siguen pendientes en .NET (404/405); no existe redirección ni cambio del proxy Angular.
+El contrato compartido se copia desde `contracts/openapi.json` al compilar/publicar. La ruta `reference` sirve la referencia original de migración y no genera OpenAPI a partir de los controladores. Las nueve operaciones del contrato están implementadas en paralelo; no existe redirección ni cambio del proxy Angular.
 
 Las consultas usan DTO con nombres explícitos, conservan nulls y mantienen `template_json` como `JsonElement` abierto, incluyendo extensiones del editor. Las fechas se emiten en UTC con exactamente tres decimales, como `Date.toJSON` de NestJS: se truncan los microsegundos sin redondear. El listado no filtra reportes/etiquetas ni agrega paginación. Se conserva el orden PostgreSQL DESC (incluyendo NULL primero); el orden entre timestamps iguales no está definido por el contrato.
 
-Los valores de id/empresa se envían como parámetros SQL y PostgreSQL los convierte a uuid. Esto conserva su sintaxis aceptada, incluidos UUID compactos y en mayúsculas, y evita introducir respuestas 400 automáticas. Un valor inválido o un error de conexión devuelve el mismo 500 genérico JSON de NestJS. Un id válido ausente devuelve 404 con el texto de id recibido. El filtro de errores se limita al controlador de consultas Templates; el cliente no recibe errores SQL ni ProblemDetails.
+Los valores de id/empresa se envían como parámetros SQL y PostgreSQL los convierte a uuid. Esto conserva su sintaxis aceptada, incluidos UUID compactos y en mayúsculas, y evita introducir respuestas 400 automáticas. Un valor inválido o un error de conexión devuelve el mismo 500 genérico JSON de NestJS. Un id válido de Template ausente devuelve 404 con el texto de id recibido. El filtro compartido `LegacyApiExceptionFilter` conserva el envelope 404/500 en ambos controladores; el cliente no recibe errores SQL ni ProblemDetails.
 
-La consulta individual conserva la búsqueda por id sin validar pertenencia a la empresa. Esta es la deuda de autorización ya documentada en etapa 0; antes de exponer el nuevo host debe resolverse mediante una decisión explícita de autenticación/autorización. Las consultas son `AsNoTracking`. El host con escrituras necesita SELECT/INSERT/UPDATE/DELETE sobre report_templates y acceso a los defaults existentes; el proceso de aplicación no necesita permisos para modificar el esquema.
+Las consultas individuales de Templates e Invoices conservan la búsqueda por id sin validar pertenencia a la empresa. Esta es la deuda de autorización ya documentada en etapa 0; antes de exponer el nuevo host debe resolverse mediante una decisión explícita de autenticación/autorización. Las consultas no registran entidades para cambios. El host con escrituras necesita SELECT/INSERT/UPDATE/DELETE sobre report_templates y acceso a los defaults existentes; Invoices necesita SELECT sobre sus tablas relacionadas y EXECUTE de build_invoice_data(uuid). El proceso de aplicación no necesita permisos para modificar el esquema.
+
+## Consultas Invoices y compatibilidad de etapa 4
+
+`IInvoiceQueries` separa las consultas del controlador HTTP. El listado usa una proyección SQL tipada mediante `Database.SqlQuery`, sin cargar el grafo de entidades ni introducir mapeos de escritura. Selecciona los mismos campos y LEFT JOIN que NestJS: invoice_type con nombre/codigo, contact con guardar_como o null, y currency con iso4217/simbolo. Filtra por company_id y ordena por fecha DESC, sin paginación ni orden adicional para empates. La empresa por defecto se aplica solo si el parámetro está ausente; una cadena vacía sigue produciendo 500.
+
+`total::text` conserva la representación decimal de pg/TypeORM, incluidos los ceros finales y null. La fecha del listado usa la misma conversión UTC de tres decimales que Templates. Los DTO de respuesta nombran explícitamente cada propiedad del contrato y conservan los campos nulos.
+
+`/data` ejecuta la función `build_invoice_data(uuid)` original. La función y los scripts SQL no cambian. El resultado se mantiene como JSON abierto (`JsonElement` clonado antes de disponer el documento), de modo que conserva casing, números, flags, nulls, arrays, extensiones y fechas serializadas por PostgreSQL. La fecha interna de InvoiceData conserva el formato SQL, que puede incluir microsegundos y offset; no se convierte al formato de tres decimales del listado. No se duplica el ensamblado de datos del renderizador en C#.
+
+La respuesta `{error: 'Invoice not found'}` de la función se traduce al mismo 404 NestJS: `{statusCode:404, error:'Not Found', message:'Invoice not found'}`. Un UUID inválido o un fallo de conexión mantiene el 500 genérico. El componente común de errores y el formateador de timestamps se reutilizan con Templates. No se agregan paquetes, escrituras de Invoices ni cambios de esquema. La vista previa Angular sigue usando sus datos de muestra actuales; esta etapa migra las consultas, sin cambiar el origen de datos de esa vista.
 
 ## Escrituras y compatibilidad de etapa 3
 
@@ -84,15 +96,17 @@ $env:DOTNET_HOST_PATH = "$PWD/tmp/dotnet-sdk/dotnet.exe"
 npm run test:dotnet
 ```
 
-Reutiliza el runner de etapa 0: crea PostgreSQL descartable, carga los SQL y verifica su marcador antes de iniciar las comprobaciones .NET. Restaura paquetes con lock, compila y comprueba salud, conexión real, fallo con credenciales incorrectas, rechazo de configuración ausente, identidad del contrato y ausencia de operaciones pendientes. Ejecuta la paridad de consultas con una conexión .NET de solo lectura, reinicia el host con permisos de escritura y compara comandos. Después ejecuta los 25 casos de etapa 0 y los 18 existentes de NestJS contra esa misma base aislada. La configuración del entorno de desarrollo y los datos existentes no se usan.
+Reutiliza el runner de etapa 0: crea PostgreSQL descartable, carga los SQL y verifica su marcador antes de iniciar las comprobaciones .NET. Restaura paquetes con lock, compila y comprueba salud, conexión real, fallo con credenciales incorrectas en las cuatro consultas, rechazo de configuración ausente e identidad del contrato. Ejecuta la paridad de consultas Templates/Invoices con una conexión .NET de solo lectura, reinicia el host con permisos de escritura y compara comandos. Después ejecuta los 25 casos de etapa 0 y los 18 existentes de NestJS contra esa misma base aislada. La configuración del entorno de desarrollo y los datos existentes no se usan.
 
-Finalmente ejecuta los 15 casos de Templates/editor de etapa 0 contra .NET, incluidos guardar, recargar en navegador nuevo, renderizar y exportar reportes A4, ticket y etiquetas. Solo para esa ejecución inicia otra instancia Angular con un proxy creado dentro del directorio descartable. No modifica el proxy del repositorio ni la configuración de Angular. Invoices no se dirige a .NET: sus nueve casos y el caso mixto de errores de empresa siguen comprobándose en NestJS. Los errores de creación y empresa de Templates también se cubren directamente en las comparaciones de etapas 2 y 3. Esta ejecución .NET prohíbe actualizar snapshots incluso si se solicita modo record.
+Finalmente ejecuta los 25 casos completos de etapa 0 contra .NET, incluidos contratos Invoices y guardar, recargar en navegador nuevo, renderizar y exportar reportes A4, ticket y etiquetas. Desde etapa 4 ya no se excluyen casos. Solo para esa ejecución inicia otra instancia Angular con un proxy creado dentro del directorio descartable. No modifica el proxy del repositorio ni la configuración de Angular. Esta ejecución .NET prohíbe actualizar snapshots incluso si se solicita modo record.
 
 La paridad de `e2e/stage2/check-template-queries.mjs` compara estados y cuerpos JSON completos de NestJS y .NET, sin normalizar ids, timestamps, documentos ni orden de arrays. También valida respuestas contra el esquema de etapa 0. Incluye lista vacía, dos empresas, tres formatos de fixture, valores nulos, precisión temporal, based_on, Unicode, tags y extensiones JSON; errores de UUID y entradas que parecen SQL; cambios/guardados/borrados desde NestJS visibles inmediatamente en .NET. Compara las filas SQL antes/después de lecturas y conecta .NET con `default_transaction_read_only=on`. Los fixtures se eliminan al terminar para no afectar las demás pruebas. La comparación es de JSON y estados, no de bytes, orden de claves, headers de infraestructura ni formato textual de escape Unicode.
 
 La paridad de escrituras (`e2e/stage3/check-template-commands.mjs`) aplica cada operación a filas equivalentes en ambos backends y compara respuestas completas, filas SQL y lecturas posteriores. Solo normaliza identidades/fechas generadas y la referencia based_on entre contrapartes; no normaliza documentos, metadatos ni versiones. Verifica rollback y ausencia de cambios en errores, defaults, nulos, campos omitidos, límites de nombre, restricciones de borrado y la omisión de diseño indicada arriba.
 
-Los logs .NET, `stage1.json`, `stage2.json` y `stage3.json` quedan junto a los resultados de etapa 0 en `e2e/test-results/stage0-<uuid>`. La regresión con .NET conserva su propio `dotnet-regression/results.json` y trazas de fallos, sin sobrescribir el resultado NestJS. El SDK debe estar instalado o indicado por `DOTNET_HOST_PATH`; el runner no lo descarga. La caché de NuGet y el directorio CLI quedan bajo `tmp`.
+La paridad de Invoices (`e2e/stage4/check-invoice-queries.mjs`) compara estados y JSON completos con NestJS, sin normalizar valores, y valida los esquemas originales. Comprueba además cada JSON de renderizado contra la función SQL. Incluye las cinco facturas del seed, dos empresas, UUID compactos/mayúsculas, errores y entradas que parecen SQL; una factura aislada sin líneas/contacto/sucursal/impuestos; importes y flags nulos, precisión decimal, fecha con microsegundos, fecha bisiesta y líneas insertadas fuera de orden. Comprueba cambios y borrados inmediatamente visibles y compara las ocho tablas de entrada antes/después de lecturas para detectar mutaciones. Las filas adicionales se eliminan al terminar.
+
+Los logs .NET y los detalles de `stage1.json` a `stage4.json` quedan junto a los resultados de etapa 0 en `e2e/test-results/stage0-<uuid>`. La regresión con .NET conserva su propio `dotnet-regression/results.json` y trazas de fallos, sin sobrescribir el resultado NestJS. El SDK debe estar instalado o indicado por `DOTNET_HOST_PATH`; el runner no lo descarga. La caché de NuGet y el directorio CLI quedan bajo `tmp`.
 
 Validación del 3 de noviembre de 2026 en Windows x64: build Release sin errores ni advertencias, siete comprobaciones de la base .NET aprobadas y regresión completa de 25 casos de etapa 0 más 18 casos preexistentes del backend aprobada. Se conserva la referencia original; no se regeneran snapshots para esta etapa.
 
@@ -100,4 +114,6 @@ Etapa 2 verificada en el mismo entorno: 24 comparaciones directas NestJS/.NET ap
 
 Etapa 3 verificada en el mismo entorno: 81 comparaciones de escrituras y las 24 comparaciones de consultas aprobadas; las 43 pruebas NestJS y los 15 casos de Templates/editor contra .NET aprobados, usando los snapshots originales. Build Release sin errores ni advertencias. Se verificó también que una actualización sin cambios efectivos mantiene updated_at y que los fallos por restricciones no alteran filas. El clúster descartable se eliminó al finalizar.
 
-La siguiente etapa puede migrar las consultas de Invoices. El cambio de tráfico requiere una decisión posterior y la paridad correspondiente; no forma parte de esta entrega.
+Etapa 4 verificada en el mismo entorno: 29 comparaciones Invoices aprobadas sin normalizar respuestas; se mantienen aprobadas las 24 de consultas y 81 de escrituras Templates. Las 43 pruebas NestJS y las 25 pruebas completas de API/editor contra .NET pasaron con las referencias originales. Build Release sin errores ni advertencias; comprobaciones 500 por fallo de conexión en las cuatro consultas aprobadas. Se verificaron lecturas sin mutaciones y limpieza del clúster descartable.
+
+El cambio de tráfico queda pendiente de una decisión posterior; no forma parte de esta entrega.

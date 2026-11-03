@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using ReportDesigner.Api.Compatibility;
 using ReportDesigner.Application.Templates;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -8,7 +9,7 @@ namespace ReportDesigner.Api.Templates;
 [ApiController]
 [Route("api/templates")]
 [Produces("application/json")]
-[ServiceFilter(typeof(LegacyTemplateExceptionFilter))]
+[ServiceFilter(typeof(LegacyApiExceptionFilter))]
 public sealed class TemplatesController(ITemplateQueries queries, ITemplateCommands commands) : ControllerBase
 {
     private const string DefaultCompany = "c1000000-0000-0000-0000-000000000001";

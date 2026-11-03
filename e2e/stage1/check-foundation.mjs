@@ -51,23 +51,18 @@ export async function checkFoundation({ root, env, dbPort, database, password, f
     assert.equal(await (await response(healthy, '/health/ready', 200)).text(), 'Healthy');
     const reference = await response(healthy, '/reference/openapi.json', 200);
     assert.equal(await reference.text(), await readFile(path.join(root, 'contracts/openapi.json'), 'utf8'));
-    const contract = JSON.parse(await readFile(path.join(root, 'contracts/openapi.json'), 'utf8'));
-    for (const [route, operations] of Object.entries(contract.paths)) {
-      for (const method of Object.keys(operations).filter(key => key !== 'parameters')) {
-        if (route.startsWith('/api/templates')) continue;
-        const result = await fetch(baseUrl + route.replace('{id}', '00000000-0000-0000-0000-000000000000'), { method: method.toUpperCase() });
-        assert.ok([404, 405].includes(result.status), `${method} ${route} must remain unimplemented`);
-      }
-    }
     const { checkTemplateQueries } = await import('../stage2/check-template-queries.mjs');
     await checkTemplateQueries({ root, env, baseUrl, resultsDir });
+    const { checkInvoiceQueries } = await import('../stage4/check-invoice-queries.mjs');
+    await checkInvoiceQueries({ root, env, baseUrl, resultsDir });
   } finally { await stop(healthy); }
 
   const unavailable = start('dotnet-unavailable', connection.replace(`Password=${password}`, 'Password=deliberately-wrong'));
   try {
     assert.equal(await (await response(unavailable, '/health/live', 200)).text(), 'Healthy');
     assert.equal(await (await response(unavailable, '/health/ready', 503)).text(), 'Unhealthy');
-    for (const route of ['/api/templates', '/api/templates/00000000-0000-0000-0000-000000000000']) {
+    for (const route of ['/api/templates', '/api/templates/00000000-0000-0000-0000-000000000000',
+      '/api/invoices', '/api/invoices/00000000-0000-0000-0000-000000000000/data']) {
       assert.deepEqual(await (await response(unavailable, route, 500)).json(), { statusCode: 500, message: 'Internal server error' });
     }
   } finally { await stop(unavailable); }
@@ -83,7 +78,7 @@ export async function checkFoundation({ root, env, dbPort, database, password, f
   const { checkTemplateCommands } = await import('../stage3/check-template-commands.mjs');
   await checkTemplateCommands({ root, env, baseUrl, resultsDir });
   await writeFile(path.join(resultsDir, 'stage1.json'), JSON.stringify({
-    passed: true, checks: ['build', 'liveness', 'postgres-readiness', 'unchanged-contract-reference', 'unmigrated-routes-unavailable', 'unavailable-database-errors', 'missing-config-fails-startup'],
+    passed: true, checks: ['build', 'liveness', 'postgres-readiness', 'unchanged-contract-reference', 'unavailable-database-errors', 'missing-config-fails-startup'],
   }, null, 2));
   console.log('[stage1] Foundation checks passed; continuing with all NestJS stage0 tests.');
   return { baseUrl };

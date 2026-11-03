@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ReportDesigner.Application.Common;
 
 namespace ReportDesigner.Application.Templates;
 
@@ -6,7 +7,7 @@ public sealed record CreateTemplate(string? Nombre, string CompanyId, string Des
 // A dictionary preserves absent vs explicit null without imposing an editor schema.
 public sealed record TemplateChanges(IReadOnlyDictionary<string, JsonElement> Fields);
 public sealed record TemplateWriteResult(TemplateReadModel Template, bool OmitDesign = false);
-public sealed class TemplateNotFoundException(string id) : Exception($"Template {id} not found");
+public sealed class TemplateNotFoundException(string id) : ResourceNotFoundException($"Template {id} not found");
 
 public interface ITemplateCommands
 {

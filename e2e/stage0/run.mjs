@@ -215,7 +215,7 @@ try {
   await waitForExit(jest, 'Existing backend tests');
 
   if (dotnet) {
-    console.log('[stage3] Running the 15 Templates/editor baseline tests against .NET with a temporary proxy; Invoices remain on NestJS.');
+    console.log('[stage4] Running all 25 API/editor baseline tests against .NET with a temporary test proxy.');
     const dotnetUiPort = await freePort();
     const dotnetProxy = path.join(runDir, 'dotnet-proxy.json');
     await writeFile(dotnetProxy, JSON.stringify({ '/api': { target: dotnet.baseUrl, secure: false } }));
@@ -229,7 +229,6 @@ try {
     await ready(dotnetEnv.STAGE0_UI_URL, dotnetUi, 'Angular .NET test proxy');
     const regression = launch('playwright-dotnet', path.join(root, 'node_modules/@playwright/test/cli.js'), [
       'test', '--config', 'e2e/playwright.stage0.config.ts',
-      '--grep-invert', 'invoice|invalid company query',
     ], dotnetEnv);
     regression.stdout.pipe(process.stdout);
     regression.stderr.pipe(process.stderr);
