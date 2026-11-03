@@ -19,7 +19,7 @@ export async function checkFoundation({ root, env, dbPort, database, password, f
 
   const port = await freePort();
   const baseUrl = `http://127.0.0.1:${port}`;
-  const connection = `Host=127.0.0.1;Port=${dbPort};Database=${database};Username=stage0_app;Password=${password};Timeout=2;Command Timeout=3`;
+  const connection = `Host=127.0.0.1;Port=${dbPort};Database=${database};Username=stage0_app;Password=${password};Timeout=2;Command Timeout=3;Options=-c default_transaction_read_only=on`;
   const start = (name, connectionString) => launchExecutable(name, dotnet, [dll], {
     ...baseEnv, ASPNETCORE_URLS: baseUrl, ConnectionStrings__Postgres: connectionString,
   }, path.dirname(dll));
@@ -54,16 +54,22 @@ export async function checkFoundation({ root, env, dbPort, database, password, f
     const contract = JSON.parse(await readFile(path.join(root, 'contracts/openapi.json'), 'utf8'));
     for (const [route, operations] of Object.entries(contract.paths)) {
       for (const method of Object.keys(operations).filter(key => key !== 'parameters')) {
+        if (method === 'get' && ['/api/templates', '/api/templates/{id}'].includes(route)) continue;
         const result = await fetch(baseUrl + route.replace('{id}', '00000000-0000-0000-0000-000000000000'), { method: method.toUpperCase() });
-        assert.equal(result.status, 404, `${method} ${route} must remain unimplemented in stage1`);
+        assert.ok([404, 405].includes(result.status), `${method} ${route} must remain unimplemented`);
       }
     }
+    const { checkTemplateQueries } = await import('../stage2/check-template-queries.mjs');
+    await checkTemplateQueries({ root, env, baseUrl, resultsDir });
   } finally { await stop(healthy); }
 
   const unavailable = start('dotnet-unavailable', connection.replace(`Password=${password}`, 'Password=deliberately-wrong'));
   try {
     assert.equal(await (await response(unavailable, '/health/live', 200)).text(), 'Healthy');
     assert.equal(await (await response(unavailable, '/health/ready', 503)).text(), 'Unhealthy');
+    for (const route of ['/api/templates', '/api/templates/00000000-0000-0000-0000-000000000000']) {
+      assert.deepEqual(await (await response(unavailable, route, 500)).json(), { statusCode: 500, message: 'Internal server error' });
+    }
   } finally { await stop(unavailable); }
 
   const missing = start('dotnet-missing-config', '');
@@ -73,7 +79,7 @@ export async function checkFoundation({ root, env, dbPort, database, password, f
   ]);
   assert.notEqual(exit.code, 0, 'Missing database configuration must fail startup');
   await writeFile(path.join(resultsDir, 'stage1.json'), JSON.stringify({
-    passed: true, checks: ['build', 'liveness', 'postgres-readiness', 'unchanged-contract-reference', 'no-migrated-business-routes', 'unavailable-database-503', 'missing-config-fails-startup'],
+    passed: true, checks: ['build', 'liveness', 'postgres-readiness', 'unchanged-contract-reference', 'unmigrated-routes-unavailable', 'unavailable-database-errors', 'missing-config-fails-startup'],
   }, null, 2));
   console.log('[stage1] Foundation checks passed; continuing with all NestJS stage0 tests.');
 }
