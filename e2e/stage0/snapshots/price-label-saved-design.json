@@ -1,0 +1,133 @@
+{
+  "elements": [
+    {
+      "binding": "company.logo",
+      "fit": "contain",
+      "id": "e0000000-0000-4000-8000-000000000013",
+      "locked": false,
+      "name": "Logo empresa",
+      "position": {
+        "x": 2,
+        "y": 2
+      },
+      "size": {
+        "height": 8,
+        "width": 12
+      },
+      "sourceType": "binding",
+      "style": {},
+      "type": "image",
+      "zIndex": 1
+    },
+    {
+      "content": "Etiqueta guardada ñ 1,25",
+      "id": "e0000000-0000-4000-8000-000000000014",
+      "locked": false,
+      "name": "Nombre articulo",
+      "position": {
+        "x": 15.3,
+        "y": 2
+      },
+      "size": {
+        "height": 8,
+        "width": 33
+      },
+      "style": {
+        "borderStyle": "solid",
+        "font": {
+          "color": "#111111",
+          "family": "Arial",
+          "size": 8,
+          "style": "normal",
+          "weight": "bold"
+        },
+        "opacity": 1,
+        "textAlign": "left",
+        "verticalAlign": "middle"
+      },
+      "type": "text",
+      "zIndex": 2
+    },
+    {
+      "binding": "article.price",
+      "currencyPath": "company.currencySymbol",
+      "decimals": 2,
+      "id": "e0000000-0000-4000-8000-000000000015",
+      "locked": false,
+      "name": "Precio",
+      "position": {
+        "x": 2,
+        "y": 11
+      },
+      "prefix": "",
+      "size": {
+        "height": 8,
+        "width": 46
+      },
+      "style": {
+        "font": {
+          "color": "#111111",
+          "family": "Arial",
+          "size": 17,
+          "style": "normal",
+          "weight": "bold"
+        },
+        "textAlign": "center",
+        "verticalAlign": "middle"
+      },
+      "type": "price",
+      "zIndex": 3
+    },
+    {
+      "barcodeType": "CODE128",
+      "binding": "article.barcode",
+      "id": "e0000000-0000-4000-8000-000000000016",
+      "locked": false,
+      "name": "Codigo de barras",
+      "position": {
+        "x": 7,
+        "y": 20
+      },
+      "showText": true,
+      "size": {
+        "height": 8,
+        "width": 36
+      },
+      "style": {},
+      "type": "barcode",
+      "zIndex": 2
+    }
+  ],
+  "futureExtension": {
+    "nullable": null,
+    "value": 1.2345
+  },
+  "id": "<row-uuid>",
+  "label": {
+    "columns": 4,
+    "gapX": 2,
+    "gapY": 2,
+    "height": 30,
+    "paddingBottom": 2,
+    "paddingLeft": 2,
+    "paddingRight": 2,
+    "paddingTop": 2,
+    "rows": 8,
+    "width": 50
+  },
+  "name": "Contrato etiqueta UI",
+  "page": {
+    "height": 297,
+    "marginBottom": 5,
+    "marginLeft": 5,
+    "marginRight": 5,
+    "marginTop": 5,
+    "mode": "sheet",
+    "orientation": "portrait",
+    "size": "A4",
+    "width": 210
+  },
+  "type": "price-label",
+  "unit": "mm",
+  "version": 2
+}

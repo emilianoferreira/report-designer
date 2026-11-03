@@ -1,0 +1,143 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Report Designer — contrato de compatibilidad NestJS",
+    "version": "0.0.1-stage0",
+    "description": "Referencia del comportamiento existente. No introduce validación en el servidor. Los defectos caracterizados se documentan por separado. PUT tiene semántica parcial; DELETE devuelve 200 vacío."
+  },
+  "paths": {
+    "/api/templates": {
+      "get": {
+        "operationId": "listTemplates",
+        "parameters": [{ "$ref": "#/components/parameters/CompanyId" }],
+        "responses": {
+          "200": { "description": "Array completo, updated_at DESC", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Template" } } } } },
+          "500": { "$ref": "#/components/responses/DatabaseError" }
+        }
+      },
+      "post": {
+        "operationId": "createTemplate",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateTemplate" } } } },
+        "responses": {
+          "201": { "$ref": "#/components/responses/Template" },
+          "500": { "$ref": "#/components/responses/DatabaseError" }
+        }
+      }
+    },
+    "/api/templates/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": { "operationId": "getTemplate", "responses": { "200": { "$ref": "#/components/responses/Template" }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/DatabaseError" } } },
+      "put": {
+        "operationId": "updateTemplate",
+        "description": "Actualización parcial. Incrementa version incluso para un objeto vacío. Campos omitidos se conservan.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateTemplate" } } } },
+        "responses": { "200": { "$ref": "#/components/responses/Template" }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/DatabaseError" } }
+      },
+      "delete": { "operationId": "deleteTemplate", "responses": { "200": { "description": "Cuerpo vacío; no devuelve JSON ni 204" }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/DatabaseError" } } }
+    },
+    "/api/templates/{id}/design": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "put": {
+        "operationId": "saveDesign",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["template_json"], "properties": { "template_json": { "$ref": "#/components/schemas/EditorDocument" } } } } } },
+        "responses": { "200": { "$ref": "#/components/responses/Template" }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/DatabaseError" } }
+      }
+    },
+    "/api/templates/{id}/duplicate": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "post": { "operationId": "duplicateTemplate", "responses": { "201": { "$ref": "#/components/responses/Template" }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/DatabaseError" } } }
+    },
+    "/api/invoices": {
+      "get": {
+        "operationId": "listInvoices",
+        "parameters": [{ "$ref": "#/components/parameters/CompanyId" }],
+        "responses": {
+          "200": { "description": "Array de resúmenes, fecha DESC", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/InvoiceSummary" } } } } },
+          "500": { "$ref": "#/components/responses/DatabaseError" }
+        }
+      }
+    },
+    "/api/invoices/{id}/data": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": { "operationId": "getInvoiceData", "responses": { "200": { "description": "Objeto JSON de build_invoice_data; conservar casing y tipos", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InvoiceData" } } } }, "404": { "$ref": "#/components/responses/NotFound" }, "500": { "$ref": "#/components/responses/DatabaseError" } } }
+    }
+  },
+  "components": {
+    "parameters": {
+      "Id": { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "UUID. El servidor actual delega validación a PostgreSQL; mal formado produce 500." },
+      "CompanyId": { "name": "companyId", "in": "query", "schema": { "type": "string", "default": "c1000000-0000-0000-0000-000000000001" } }
+    },
+    "responses": {
+      "Template": { "description": "Fila de report_templates", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Template" } } } },
+      "NotFound": { "description": "Recurso inexistente", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NotFoundError" } } } },
+      "DatabaseError": { "description": "Error existente de base de datos, sin detalle SQL público", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ServerError" } } } }
+    },
+    "schemas": {
+      "EditorDocument": {
+        "description": "JSON abierto. Reporte: {documentType, template}; etiqueta: LabelTemplate directamente con type=price-label. Se conservan todas las propiedades desconocidas. El backend actual también acepta objetos ajenos a estos formatos.",
+        "type": "object",
+        "additionalProperties": true
+      },
+      "CreateTemplate": {
+        "type": "object", "required": ["nombre", "template_json"],
+        "properties": { "nombre": { "type": "string", "maxLength": 200 }, "company_id": { "type": "string" }, "descripcion": { "type": ["string", "null"] }, "template_json": { "$ref": "#/components/schemas/EditorDocument" } }
+      },
+      "UpdateTemplate": {
+        "type": "object",
+        "properties": { "nombre": { "type": "string", "maxLength": 200 }, "descripcion": { "type": ["string", "null"] }, "estado": { "type": "string" }, "template_json": { "$ref": "#/components/schemas/EditorDocument" } },
+        "description": "Campos públicos previstos. La asignación masiva actual es un defecto; no constituye una ampliación del contrato público."
+      },
+      "Template": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "company_id", "nombre", "descripcion", "version", "autor", "tags", "estado", "template_json", "based_on", "created_at", "updated_at"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[0-9a-f-]{36}$" },
+          "company_id": { "type": "string" }, "nombre": { "type": "string" },
+          "descripcion": { "type": ["string", "null"] }, "version": { "type": ["integer", "null"] },
+          "autor": { "type": ["string", "null"] }, "tags": { "type": ["array", "null"], "items": { "type": "string" } },
+          "estado": { "type": ["string", "null"] }, "template_json": { "$ref": "#/components/schemas/EditorDocument" },
+          "based_on": { "type": ["string", "null"] }, "created_at": { "type": ["string", "null"] }, "updated_at": { "type": ["string", "null"] }
+        }
+      },
+      "InvoiceSummary": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "serie", "numero", "fecha", "total", "estado", "invoice_type", "contact", "currency"],
+        "properties": {
+          "id": { "type": "string" }, "serie": { "type": ["string", "null"] }, "numero": { "type": "integer" }, "fecha": { "type": "string" },
+          "total": { "type": ["string", "null"], "description": "numeric leído por pg/TypeORM se serializa como cadena" }, "estado": { "type": ["string", "null"] },
+          "invoice_type": { "type": "object", "required": ["nombre", "codigo"], "additionalProperties": false, "properties": { "nombre": { "type": "string" }, "codigo": { "type": ["string", "null"] } } },
+          "contact": { "type": ["object", "null"], "required": ["guardar_como"], "additionalProperties": false, "properties": { "guardar_como": { "type": "string" } } },
+          "currency": { "type": "object", "required": ["iso4217", "simbolo"], "additionalProperties": false, "properties": { "iso4217": { "type": "string" }, "simbolo": { "type": "string" } } }
+        }
+      },
+      "InvoiceData": {
+        "type": "object", "additionalProperties": false,
+        "required": ["invoice", "invoiceLines", "company", "Moneda", "Contacto", "CFE", "Articulos", "Impuestos", "SubtotalesDesglosados", "Subtotal", "Total", "Redondeo", "MontoDtoGlobal", "isCFE", "isConsumoFinal", "isImpIncluidos", "hasContacto", "hasDtoGlobal", "hasRedondeo", "logoBase64", "QRBase64"],
+        "properties": {
+          "invoice": { "type": "object", "required": ["Tipo", "Numero", "Fecha", "Comentario", "TipoCambio", "PorcentajeDescGlobal", "DireccionFactura", "Empresa", "Sucursal"], "properties": { "Numero": { "type": "object", "required": ["Numero"], "properties": { "Numero": { "type": "string" } } }, "Fecha": { "type": "string" } } },
+          "invoiceLines": { "type": "array", "items": { "$ref": "#/components/schemas/InvoiceLine" } },
+          "Articulos": { "type": "array", "items": { "$ref": "#/components/schemas/InvoiceLine" } },
+          "company": { "type": "object", "required": ["Nombre", "NombreComercial", "RUT", "Direccion", "Ciudad", "logoUrl"] },
+          "Moneda": { "type": "object", "required": ["ISO4217", "Simbolo"] }, "Contacto": { "type": "object", "required": ["GuardarComo"] },
+          "CFE": { "type": "object", "required": ["TipoComprobanteFiscal", "CodSeguridad", "Adenda"] },
+          "Impuestos": { "type": "array", "items": { "type": "object", "required": ["Nombre", "Valor"], "properties": { "Nombre": { "type": "string" }, "Valor": { "type": ["number", "null"] } } } },
+          "SubtotalesDesglosados": { "type": "array" },
+          "Subtotal": { "type": ["number", "null"] }, "Total": { "type": ["number", "null"] }, "Redondeo": { "type": ["number", "null"] }, "MontoDtoGlobal": { "type": ["number", "null"] },
+          "isCFE": { "type": ["boolean", "null"] }, "isConsumoFinal": { "type": ["boolean", "null"] }, "isImpIncluidos": { "type": ["boolean", "null"] },
+          "hasContacto": { "type": "boolean" }, "hasDtoGlobal": { "type": ["boolean", "null"] }, "hasRedondeo": { "type": ["boolean", "null"] },
+          "logoBase64": { "type": "string" }, "QRBase64": { "type": "string" }
+        }
+      },
+      "InvoiceLine": {
+        "type": "object", "additionalProperties": false,
+        "required": ["Articulo", "Cantidad", "PrecioUnitario", "PrecioUnitarioNeto", "Descuento", "SubTotal"],
+        "properties": {
+          "Articulo": { "type": "object", "required": ["Codigo", "Nombre"], "properties": { "Codigo": { "type": ["string", "null"] }, "Nombre": { "type": ["string", "null"] } } },
+          "Cantidad": { "type": ["number", "null"] }, "PrecioUnitario": { "type": ["number", "null"] }, "PrecioUnitarioNeto": { "type": ["number", "null"] }, "Descuento": { "type": ["number", "null"] }, "SubTotal": { "type": ["number", "null"] }
+        }
+      },
+      "NotFoundError": { "type": "object", "required": ["statusCode", "message", "error"], "additionalProperties": false, "properties": { "statusCode": { "const": 404 }, "message": { "type": "string" }, "error": { "const": "Not Found" } } },
+      "ServerError": { "type": "object", "required": ["statusCode", "message"], "additionalProperties": false, "properties": { "statusCode": { "const": 500 }, "message": { "const": "Internal server error" } } }
+    }
+  }
+}

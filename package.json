@@ -12,7 +12,10 @@
     "db:reset": "cd server && npm run db:reset",
     "test:e2e": "cd e2e && npx playwright test",
     "test:e2e:headed": "cd e2e && npx playwright test --headed",
-    "test:backend": "cd server && npm run test:e2e"
+    "test:backend": "cd server && npm run test:e2e",
+    "test:migration": "node e2e/stage0/run.mjs",
+    "test:migration:record": "node e2e/stage0/run.mjs --record",
+    "test:dotnet": "node e2e/stage0/run.mjs --with-dotnet"
   },
   "private": true,
   "dependencies": {

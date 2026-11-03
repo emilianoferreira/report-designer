@@ -1,0 +1,127 @@
+{
+  "Articulos": [
+    {
+      "Articulo": {
+        "Codigo": "TE-001",
+        "Nombre": "Teclado mecánico Logitech"
+      },
+      "Cantidad": 1,
+      "Descuento": 0,
+      "PrecioUnitario": 4200,
+      "PrecioUnitarioNeto": 3442.62,
+      "SubTotal": 4200
+    },
+    {
+      "Articulo": {
+        "Codigo": "CA-001",
+        "Nombre": "Cable HDMI 2m"
+      },
+      "Cantidad": 1,
+      "Descuento": 50,
+      "PrecioUnitario": 350,
+      "PrecioUnitarioNeto": 286.89,
+      "SubTotal": 300
+    }
+  ],
+  "CFE": {
+    "Adenda": "",
+    "CodSeguridad": "",
+    "TipoComprobanteFiscal": {
+      "Nombre": ""
+    }
+  },
+  "Contacto": {
+    "GuardarComo": ""
+  },
+  "Impuestos": [
+    {
+      "Nombre": "IVA Tasa Básica",
+      "Valor": 811.48
+    }
+  ],
+  "Moneda": {
+    "ISO4217": "UYU",
+    "Simbolo": "$"
+  },
+  "MontoDtoGlobal": 0,
+  "QRBase64": "",
+  "Redondeo": 0,
+  "Subtotal": 3688.52,
+  "SubtotalesDesglosados": [],
+  "Total": 4500,
+  "company": {
+    "Ciudad": "Montevideo",
+    "Direccion": "Bulevar Artigas 1250",
+    "Nombre": "Soluciones Tech S.A.",
+    "NombreComercial": "SolTech",
+    "RUT": "21-654321-0001",
+    "logoUrl": ""
+  },
+  "hasContacto": false,
+  "hasDtoGlobal": false,
+  "hasRedondeo": false,
+  "invoice": {
+    "Comentario": "",
+    "DireccionFactura": {
+      "Domicilio": ""
+    },
+    "Empresa": {
+      "Parametros": {
+        "EFA_Emisor_Ciudad": "Montevideo",
+        "EFA_Emisor_Direccion": "Bulevar Artigas 1250",
+        "EFA_Emisor_NComercial": "SolTech",
+        "EFA_Emisor_Nombre": "Soluciones Tech S.A.",
+        "EFA_Emisor_RUT": "21-654321-0001",
+        "EFA_Resolucion": "Res. DGI 1234/2025"
+      }
+    },
+    "Fecha": "2026-03-15T13:30:00+00:00",
+    "Numero": {
+      "CAEDesde": "",
+      "CAEFechaVto": "",
+      "CAEHasta": "",
+      "CAEIdentificador": "",
+      "Numero": "1",
+      "Serie": "A"
+    },
+    "PorcentajeDescGlobal": 0,
+    "Sucursal": {
+      "Direccion": "Bulevar Artigas 1250"
+    },
+    "Tipo": {
+      "Clasificacion": {
+        "OperaContado": true
+      },
+      "Nombre": "Venta Contado"
+    },
+    "TipoCambio": 1
+  },
+  "invoiceLines": [
+    {
+      "Articulo": {
+        "Codigo": "TE-001",
+        "Nombre": "Teclado mecánico Logitech"
+      },
+      "Cantidad": 1,
+      "Descuento": 0,
+      "PrecioUnitario": 4200,
+      "PrecioUnitarioNeto": 3442.62,
+      "SubTotal": 4200
+    },
+    {
+      "Articulo": {
+        "Codigo": "CA-001",
+        "Nombre": "Cable HDMI 2m"
+      },
+      "Cantidad": 1,
+      "Descuento": 50,
+      "PrecioUnitario": 350,
+      "PrecioUnitarioNeto": 286.89,
+      "SubTotal": 300
+    }
+  ],
+  "isCFE": false,
+  "isConsumoFinal": true,
+  "isImpIncluidos": true,
+  "logoBase64": ""
+}

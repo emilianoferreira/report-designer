@@ -1,0 +1,512 @@
+{
+  "nombre": "Contrato A4",
+  "company_id": "c1000000-0000-0000-0000-000000000001",
+  "descripcion": "Fixture de compatibilidad: ocho tipos de elementos",
+  "template_json": {
+    "documentType": "venta_contado",
+    "template": {
+      "schemaVersion": "1.0",
+      "metadata": {
+        "id": "e0000000-0000-4000-8000-000000000001",
+        "name": "Contrato A4",
+        "description": "Plantilla de factura estándar basada en el formato Zureo ERP",
+        "version": 1,
+        "author": "Sistema",
+        "companyId": "default",
+        "createdAt": "2026-01-01T12:00:00.000Z",
+        "updatedAt": "2026-01-01T12:00:00.000Z",
+        "tags": [
+          "factura",
+          "estándar"
+        ],
+        "status": "draft"
+      },
+      "page": {
+        "paperType": "a4",
+        "width": 210,
+        "height": 297,
+        "dynamicHeight": false,
+        "margins": {
+          "top": 10,
+          "right": 10,
+          "bottom": 10,
+          "left": 10
+        },
+        "orientation": "portrait",
+        "defaultFont": {
+          "family": "Arial",
+          "size": 10,
+          "weight": "normal",
+          "style": "normal",
+          "color": "#000000"
+        }
+      },
+      "sections": {
+        "header": {
+          "height": 75,
+          "elements": [
+            {
+              "id": "e0000000-0000-4000-8000-000000000002",
+              "type": "text",
+              "name": "Text",
+              "position": {
+                "x": 1.25,
+                "y": 2.75
+              },
+              "size": {
+                "width": 80,
+                "height": 10
+              },
+              "style": {
+                "font": {
+                  "family": "Arial",
+                  "size": 10,
+                  "weight": "normal",
+                  "style": "normal",
+                  "color": "#000000"
+                },
+                "textAlign": "left"
+              },
+              "visibility": {
+                "type": "always"
+              },
+              "locked": false,
+              "zIndex": 1,
+              "printOnly": false,
+              "screenOnly": false,
+              "content": "Texto inicial A4",
+              "futureElementProperty": {
+                "keep": true
+              }
+            },
+            {
+              "id": "e0000000-0000-4000-8000-000000000003",
+              "type": "dataField",
+              "name": "Data Field",
+              "position": {
+                "x": 1,
+                "y": 17
+              },
+              "size": {
+                "width": 40,
+                "height": 6
+              },
+              "style": {
+                "font": {
+                  "family": "Arial",
+                  "size": 10,
+                  "weight": "normal",
+                  "style": "normal",
+                  "color": "#000000"
+                },
+                "textAlign": "left"
+              },
+              "visibility": {
+                "type": "always"
+              },
+              "locked": false,
+              "zIndex": 1,
+              "printOnly": false,
+              "screenOnly": false,
+              "binding": {
+                "source": "company.Nombre"
+              }
+            },
+            {
+              "id": "e0000000-0000-4000-8000-000000000004",
+              "type": "formula",
+              "name": "Formula",
+              "position": {
+                "x": 1,
+                "y": 28
+              },
+              "size": {
+                "width": 40,
+                "height": 6
+              },
+              "style": {
+                "font": {
+                  "family": "Arial",
+                  "size": 10,
+                  "weight": "normal",
+                  "style": "normal",
+                  "color": "#000000"
+                },
+                "textAlign": "left"
+              },
+              "visibility": {
+                "type": "always"
+              },
+              "locked": false,
+              "zIndex": 1,
+              "printOnly": false,
+              "screenOnly": false,
+              "expression": "Total + 0.25",
+              "format": {
+                "type": "number",
+                "decimals": 2
+              }
+            },
+            {
+              "id": "e0000000-0000-4000-8000-000000000005",
+              "type": "image",
+              "name": "Image",
+              "position": {
+                "x": 125,
+                "y": 2
+              },
+              "size": {
+                "width": 30,
+                "height": 20
+              },
+              "style": {},
+              "visibility": {
+                "type": "always"
+              },
+              "locked": false,
+              "zIndex": 1,
+              "printOnly": false,
+              "screenOnly": false,
+              "source": {
+                "type": "static",
+                "url": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSIyMCI+PHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjIwIiBmaWxsPSJibHVlIi8+PC9zdmc+"
+              },
+              "fit": "contain"
+            },
+            {
+              "id": "e0000000-0000-4000-8000-000000000006",
+              "type": "line",
+              "name": "Line",
+              "position": {
+                "x": 1,
+                "y": 43
+              },
+              "size": {
+                "width": 50,
+                "height": 0
+              },
+              "style": {},
+              "visibility": {
+                "type": "always"
+              },
+              "locked": false,
+              "zIndex": 1,
+              "printOnly": false,
+              "screenOnly": false,
+              "direction": "horizontal",
+              "lineStyle": {
+                "width": 0.5,
+                "style": "solid",
+                "color": "#000000"
+              }
+            },
+            {
+              "id": "e0000000-0000-4000-8000-000000000007",
+              "type": "rectangle",
+              "name": "Rectangle",
+              "position": {
+                "x": 55,
+                "y": 22
+              },
+              "size": {
+                "width": 15,
+                "height": 10
+              },
+              "style": {},
+              "visibility": {
+                "type": "always"
+              },
+              "locked": false,
+              "zIndex": 0,
+              "printOnly": false,
+              "screenOnly": false,
+              "shapeType": "rectangle",
+              "strokeColor": "#cccccc",
+              "strokeWidth": 0.3,
+              "strokeStyle": "solid"
+            },
+            {
+              "id": "e0000000-0000-4000-8000-000000000008",
+              "type": "qrCode",
+              "name": "QR Code",
+              "position": {
+                "x": 80,
+                "y": 20
+              },
+              "size": {
+                "width": 25,
+                "height": 25
+              },
+              "style": {},
+              "visibility": {
+                "type": "always"
+              },
+              "locked": false,
+              "zIndex": 1,
+              "printOnly": false,
+              "screenOnly": false,
+              "dataBinding": "company.RUT",
+              "errorCorrection": "M",
+              "foregroundColor": "#000000",
+              "backgroundColor": "#ffffff"
+            },
+            {
+              "id": "e0000000-0000-4000-8000-000000000009",
+              "type": "barcode",
+              "name": "Barcode",
+              "position": {
+                "x": 110,
+                "y": 45
+              },
+              "size": {
+                "width": 50,
+                "height": 15
+              },
+              "style": {},
+              "visibility": {
+                "type": "always"
+              },
+              "locked": false,
+              "zIndex": 1,
+              "printOnly": false,
+              "screenOnly": false,
+              "barcodeType": "CODE128",
+              "dataBinding": "invoice.Numero.Numero",
+              "showText": true,
+              "barWidth": 0.5,
+              "barHeight": 12
+            }
+          ],
+          "printOnFirstPage": true,
+          "printOnLastPage": true,
+          "printOnEveryPage": false
+        },
+        "detail": {
+          "height": 40,
+          "elements": [],
+          "printOnFirstPage": true,
+          "printOnLastPage": true,
+          "printOnEveryPage": false,
+          "dataSource": "invoiceLines",
+          "rowHeight": 8,
+          "autoGrow": false,
+          "showGridLines": true,
+          "gridLineColor": "#e8e8e8",
+          "gridLineWidth": 0.15
+        },
+        "footer": {
+          "height": 30,
+          "elements": [
+            {
+              "id": "e0000000-0000-4000-8000-000000000010",
+              "type": "dataField",
+              "name": "Data Field",
+              "position": {
+                "x": 10,
+                "y": 5
+              },
+              "size": {
+                "width": 40,
+                "height": 6
+              },
+              "style": {
+                "font": {
+                  "family": "Arial",
+                  "size": 10,
+                  "weight": "normal",
+                  "style": "normal",
+                  "color": "#000000"
+                },
+                "textAlign": "left"
+              },
+              "visibility": {
+                "type": "always"
+              },
+              "locked": false,
+              "zIndex": 1,
+              "printOnly": false,
+              "screenOnly": false,
+              "binding": {
+                "source": "Total",
+                "format": {
+                  "type": "currency",
+                  "decimals": 2
+                }
+              }
+            }
+          ],
+          "printOnFirstPage": true,
+          "printOnLastPage": true,
+          "printOnEveryPage": true
+        }
+      },
+      "dataSources": {
+        "primary": {
+          "entity": "invoice",
+          "fields": [
+            {
+              "key": "tipoNombre",
+              "path": "invoice.Tipo.Nombre",
+              "label": "Tipo Comprobante",
+              "dataType": "string",
+              "category": "Comprobante"
+            },
+            {
+              "key": "numero",
+              "path": "invoice.Numero.Numero",
+              "label": "Número",
+              "dataType": "string",
+              "category": "Comprobante"
+            },
+            {
+              "key": "serie",
+              "path": "invoice.Numero.Serie",
+              "label": "Serie",
+              "dataType": "string",
+              "category": "Comprobante"
+            },
+            {
+              "key": "fecha",
+              "path": "invoice.Fecha",
+              "label": "Fecha",
+              "dataType": "date",
+              "category": "Comprobante"
+            },
+            {
+              "key": "comentario",
+              "path": "invoice.Comentario",
+              "label": "Comentario",
+              "dataType": "string",
+              "category": "Comprobante"
+            },
+            {
+              "key": "empresaNombre",
+              "path": "invoice.Empresa.Parametros.EFA_Emisor_Nombre",
+              "label": "Empresa",
+              "dataType": "string",
+              "category": "Empresa"
+            },
+            {
+              "key": "empresaRUT",
+              "path": "invoice.Empresa.Parametros.EFA_Emisor_RUT",
+              "label": "RUT Empresa",
+              "dataType": "string",
+              "category": "Empresa"
+            },
+            {
+              "key": "empresaDireccion",
+              "path": "invoice.Empresa.Parametros.EFA_Emisor_Direccion",
+              "label": "Dirección",
+              "dataType": "string",
+              "category": "Empresa"
+            },
+            {
+              "key": "empresaCiudad",
+              "path": "invoice.Empresa.Parametros.EFA_Emisor_Ciudad",
+              "label": "Ciudad",
+              "dataType": "string",
+              "category": "Empresa"
+            },
+            {
+              "key": "clienteNombre",
+              "path": "Contacto.GuardarComo",
+              "label": "Cliente",
+              "dataType": "string",
+              "category": "Cliente"
+            },
+            {
+              "key": "clienteDireccion",
+              "path": "invoice.DireccionFactura.Domicilio",
+              "label": "Dirección Cliente",
+              "dataType": "string",
+              "category": "Cliente"
+            },
+            {
+              "key": "moneda",
+              "path": "Moneda.ISO4217",
+              "label": "Moneda",
+              "dataType": "string",
+              "category": "Totales"
+            },
+            {
+              "key": "subtotal",
+              "path": "Subtotal",
+              "label": "Subtotal",
+              "dataType": "number",
+              "category": "Totales"
+            },
+            {
+              "key": "total",
+              "path": "Total",
+              "label": "Total",
+              "dataType": "number",
+              "category": "Totales"
+            }
+          ]
+        },
+        "detail": {
+          "entity": "invoiceLine",
+          "fields": [
+            {
+              "key": "codigo",
+              "path": "Articulo.Codigo",
+              "label": "Código",
+              "dataType": "string",
+              "category": "Artículo"
+            },
+            {
+              "key": "nombre",
+              "path": "Articulo.Nombre",
+              "label": "Descripción",
+              "dataType": "string",
+              "category": "Artículo"
+            },
+            {
+              "key": "cantidad",
+              "path": "Cantidad",
+              "label": "Cantidad",
+              "dataType": "number",
+              "category": "Artículo"
+            },
+            {
+              "key": "precioUnitario",
+              "path": "PrecioUnitario",
+              "label": "Precio Unitario",
+              "dataType": "number",
+              "category": "Artículo"
+            },
+            {
+              "key": "descuento",
+              "path": "Descuento",
+              "label": "Descuento",
+              "dataType": "number",
+              "category": "Artículo"
+            },
+            {
+              "key": "subtotal",
+              "path": "SubTotal",
+              "label": "Importe",
+              "dataType": "number",
+              "category": "Artículo"
+            }
+          ],
+          "parentKey": "invoiceId"
+        },
+        "lookups": {}
+      },
+      "styles": {},
+      "variables": [],
+      "futureExtension": {
+        "nullable": null,
+        "unicode": "áéíóú ñ 漢字",
+        "nested": [
+          1,
+          true,
+          {
+            "value": 1.2345
+          }
+        ]
+      }
+    }
+  }
+}

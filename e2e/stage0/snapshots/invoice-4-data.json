@@ -1,0 +1,193 @@
+{
+  "Articulos": [
+    {
+      "Articulo": {
+        "Codigo": "BEB-001",
+        "Nombre": "Agua mineral 1.5L"
+      },
+      "Cantidad": 48,
+      "Descuento": 0,
+      "PrecioUnitario": 65,
+      "PrecioUnitarioNeto": 53.28,
+      "SubTotal": 3120
+    },
+    {
+      "Articulo": {
+        "Codigo": "BEB-002",
+        "Nombre": "Refresco Cola 2L"
+      },
+      "Cantidad": 24,
+      "Descuento": 0,
+      "PrecioUnitario": 120,
+      "PrecioUnitarioNeto": 98.36,
+      "SubTotal": 2880
+    },
+    {
+      "Articulo": {
+        "Codigo": "ALI-001",
+        "Nombre": "Aceite de Oliva 500ml"
+      },
+      "Cantidad": 6,
+      "Descuento": 0,
+      "PrecioUnitario": 380,
+      "PrecioUnitarioNeto": 311.48,
+      "SubTotal": 2280
+    },
+    {
+      "Articulo": {
+        "Codigo": "ALI-002",
+        "Nombre": "Arroz 1kg"
+      },
+      "Cantidad": 12,
+      "Descuento": 0,
+      "PrecioUnitario": 85,
+      "PrecioUnitarioNeto": 69.67,
+      "SubTotal": 1020
+    },
+    {
+      "Articulo": {
+        "Codigo": "LIM-001",
+        "Nombre": "Detergente líquido 1L"
+      },
+      "Cantidad": 3,
+      "Descuento": 60,
+      "PrecioUnitario": 220,
+      "PrecioUnitarioNeto": 180.33,
+      "SubTotal": 600
+    }
+  ],
+  "CFE": {
+    "Adenda": "",
+    "CodSeguridad": "",
+    "TipoComprobanteFiscal": {
+      "Nombre": ""
+    }
+  },
+  "Contacto": {
+    "GuardarComo": "Hotel Playa Brava"
+  },
+  "Impuestos": [
+    {
+      "Nombre": "IVA Tasa Básica",
+      "Valor": 1687.87
+    }
+  ],
+  "Moneda": {
+    "ISO4217": "UYU",
+    "Simbolo": "$"
+  },
+  "MontoDtoGlobal": 0,
+  "QRBase64": "",
+  "Redondeo": 0,
+  "Subtotal": 7672.13,
+  "SubtotalesDesglosados": [],
+  "Total": 9360,
+  "company": {
+    "Ciudad": "Maldonado",
+    "Direccion": "Av. Italia 3456",
+    "Nombre": "Distribuidora del Este S.R.L.",
+    "NombreComercial": "DistEste",
+    "RUT": "21-987654-0002",
+    "logoUrl": ""
+  },
+  "hasContacto": true,
+  "hasDtoGlobal": false,
+  "hasRedondeo": false,
+  "invoice": {
+    "Comentario": "Pedido semanal - Entrega en recepción",
+    "DireccionFactura": {
+      "Domicilio": "Parada 10 Playa Brava"
+    },
+    "Empresa": {
+      "Parametros": {
+        "EFA_Emisor_Ciudad": "Maldonado",
+        "EFA_Emisor_Direccion": "Av. Italia 3456",
+        "EFA_Emisor_NComercial": "DistEste",
+        "EFA_Emisor_Nombre": "Distribuidora del Este S.R.L.",
+        "EFA_Emisor_RUT": "21-987654-0002",
+        "EFA_Resolucion": ""
+      }
+    },
+    "Fecha": "2026-03-22T19:45:00+00:00",
+    "Numero": {
+      "CAEDesde": "",
+      "CAEFechaVto": "",
+      "CAEHasta": "",
+      "CAEIdentificador": "",
+      "Numero": "1",
+      "Serie": "A"
+    },
+    "PorcentajeDescGlobal": 0,
+    "Sucursal": {
+      "Direccion": "Av. Italia 3456"
+    },
+    "Tipo": {
+      "Clasificacion": {
+        "OperaContado": true
+      },
+      "Nombre": "Venta Contado"
+    },
+    "TipoCambio": 1
+  },
+  "invoiceLines": [
+    {
+      "Articulo": {
+        "Codigo": "BEB-001",
+        "Nombre": "Agua mineral 1.5L"
+      },
+      "Cantidad": 48,
+      "Descuento": 0,
+      "PrecioUnitario": 65,
+      "PrecioUnitarioNeto": 53.28,
+      "SubTotal": 3120
+    },
+    {
+      "Articulo": {
+        "Codigo": "BEB-002",
+        "Nombre": "Refresco Cola 2L"
+      },
+      "Cantidad": 24,
+      "Descuento": 0,
+      "PrecioUnitario": 120,
+      "PrecioUnitarioNeto": 98.36,
+      "SubTotal": 2880
+    },
+    {
+      "Articulo": {
+        "Codigo": "ALI-001",
+        "Nombre": "Aceite de Oliva 500ml"
+      },
+      "Cantidad": 6,
+      "Descuento": 0,
+      "PrecioUnitario": 380,
+      "PrecioUnitarioNeto": 311.48,
+      "SubTotal": 2280
+    },
+    {
+      "Articulo": {
+        "Codigo": "ALI-002",
+        "Nombre": "Arroz 1kg"
+      },
+      "Cantidad": 12,
+      "Descuento": 0,
+      "PrecioUnitario": 85,
+      "PrecioUnitarioNeto": 69.67,
+      "SubTotal": 1020
+    },
+    {
+      "Articulo": {
+        "Codigo": "LIM-001",
+        "Nombre": "Detergente líquido 1L"
+      },
+      "Cantidad": 3,
+      "Descuento": 60,
+      "PrecioUnitario": 220,
+      "PrecioUnitarioNeto": 180.33,
+      "SubTotal": 600
+    }
+  ],
+  "isCFE": false,
+  "isConsumoFinal": false,
+  "isImpIncluidos": true,
+  "logoBase64": ""
+}

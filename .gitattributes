@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Preserve deterministic snapshots across Windows and Unix checkouts.
+e2e/stage0/snapshots/* text eol=lf
+# Generated HTML is compared verbatim, including whitespace emitted by the renderer.
+e2e/stage0/snapshots/*.html whitespace=-blank-at-eol

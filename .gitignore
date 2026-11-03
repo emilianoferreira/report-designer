@@ -6,6 +6,11 @@
 /out-tsc
 /bazel-out
 
+# .NET
+**/bin/
+**/obj/
+**/TestResults/
+
 # Node
 /node_modules
 npm-debug.log

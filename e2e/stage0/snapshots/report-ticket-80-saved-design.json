@@ -1,0 +1,377 @@
+{
+  "dataSources": {
+    "detail": {
+      "entity": "invoiceLine",
+      "fields": [
+        {
+          "category": "Artículo",
+          "dataType": "string",
+          "key": "codigo",
+          "label": "Código",
+          "path": "Articulo.Codigo"
+        },
+        {
+          "category": "Artículo",
+          "dataType": "string",
+          "key": "nombre",
+          "label": "Descripción",
+          "path": "Articulo.Nombre"
+        },
+        {
+          "category": "Artículo",
+          "dataType": "number",
+          "key": "cantidad",
+          "label": "Cantidad",
+          "path": "Cantidad"
+        },
+        {
+          "category": "Artículo",
+          "dataType": "number",
+          "key": "precioUnitario",
+          "label": "Precio Unitario",
+          "path": "PrecioUnitario"
+        },
+        {
+          "category": "Artículo",
+          "dataType": "number",
+          "key": "descuento",
+          "label": "Descuento",
+          "path": "Descuento"
+        },
+        {
+          "category": "Artículo",
+          "dataType": "number",
+          "key": "subtotal",
+          "label": "Importe",
+          "path": "SubTotal"
+        }
+      ],
+      "parentKey": "invoiceId"
+    },
+    "lookups": {},
+    "primary": {
+      "entity": "invoice",
+      "fields": [
+        {
+          "category": "Comprobante",
+          "dataType": "string",
+          "key": "tipoNombre",
+          "label": "Tipo Comprobante",
+          "path": "invoice.Tipo.Nombre"
+        },
+        {
+          "category": "Comprobante",
+          "dataType": "string",
+          "key": "numero",
+          "label": "Número",
+          "path": "invoice.Numero.Numero"
+        },
+        {
+          "category": "Comprobante",
+          "dataType": "string",
+          "key": "serie",
+          "label": "Serie",
+          "path": "invoice.Numero.Serie"
+        },
+        {
+          "category": "Comprobante",
+          "dataType": "date",
+          "key": "fecha",
+          "label": "Fecha",
+          "path": "invoice.Fecha"
+        },
+        {
+          "category": "Comprobante",
+          "dataType": "string",
+          "key": "comentario",
+          "label": "Comentario",
+          "path": "invoice.Comentario"
+        },
+        {
+          "category": "Empresa",
+          "dataType": "string",
+          "key": "empresaNombre",
+          "label": "Empresa",
+          "path": "invoice.Empresa.Parametros.EFA_Emisor_Nombre"
+        },
+        {
+          "category": "Empresa",
+          "dataType": "string",
+          "key": "empresaRUT",
+          "label": "RUT Empresa",
+          "path": "invoice.Empresa.Parametros.EFA_Emisor_RUT"
+        },
+        {
+          "category": "Empresa",
+          "dataType": "string",
+          "key": "empresaDireccion",
+          "label": "Dirección",
+          "path": "invoice.Empresa.Parametros.EFA_Emisor_Direccion"
+        },
+        {
+          "category": "Empresa",
+          "dataType": "string",
+          "key": "empresaCiudad",
+          "label": "Ciudad",
+          "path": "invoice.Empresa.Parametros.EFA_Emisor_Ciudad"
+        },
+        {
+          "category": "Cliente",
+          "dataType": "string",
+          "key": "clienteNombre",
+          "label": "Cliente",
+          "path": "Contacto.GuardarComo"
+        },
+        {
+          "category": "Cliente",
+          "dataType": "string",
+          "key": "clienteDireccion",
+          "label": "Dirección Cliente",
+          "path": "invoice.DireccionFactura.Domicilio"
+        },
+        {
+          "category": "Totales",
+          "dataType": "string",
+          "key": "moneda",
+          "label": "Moneda",
+          "path": "Moneda.ISO4217"
+        },
+        {
+          "category": "Totales",
+          "dataType": "number",
+          "key": "subtotal",
+          "label": "Subtotal",
+          "path": "Subtotal"
+        },
+        {
+          "category": "Totales",
+          "dataType": "number",
+          "key": "total",
+          "label": "Total",
+          "path": "Total"
+        }
+      ]
+    }
+  },
+  "futureExtension": {
+    "nested": [
+      1,
+      true,
+      {
+        "value": 1.2345
+      }
+    ],
+    "nullable": null,
+    "unicode": "áéíóú ñ 漢字"
+  },
+  "metadata": {
+    "author": "Sistema",
+    "companyId": "default",
+    "createdAt": "2026-01-01T12:00:00.000Z",
+    "description": "Plantilla de factura estándar basada en el formato Zureo ERP",
+    "id": "e0000000-0000-4000-8000-000000000011",
+    "name": "Contrato ticket 80",
+    "status": "draft",
+    "tags": [
+      "factura",
+      "estándar"
+    ],
+    "updatedAt": "2026-01-01T12:00:00.000Z",
+    "version": 1
+  },
+  "page": {
+    "defaultFont": {
+      "color": "#000000",
+      "family": "Arial",
+      "size": 10,
+      "style": "normal",
+      "weight": "normal"
+    },
+    "dynamicHeight": true,
+    "height": 200,
+    "margins": {
+      "bottom": 3,
+      "left": 3,
+      "right": 3,
+      "top": 3
+    },
+    "orientation": "portrait",
+    "paperType": "ticket-80",
+    "width": 80
+  },
+  "schemaVersion": "1.0",
+  "sections": {
+    "detail": {
+      "autoGrow": false,
+      "dataSource": "invoiceLines",
+      "elements": [],
+      "gridLineColor": "#e8e8e8",
+      "gridLineWidth": 0.15,
+      "height": 40,
+      "printOnEveryPage": false,
+      "printOnFirstPage": true,
+      "printOnLastPage": true,
+      "rowHeight": 8,
+      "showGridLines": true
+    },
+    "footer": {
+      "elements": [
+        {
+          "binding": {
+            "format": {
+              "decimals": 2,
+              "type": "currency"
+            },
+            "source": "Total"
+          },
+          "id": "e0000000-0000-4000-8000-000000000010",
+          "locked": false,
+          "name": "Data Field",
+          "position": {
+            "x": 10,
+            "y": 5
+          },
+          "printOnly": false,
+          "screenOnly": false,
+          "size": {
+            "height": 6,
+            "width": 40
+          },
+          "style": {
+            "font": {
+              "color": "#000000",
+              "family": "Arial",
+              "size": 10,
+              "style": "normal",
+              "weight": "normal"
+            },
+            "textAlign": "left"
+          },
+          "type": "dataField",
+          "visibility": {
+            "type": "always"
+          },
+          "zIndex": 1
+        }
+      ],
+      "height": 30,
+      "printOnEveryPage": true,
+      "printOnFirstPage": true,
+      "printOnLastPage": true
+    },
+    "header": {
+      "elements": [
+        {
+          "content": "Guardado report-ticket-80 áé 1,25",
+          "futureElementProperty": {
+            "keep": true
+          },
+          "id": "e0000000-0000-4000-8000-000000000002",
+          "locked": false,
+          "name": "Text",
+          "position": {
+            "x": 1.25,
+            "y": 2.75
+          },
+          "printOnly": false,
+          "screenOnly": false,
+          "size": {
+            "height": 10,
+            "width": 70
+          },
+          "style": {
+            "font": {
+              "color": "#000000",
+              "family": "Arial",
+              "size": 10,
+              "style": "normal",
+              "weight": "normal"
+            },
+            "opacity": 1,
+            "textAlign": "left",
+            "verticalAlign": "top"
+          },
+          "type": "text",
+          "visibility": {
+            "type": "always"
+          },
+          "zIndex": 1
+        },
+        {
+          "binding": {
+            "source": "company.Nombre"
+          },
+          "id": "e0000000-0000-4000-8000-000000000003",
+          "locked": false,
+          "name": "Data Field",
+          "position": {
+            "x": 1,
+            "y": 17
+          },
+          "printOnly": false,
+          "screenOnly": false,
+          "size": {
+            "height": 6,
+            "width": 40
+          },
+          "style": {
+            "font": {
+              "color": "#000000",
+              "family": "Arial",
+              "size": 10,
+              "style": "normal",
+              "weight": "normal"
+            },
+            "textAlign": "left"
+          },
+          "type": "dataField",
+          "visibility": {
+            "type": "always"
+          },
+          "zIndex": 1
+        },
+        {
+          "expression": "Total + 0.25",
+          "format": {
+            "decimals": 2,
+            "type": "number"
+          },
+          "id": "e0000000-0000-4000-8000-000000000004",
+          "locked": false,
+          "name": "Formula",
+          "position": {
+            "x": 1,
+            "y": 28
+          },
+          "printOnly": false,
+          "screenOnly": false,
+          "size": {
+            "height": 6,
+            "width": 40
+          },
+          "style": {
+            "font": {
+              "color": "#000000",
+              "family": "Arial",
+              "size": 10,
+              "style": "normal",
+              "weight": "normal"
+            },
+            "textAlign": "left"
+          },
+          "type": "formula",
+          "visibility": {
+            "type": "always"
+          },
+          "zIndex": 1
+        }
+      ],
+      "height": 75,
+      "printOnEveryPage": false,
+      "printOnFirstPage": true,
+      "printOnLastPage": true
+    }
+  },
+  "styles": {},
+  "variables": []
+}

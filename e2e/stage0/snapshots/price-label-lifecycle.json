@@ -1,0 +1,734 @@
+{
+  "create": {
+    "autor": null,
+    "based_on": null,
+    "company_id": "c1000000-0000-0000-0000-000000000001",
+    "created_at": "<generated-utc>",
+    "descripcion": "Fixture de etiqueta de precios",
+    "estado": "draft",
+    "id": "<generated-uuid>",
+    "nombre": "Contrato etiqueta",
+    "tags": [],
+    "template_json": {
+      "elements": [
+        {
+          "binding": "company.logo",
+          "fit": "contain",
+          "id": "e0000000-0000-4000-8000-000000000013",
+          "locked": false,
+          "name": "Logo empresa",
+          "position": {
+            "x": 2,
+            "y": 2
+          },
+          "size": {
+            "height": 8,
+            "width": 12
+          },
+          "sourceType": "binding",
+          "style": {},
+          "type": "image",
+          "zIndex": 1
+        },
+        {
+          "content": "Texto inicial etiqueta",
+          "id": "e0000000-0000-4000-8000-000000000014",
+          "locked": false,
+          "name": "Nombre articulo",
+          "position": {
+            "x": 15.25,
+            "y": 2
+          },
+          "size": {
+            "height": 8,
+            "width": 33
+          },
+          "style": {
+            "font": {
+              "color": "#111111",
+              "family": "Arial",
+              "size": 8,
+              "style": "normal",
+              "weight": "bold"
+            },
+            "textAlign": "left",
+            "verticalAlign": "middle"
+          },
+          "type": "text",
+          "zIndex": 2
+        },
+        {
+          "binding": "article.price",
+          "currencyPath": "company.currencySymbol",
+          "decimals": 2,
+          "id": "e0000000-0000-4000-8000-000000000015",
+          "locked": false,
+          "name": "Precio",
+          "position": {
+            "x": 2,
+            "y": 11
+          },
+          "prefix": "",
+          "size": {
+            "height": 8,
+            "width": 46
+          },
+          "style": {
+            "font": {
+              "color": "#111111",
+              "family": "Arial",
+              "size": 17,
+              "style": "normal",
+              "weight": "bold"
+            },
+            "textAlign": "center",
+            "verticalAlign": "middle"
+          },
+          "type": "price",
+          "zIndex": 3
+        },
+        {
+          "barcodeType": "CODE128",
+          "binding": "article.barcode",
+          "id": "e0000000-0000-4000-8000-000000000016",
+          "locked": false,
+          "name": "Codigo de barras",
+          "position": {
+            "x": 7,
+            "y": 20
+          },
+          "showText": true,
+          "size": {
+            "height": 8,
+            "width": 36
+          },
+          "style": {},
+          "type": "barcode",
+          "zIndex": 2
+        }
+      ],
+      "futureExtension": {
+        "nullable": null,
+        "value": 1.2345
+      },
+      "id": "e0000000-0000-4000-8000-000000000012",
+      "label": {
+        "columns": 4,
+        "gapX": 2,
+        "gapY": 2,
+        "height": 30,
+        "paddingBottom": 2,
+        "paddingLeft": 2,
+        "paddingRight": 2,
+        "paddingTop": 2,
+        "rows": 8,
+        "width": 50
+      },
+      "name": "Contrato etiqueta",
+      "page": {
+        "height": 297,
+        "marginBottom": 5,
+        "marginLeft": 5,
+        "marginRight": 5,
+        "marginTop": 5,
+        "mode": "sheet",
+        "orientation": "portrait",
+        "size": "A4",
+        "width": 210
+      },
+      "type": "price-label",
+      "unit": "mm",
+      "version": 1
+    },
+    "updated_at": "<generated-utc>",
+    "version": 1
+  },
+  "design": {
+    "autor": null,
+    "based_on": null,
+    "company_id": "c1000000-0000-0000-0000-000000000001",
+    "created_at": "<generated-utc>",
+    "descripcion": null,
+    "estado": "published",
+    "id": "<generated-uuid>",
+    "nombre": "Contrato etiqueta actualizado",
+    "tags": [],
+    "template_json": {
+      "elements": [
+        {
+          "binding": "company.logo",
+          "fit": "contain",
+          "id": "e0000000-0000-4000-8000-000000000013",
+          "locked": false,
+          "name": "Logo empresa",
+          "position": {
+            "x": 2,
+            "y": 2
+          },
+          "size": {
+            "height": 8,
+            "width": 12
+          },
+          "sourceType": "binding",
+          "style": {},
+          "type": "image",
+          "zIndex": 1
+        },
+        {
+          "content": "Texto inicial etiqueta",
+          "id": "e0000000-0000-4000-8000-000000000014",
+          "locked": false,
+          "name": "Nombre articulo",
+          "position": {
+            "x": 15.25,
+            "y": 2
+          },
+          "size": {
+            "height": 8,
+            "width": 33
+          },
+          "style": {
+            "font": {
+              "color": "#111111",
+              "family": "Arial",
+              "size": 8,
+              "style": "normal",
+              "weight": "bold"
+            },
+            "textAlign": "left",
+            "verticalAlign": "middle"
+          },
+          "type": "text",
+          "zIndex": 2
+        },
+        {
+          "binding": "article.price",
+          "currencyPath": "company.currencySymbol",
+          "decimals": 2,
+          "id": "e0000000-0000-4000-8000-000000000015",
+          "locked": false,
+          "name": "Precio",
+          "position": {
+            "x": 2,
+            "y": 11
+          },
+          "prefix": "",
+          "size": {
+            "height": 8,
+            "width": 46
+          },
+          "style": {
+            "font": {
+              "color": "#111111",
+              "family": "Arial",
+              "size": 17,
+              "style": "normal",
+              "weight": "bold"
+            },
+            "textAlign": "center",
+            "verticalAlign": "middle"
+          },
+          "type": "price",
+          "zIndex": 3
+        },
+        {
+          "barcodeType": "CODE128",
+          "binding": "article.barcode",
+          "id": "e0000000-0000-4000-8000-000000000016",
+          "locked": false,
+          "name": "Codigo de barras",
+          "position": {
+            "x": 7,
+            "y": 20
+          },
+          "showText": true,
+          "size": {
+            "height": 8,
+            "width": 36
+          },
+          "style": {},
+          "type": "barcode",
+          "zIndex": 2
+        }
+      ],
+      "extensionAfterSave": {
+        "empty": "",
+        "optional": null,
+        "text": "ñ 漢字",
+        "value": 123.4567
+      },
+      "futureExtension": {
+        "nullable": null,
+        "value": 1.2345
+      },
+      "id": "e0000000-0000-4000-8000-000000000012",
+      "label": {
+        "columns": 4,
+        "gapX": 2,
+        "gapY": 2,
+        "height": 30,
+        "paddingBottom": 2,
+        "paddingLeft": 2,
+        "paddingRight": 2,
+        "paddingTop": 2,
+        "rows": 8,
+        "width": 50
+      },
+      "name": "Contrato etiqueta",
+      "page": {
+        "height": 297,
+        "marginBottom": 5,
+        "marginLeft": 5,
+        "marginRight": 5,
+        "marginTop": 5,
+        "mode": "sheet",
+        "orientation": "portrait",
+        "size": "A4",
+        "width": 210
+      },
+      "type": "price-label",
+      "unit": "mm",
+      "version": 1
+    },
+    "updated_at": "<generated-utc>",
+    "version": 3
+  },
+  "duplicate": {
+    "autor": null,
+    "based_on": null,
+    "company_id": "c1000000-0000-0000-0000-000000000001",
+    "created_at": "<generated-utc>",
+    "descripcion": null,
+    "estado": "published",
+    "id": "<generated-uuid>",
+    "nombre": "Contrato etiqueta actualizado (copia)",
+    "tags": [],
+    "template_json": {
+      "elements": [
+        {
+          "binding": "company.logo",
+          "fit": "contain",
+          "id": "e0000000-0000-4000-8000-000000000013",
+          "locked": false,
+          "name": "Logo empresa",
+          "position": {
+            "x": 2,
+            "y": 2
+          },
+          "size": {
+            "height": 8,
+            "width": 12
+          },
+          "sourceType": "binding",
+          "style": {},
+          "type": "image",
+          "zIndex": 1
+        },
+        {
+          "content": "Texto inicial etiqueta",
+          "id": "e0000000-0000-4000-8000-000000000014",
+          "locked": false,
+          "name": "Nombre articulo",
+          "position": {
+            "x": 15.25,
+            "y": 2
+          },
+          "size": {
+            "height": 8,
+            "width": 33
+          },
+          "style": {
+            "font": {
+              "color": "#111111",
+              "family": "Arial",
+              "size": 8,
+              "style": "normal",
+              "weight": "bold"
+            },
+            "textAlign": "left",
+            "verticalAlign": "middle"
+          },
+          "type": "text",
+          "zIndex": 2
+        },
+        {
+          "binding": "article.price",
+          "currencyPath": "company.currencySymbol",
+          "decimals": 2,
+          "id": "e0000000-0000-4000-8000-000000000015",
+          "locked": false,
+          "name": "Precio",
+          "position": {
+            "x": 2,
+            "y": 11
+          },
+          "prefix": "",
+          "size": {
+            "height": 8,
+            "width": 46
+          },
+          "style": {
+            "font": {
+              "color": "#111111",
+              "family": "Arial",
+              "size": 17,
+              "style": "normal",
+              "weight": "bold"
+            },
+            "textAlign": "center",
+            "verticalAlign": "middle"
+          },
+          "type": "price",
+          "zIndex": 3
+        },
+        {
+          "barcodeType": "CODE128",
+          "binding": "article.barcode",
+          "id": "e0000000-0000-4000-8000-000000000016",
+          "locked": false,
+          "name": "Codigo de barras",
+          "position": {
+            "x": 7,
+            "y": 20
+          },
+          "showText": true,
+          "size": {
+            "height": 8,
+            "width": 36
+          },
+          "style": {},
+          "type": "barcode",
+          "zIndex": 2
+        }
+      ],
+      "extensionAfterSave": {
+        "empty": "",
+        "optional": null,
+        "text": "ñ 漢字",
+        "value": 123.4567
+      },
+      "futureExtension": {
+        "nullable": null,
+        "value": 1.2345
+      },
+      "id": "e0000000-0000-4000-8000-000000000012",
+      "label": {
+        "columns": 4,
+        "gapX": 2,
+        "gapY": 2,
+        "height": 30,
+        "paddingBottom": 2,
+        "paddingLeft": 2,
+        "paddingRight": 2,
+        "paddingTop": 2,
+        "rows": 8,
+        "width": 50
+      },
+      "name": "Contrato etiqueta",
+      "page": {
+        "height": 297,
+        "marginBottom": 5,
+        "marginLeft": 5,
+        "marginRight": 5,
+        "marginTop": 5,
+        "mode": "sheet",
+        "orientation": "portrait",
+        "size": "A4",
+        "width": 210
+      },
+      "type": "price-label",
+      "unit": "mm",
+      "version": 1
+    },
+    "updated_at": "<generated-utc>",
+    "version": 1
+  },
+  "get": {
+    "autor": null,
+    "based_on": null,
+    "company_id": "c1000000-0000-0000-0000-000000000001",
+    "created_at": "<generated-utc>",
+    "descripcion": "Fixture de etiqueta de precios",
+    "estado": "draft",
+    "id": "<generated-uuid>",
+    "nombre": "Contrato etiqueta",
+    "tags": [],
+    "template_json": {
+      "elements": [
+        {
+          "binding": "company.logo",
+          "fit": "contain",
+          "id": "e0000000-0000-4000-8000-000000000013",
+          "locked": false,
+          "name": "Logo empresa",
+          "position": {
+            "x": 2,
+            "y": 2
+          },
+          "size": {
+            "height": 8,
+            "width": 12
+          },
+          "sourceType": "binding",
+          "style": {},
+          "type": "image",
+          "zIndex": 1
+        },
+        {
+          "content": "Texto inicial etiqueta",
+          "id": "e0000000-0000-4000-8000-000000000014",
+          "locked": false,
+          "name": "Nombre articulo",
+          "position": {
+            "x": 15.25,
+            "y": 2
+          },
+          "size": {
+            "height": 8,
+            "width": 33
+          },
+          "style": {
+            "font": {
+              "color": "#111111",
+              "family": "Arial",
+              "size": 8,
+              "style": "normal",
+              "weight": "bold"
+            },
+            "textAlign": "left",
+            "verticalAlign": "middle"
+          },
+          "type": "text",
+          "zIndex": 2
+        },
+        {
+          "binding": "article.price",
+          "currencyPath": "company.currencySymbol",
+          "decimals": 2,
+          "id": "e0000000-0000-4000-8000-000000000015",
+          "locked": false,
+          "name": "Precio",
+          "position": {
+            "x": 2,
+            "y": 11
+          },
+          "prefix": "",
+          "size": {
+            "height": 8,
+            "width": 46
+          },
+          "style": {
+            "font": {
+              "color": "#111111",
+              "family": "Arial",
+              "size": 17,
+              "style": "normal",
+              "weight": "bold"
+            },
+            "textAlign": "center",
+            "verticalAlign": "middle"
+          },
+          "type": "price",
+          "zIndex": 3
+        },
+        {
+          "barcodeType": "CODE128",
+          "binding": "article.barcode",
+          "id": "e0000000-0000-4000-8000-000000000016",
+          "locked": false,
+          "name": "Codigo de barras",
+          "position": {
+            "x": 7,
+            "y": 20
+          },
+          "showText": true,
+          "size": {
+            "height": 8,
+            "width": 36
+          },
+          "style": {},
+          "type": "barcode",
+          "zIndex": 2
+        }
+      ],
+      "futureExtension": {
+        "nullable": null,
+        "value": 1.2345
+      },
+      "id": "e0000000-0000-4000-8000-000000000012",
+      "label": {
+        "columns": 4,
+        "gapX": 2,
+        "gapY": 2,
+        "height": 30,
+        "paddingBottom": 2,
+        "paddingLeft": 2,
+        "paddingRight": 2,
+        "paddingTop": 2,
+        "rows": 8,
+        "width": 50
+      },
+      "name": "Contrato etiqueta",
+      "page": {
+        "height": 297,
+        "marginBottom": 5,
+        "marginLeft": 5,
+        "marginRight": 5,
+        "marginTop": 5,
+        "mode": "sheet",
+        "orientation": "portrait",
+        "size": "A4",
+        "width": 210
+      },
+      "type": "price-label",
+      "unit": "mm",
+      "version": 1
+    },
+    "updated_at": "<generated-utc>",
+    "version": 1
+  },
+  "update": {
+    "autor": null,
+    "based_on": null,
+    "company_id": "c1000000-0000-0000-0000-000000000001",
+    "created_at": "<generated-utc>",
+    "descripcion": null,
+    "estado": "published",
+    "id": "<generated-uuid>",
+    "nombre": "Contrato etiqueta actualizado",
+    "tags": [],
+    "template_json": {
+      "elements": [
+        {
+          "binding": "company.logo",
+          "fit": "contain",
+          "id": "e0000000-0000-4000-8000-000000000013",
+          "locked": false,
+          "name": "Logo empresa",
+          "position": {
+            "x": 2,
+            "y": 2
+          },
+          "size": {
+            "height": 8,
+            "width": 12
+          },
+          "sourceType": "binding",
+          "style": {},
+          "type": "image",
+          "zIndex": 1
+        },
+        {
+          "content": "Texto inicial etiqueta",
+          "id": "e0000000-0000-4000-8000-000000000014",
+          "locked": false,
+          "name": "Nombre articulo",
+          "position": {
+            "x": 15.25,
+            "y": 2
+          },
+          "size": {
+            "height": 8,
+            "width": 33
+          },
+          "style": {
+            "font": {
+              "color": "#111111",
+              "family": "Arial",
+              "size": 8,
+              "style": "normal",
+              "weight": "bold"
+            },
+            "textAlign": "left",
+            "verticalAlign": "middle"
+          },
+          "type": "text",
+          "zIndex": 2
+        },
+        {
+          "binding": "article.price",
+          "currencyPath": "company.currencySymbol",
+          "decimals": 2,
+          "id": "e0000000-0000-4000-8000-000000000015",
+          "locked": false,
+          "name": "Precio",
+          "position": {
+            "x": 2,
+            "y": 11
+          },
+          "prefix": "",
+          "size": {
+            "height": 8,
+            "width": 46
+          },
+          "style": {
+            "font": {
+              "color": "#111111",
+              "family": "Arial",
+              "size": 17,
+              "style": "normal",
+              "weight": "bold"
+            },
+            "textAlign": "center",
+            "verticalAlign": "middle"
+          },
+          "type": "price",
+          "zIndex": 3
+        },
+        {
+          "barcodeType": "CODE128",
+          "binding": "article.barcode",
+          "id": "e0000000-0000-4000-8000-000000000016",
+          "locked": false,
+          "name": "Codigo de barras",
+          "position": {
+            "x": 7,
+            "y": 20
+          },
+          "showText": true,
+          "size": {
+            "height": 8,
+            "width": 36
+          },
+          "style": {},
+          "type": "barcode",
+          "zIndex": 2
+        }
+      ],
+      "futureExtension": {
+        "nullable": null,
+        "value": 1.2345
+      },
+      "id": "e0000000-0000-4000-8000-000000000012",
+      "label": {
+        "columns": 4,
+        "gapX": 2,
+        "gapY": 2,
+        "height": 30,
+        "paddingBottom": 2,
+        "paddingLeft": 2,
+        "paddingRight": 2,
+        "paddingTop": 2,
+        "rows": 8,
+        "width": 50
+      },
+      "name": "Contrato etiqueta",
+      "page": {
+        "height": 297,
+        "marginBottom": 5,
+        "marginLeft": 5,
+        "marginRight": 5,
+        "marginTop": 5,
+        "mode": "sheet",
+        "orientation": "portrait",
+        "size": "A4",
+        "width": 210
+      },
+      "type": "price-label",
+      "unit": "mm",
+      "version": 1
+    },
+    "updated_at": "<generated-utc>",
+    "version": 2
+  }
+}

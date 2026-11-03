@@ -6,6 +6,10 @@ Diseñador visual de plantillas de impresion para el ERP Zureo. Permite crear, e
 
 ## Arquitectura
 
+Pruebas de referencia para la migración del backend: [Etapa 0 — contratos, fixtures y PostgreSQL aislado](e2e/stage0/README.md). Ejecutar `npm run test:migration`.
+
+Backend paralelo ASP.NET Core: [Etapa 1 — estructura, PostgreSQL y comprobaciones de salud](backend-dotnet/README.md). Verificar con `npm run test:dotnet`.
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Frontend (Angular 18)                    │

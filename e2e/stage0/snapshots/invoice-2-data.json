@@ -1,0 +1,171 @@
+{
+  "Articulos": [
+    {
+      "Articulo": {
+        "Codigo": "NB-001",
+        "Nombre": "Notebook Lenovo ThinkPad"
+      },
+      "Cantidad": 1,
+      "Descuento": 0,
+      "PrecioUnitario": 45000,
+      "PrecioUnitarioNeto": 36885.25,
+      "SubTotal": 45000
+    },
+    {
+      "Articulo": {
+        "Codigo": "MO-001",
+        "Nombre": "Monitor 27\" Samsung 4K"
+      },
+      "Cantidad": 1,
+      "Descuento": 0,
+      "PrecioUnitario": 18500,
+      "PrecioUnitarioNeto": 15163.93,
+      "SubTotal": 18500
+    },
+    {
+      "Articulo": {
+        "Codigo": "MU-001",
+        "Nombre": "Mouse inalámbrico"
+      },
+      "Cantidad": 2,
+      "Descuento": 0,
+      "PrecioUnitario": 1800,
+      "PrecioUnitarioNeto": 1475.41,
+      "SubTotal": 3600
+    },
+    {
+      "Articulo": {
+        "Codigo": "WC-001",
+        "Nombre": "Webcam HD 1080p"
+      },
+      "Cantidad": 1,
+      "Descuento": 901,
+      "PrecioUnitario": 2800,
+      "PrecioUnitarioNeto": 2295.08,
+      "SubTotal": 1899
+    }
+  ],
+  "CFE": {
+    "Adenda": "",
+    "CodSeguridad": "",
+    "TipoComprobanteFiscal": {
+      "Nombre": ""
+    }
+  },
+  "Contacto": {
+    "GuardarComo": "María García S.A."
+  },
+  "Impuestos": [
+    {
+      "Nombre": "IVA Tasa Básica",
+      "Valor": 12441.62
+    }
+  ],
+  "Moneda": {
+    "ISO4217": "UYU",
+    "Simbolo": "$"
+  },
+  "MontoDtoGlobal": 0,
+  "QRBase64": "",
+  "Redondeo": 0,
+  "Subtotal": 56557.38,
+  "SubtotalesDesglosados": [],
+  "Total": 68999,
+  "company": {
+    "Ciudad": "Montevideo",
+    "Direccion": "Bulevar Artigas 1250",
+    "Nombre": "Soluciones Tech S.A.",
+    "NombreComercial": "SolTech",
+    "RUT": "21-654321-0001",
+    "logoUrl": ""
+  },
+  "hasContacto": true,
+  "hasDtoGlobal": false,
+  "hasRedondeo": false,
+  "invoice": {
+    "Comentario": "Entrega en oficina central, horario de 9 a 17hs.",
+    "DireccionFactura": {
+      "Domicilio": "Rambla Wilson 800"
+    },
+    "Empresa": {
+      "Parametros": {
+        "EFA_Emisor_Ciudad": "Montevideo",
+        "EFA_Emisor_Direccion": "Bulevar Artigas 1250",
+        "EFA_Emisor_NComercial": "SolTech",
+        "EFA_Emisor_Nombre": "Soluciones Tech S.A.",
+        "EFA_Emisor_RUT": "21-654321-0001",
+        "EFA_Resolucion": "Res. DGI 1234/2025"
+      }
+    },
+    "Fecha": "2026-03-18T17:15:00+00:00",
+    "Numero": {
+      "CAEDesde": "",
+      "CAEFechaVto": "",
+      "CAEHasta": "",
+      "CAEIdentificador": "",
+      "Numero": "2",
+      "Serie": "A"
+    },
+    "PorcentajeDescGlobal": 0,
+    "Sucursal": {
+      "Direccion": "Bulevar Artigas 1250"
+    },
+    "Tipo": {
+      "Clasificacion": {
+        "OperaContado": false
+      },
+      "Nombre": "Venta Crédito"
+    },
+    "TipoCambio": 1
+  },
+  "invoiceLines": [
+    {
+      "Articulo": {
+        "Codigo": "NB-001",
+        "Nombre": "Notebook Lenovo ThinkPad"
+      },
+      "Cantidad": 1,
+      "Descuento": 0,
+      "PrecioUnitario": 45000,
+      "PrecioUnitarioNeto": 36885.25,
+      "SubTotal": 45000
+    },
+    {
+      "Articulo": {
+        "Codigo": "MO-001",
+        "Nombre": "Monitor 27\" Samsung 4K"
+      },
+      "Cantidad": 1,
+      "Descuento": 0,
+      "PrecioUnitario": 18500,
+      "PrecioUnitarioNeto": 15163.93,
+      "SubTotal": 18500
+    },
+    {
+      "Articulo": {
+        "Codigo": "MU-001",
+        "Nombre": "Mouse inalámbrico"
+      },
+      "Cantidad": 2,
+      "Descuento": 0,
+      "PrecioUnitario": 1800,
+      "PrecioUnitarioNeto": 1475.41,
+      "SubTotal": 3600
+    },
+    {
+      "Articulo": {
+        "Codigo": "WC-001",
+        "Nombre": "Webcam HD 1080p"
+      },
+      "Cantidad": 1,
+      "Descuento": 901,
+      "PrecioUnitario": 2800,
+      "PrecioUnitarioNeto": 2295.08,
+      "SubTotal": 1899
+    }
+  ],
+  "isCFE": false,
+  "isConsumoFinal": false,
+  "isImpIncluidos": true,
+  "logoBase64": ""
+}

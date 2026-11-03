@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ReportDesigner.Api/ReportDesigner.Api.csproj" />
+    <Project Path="src/ReportDesigner.Application/ReportDesigner.Application.csproj" />
+    <Project Path="src/ReportDesigner.Domain/ReportDesigner.Domain.csproj" />
+    <Project Path="src/ReportDesigner.Infrastructure/ReportDesigner.Infrastructure.csproj" />
+  </Folder>
+</Solution>

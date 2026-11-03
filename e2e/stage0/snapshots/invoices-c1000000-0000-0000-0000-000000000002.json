@@ -1,0 +1,21 @@
+[
+  {
+    "contact": {
+      "guardar_como": "Hotel Playa Brava"
+    },
+    "currency": {
+      "iso4217": "UYU",
+      "simbolo": "$"
+    },
+    "estado": "emitido",
+    "fecha": "2026-03-22T19:45:00.000Z",
+    "id": "f1000000-0000-0000-0000-000000000004",
+    "invoice_type": {
+      "codigo": "VC",
+      "nombre": "Venta Contado"
+    },
+    "numero": 1,
+    "serie": "A",
+    "total": "9360.00"
+  }
+]

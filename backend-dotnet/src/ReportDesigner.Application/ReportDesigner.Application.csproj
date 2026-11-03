@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../ReportDesigner.Domain/ReportDesigner.Domain.csproj" />
+  </ItemGroup>
+</Project>
