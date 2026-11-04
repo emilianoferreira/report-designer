@@ -1,10 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
+import { authenticatedAgent } from './authenticated-agent';
 import { AppModule } from '../src/app.module';
 
 describe('TemplatesController (e2e)', () => {
   let app: INestApplication;
+  let agent: any;
+
   const COMPANY_ID = 'c1000000-0000-0000-0000-000000000001';
 
   beforeAll(async () => {
@@ -14,6 +16,7 @@ describe('TemplatesController (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     await app.init();
+    agent=await authenticatedAgent(app);
   });
 
   afterAll(async () => {
@@ -23,7 +26,7 @@ describe('TemplatesController (e2e)', () => {
   // ─── GET /api/templates ───
 
   it('GET /api/templates → lists templates for default company', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await agent
       .get('/api/templates')
       .query({ companyId: COMPANY_ID })
       .expect(200);
@@ -55,7 +58,7 @@ describe('TemplatesController (e2e)', () => {
       },
     };
 
-    const res = await request(app.getHttpServer())
+    const res = await agent
       .post('/api/templates')
       .send(payload)
       .expect(201);
@@ -69,7 +72,7 @@ describe('TemplatesController (e2e)', () => {
   });
 
   it('GET /api/templates/:id → returns the created template', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await agent
       .get(`/api/templates/${createdId}`)
       .expect(200);
 
@@ -79,7 +82,7 @@ describe('TemplatesController (e2e)', () => {
   });
 
   it('PUT /api/templates/:id → updates template metadata', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await agent
       .put(`/api/templates/${createdId}`)
       .send({ nombre: 'Test Template E2E Updated', descripcion: 'Updated desc' })
       .expect(200);
@@ -98,7 +101,7 @@ describe('TemplatesController (e2e)', () => {
       },
     };
 
-    const res = await request(app.getHttpServer())
+    const res = await agent
       .put(`/api/templates/${createdId}/design`)
       .send({ template_json: newDesign })
       .expect(200);
@@ -112,7 +115,7 @@ describe('TemplatesController (e2e)', () => {
   let duplicatedId: string;
 
   it('POST /api/templates/:id/duplicate → duplicates template', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await agent
       .post(`/api/templates/${createdId}/duplicate`)
       .expect(201);
 
@@ -127,18 +130,18 @@ describe('TemplatesController (e2e)', () => {
   // ─── Cleanup: delete both ───
 
   it('DELETE /api/templates/:id → removes template', async () => {
-    await request(app.getHttpServer())
+    await agent
       .delete(`/api/templates/${createdId}`)
       .expect(200);
 
     // Verify it's gone
-    await request(app.getHttpServer())
+    await agent
       .get(`/api/templates/${createdId}`)
       .expect(404);
   });
 
   it('DELETE /api/templates/:id → removes duplicated template', async () => {
-    await request(app.getHttpServer())
+    await agent
       .delete(`/api/templates/${duplicatedId}`)
       .expect(200);
   });
@@ -146,7 +149,7 @@ describe('TemplatesController (e2e)', () => {
   // ─── Error cases ───
 
   it('GET /api/templates/:id → 404 for non-existent', async () => {
-    await request(app.getHttpServer())
+    await agent
       .get('/api/templates/00000000-0000-0000-0000-000000000000')
       .expect(404);
   });

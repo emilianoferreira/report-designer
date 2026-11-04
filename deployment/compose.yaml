@@ -38,6 +38,7 @@ services:
       DOTNET_ENVIRONMENT: Production
       ASPNETCORE_HTTP_PORTS: "8080"
       Http__MaxRequestBodyBytes: "33554432"
+      Auth__SecureCookie: ${AUTH_SECURE_COOKIE:-true}
       AllowedHosts: "${PUBLIC_HOST:?Set the public hostname};localhost;127.0.0.1"
     secrets:
       - { source: dotnet_connection, target: ConnectionStrings__Postgres }
@@ -59,6 +60,7 @@ services:
       NODE_ENV: production
       PORT: "3000"
       JSON_BODY_LIMIT: 32mb
+      AUTH_SECURE_COOKIE: ${AUTH_SECURE_COOKIE:-true}
       DB_HOST: ${DB_HOST:?Set the existing PostgreSQL hostname}
       DB_PORT: ${DB_PORT:-5432}
       DB_NAME: ${DB_NAME:?Set the existing database name}
@@ -69,7 +71,7 @@ services:
       - { source: nestjs_password, target: DB_PASSWORD }
       - { source: pg_ca, target: pg-ca.pem }
     healthcheck:
-      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/templates?companyId=00000000-0000-0000-0000-000000000000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
       start_period: 20s

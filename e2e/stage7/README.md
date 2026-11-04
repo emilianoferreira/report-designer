@@ -1,5 +1,7 @@
 # Etapa 7: validación de imágenes Docker sin producción
 
+**Desde etapa 8:** test:docker y este entrypoint ejecutan la [validación autenticada y de aislamiento](../stage8/README.md). La configuración Docker y el retorno se mantienen; las sesiones se comparten entre APIs. Los resultados y conteos de esta página corresponden a la etapa 7 histórica, anterior a los nuevos 401/403 y a la protección por empresa.
+
 ```sh
 npm ci
 npm ci --prefix server

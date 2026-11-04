@@ -18,9 +18,9 @@ server {
         default_type text/plain;
         return 200 "Healthy\n";
     }
-    # A read-only readiness check supported by both backends. Errors remain errors.
+    # Public, read-only readiness; never bypass authentication on a business endpoint.
     location = /health/ready {
-        proxy_pass http://api_backend/api/templates?companyId=00000000-0000-0000-0000-000000000000;
+        proxy_pass http://api_backend/health/ready;
         proxy_set_header Host $host;
         proxy_next_upstream off;
         proxy_intercept_errors off;

@@ -1,5 +1,7 @@
 # Etapa 0: referencia de compatibilidad
 
+**Actualización de etapa 8:** los fixtures, esquemas de éxito y snapshots de esta etapa se conservan. Los casos HTTP usan ahora sesiones por empresa y exigen rechazar los accesos anteriormente caracterizados como deuda. Los comandos y el entrypoint remiten a la [suite autenticada](../stage8/README.md), que requiere Linux/WSL y Docker local. El registro de snapshots está deshabilitado. Las instrucciones y los conteos posteriores documentan la ejecución histórica previa a autenticación.
+
 Esta suite ejecuta el backend NestJS y Angular existentes sobre PostgreSQL real y descartable. Congela los contratos y comprueba guardar, recargar desde un navegador nuevo y renderizar antes de migrar el servidor.
 
 ## Ejecutar

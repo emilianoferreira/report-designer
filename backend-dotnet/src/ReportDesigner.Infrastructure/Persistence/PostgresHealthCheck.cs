@@ -14,6 +14,7 @@ internal sealed class PostgresHealthCheck(IServiceScopeFactory scopes) : IHealth
         try
         {
             await db.Database.ExecuteSqlRawAsync("SELECT 1", cancellationToken);
+            await db.Database.ExecuteSqlRawAsync("SELECT 1 FROM auth_users,auth_memberships,auth_sessions,auth_login_limits LIMIT 0", cancellationToken);
             return HealthCheckResult.Healthy();
         }
         catch (Exception exception) when (exception is not OperationCanceledException)

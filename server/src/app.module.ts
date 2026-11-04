@@ -8,9 +8,11 @@ import {
 } from './entities';
 import { TemplatesModule } from './modules/templates/templates.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
+    AuthModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',

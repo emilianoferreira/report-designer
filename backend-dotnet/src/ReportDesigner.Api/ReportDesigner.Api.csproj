@@ -5,5 +5,6 @@
   <ItemGroup>
     <ProjectReference Include="../ReportDesigner.Infrastructure/ReportDesigner.Infrastructure.csproj" />
     <Content Include="../../../contracts/openapi.json" Link="contracts/openapi.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../../contracts/openapi.auth.json" Link="contracts/openapi.auth.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

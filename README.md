@@ -1,16 +1,18 @@
 # Report Designer
 
-Diseñador visual de plantillas de impresion para el ERP Zureo. Permite crear, editar y previsualizar moldes de facturas, tickets, remitos y otros comprobantes fiscales con datos reales.
+Diseñador visual de plantillas de impresion para el ERP Zureo. Permite crear, editar y previsualizar moldes de facturas, tickets, remitos y otros comprobantes fiscales. Las vistas previas usan los datos de muestra del editor; las consultas de facturas se verifican por separado.
 
 > **¿Buscas un archivo especifico?** Ver [ARCHITECTURE.md](./ARCHITECTURE.md) — mapa de navegacion con tabla feature → archivo y recetas de "¿como edito X?".
 
 ## Arquitectura
 
+**Etapa 8:** ambas APIs requieren autenticación y aplican autorización por empresa. Antes de iniciar sesión sobre una base existente, aplicar únicamente [004-auth.sql](database/004-auth.sql) y aprovisionar un usuario explícitamente; no hay credenciales predeterminadas. [Configuración, contratos y pruebas de seguridad](e2e/stage8/README.md). `npm run test:security` valida Docker/TLS, aislamiento, editor y retorno .NET → NestJS → .NET sin acceder a producción.
+
 Pruebas de referencia para la migración del backend: [Etapa 0 — contratos, fixtures y PostgreSQL aislado](e2e/stage0/README.md). Ejecutar `npm run test:migration`.
 
 Backend predeterminado ASP.NET Core, con opción de volver a NestJS: [Migración y cambio de backend — etapas 1 a 7](backend-dotnet/README.md). Verificar ambos perfiles con `npm run test:cutover`.
 
-Producción preparada, aún sin desplegar: [Etapa 6 — imágenes, Compose, PostgreSQL externo y retorno](deployment/README.md). Validación local de artefactos: `npm run test:production` (requiere Nginx local).
+Producción preparada, aún sin desplegar: [Etapa 6 — imágenes, Compose, PostgreSQL externo y retorno](deployment/README.md). Desde etapa 8, test:production y los alias de migración ejecutan la suite Docker autenticada en Linux/WSL.
 
 Validación de las imágenes Linux: [Etapa 7 — Docker, PostgreSQL TLS aislado y retorno real](e2e/stage7/README.md). Ejecutar `npm run test:docker` desde Linux/WSL con Docker local. No accede a producción.
 
@@ -293,13 +295,13 @@ ID de empresa por defecto: `c1000000-0000-0000-0000-000000000001`
 
 > Este proyecto esta en fase MVP de desarrollo. Los siguientes puntos estan identificados y pendientes de implementacion antes de pasar a produccion.
 
+Etapa 8 resolvió la ausencia de autenticación, el acceso a documentos de otra empresa y la reasignación de propietario/identidad, con sesiones compartidas, CSRF y límites de login en ambos backends. La configuración del entorno definitivo y los riesgos del evaluador/renderizador siguen requiriendo revisión antes de una exposición pública.
+
 #### Critico
 
 | Riesgo | Descripcion | Mitigacion propuesta |
 |--------|-------------|----------------------|
-| Sin autenticacion | No hay JWT, guards ni middleware de auth en ningun endpoint | Implementar `@nestjs/passport` con JWT + guards por ruta |
-| Sin validacion de inputs | Los controllers aceptan `Partial<Entity>` sin DTOs ni validacion | Crear DTOs con `class-validator` y `ValidationPipe` global |
-| Mass assignment | `Object.assign(entity, data)` permite modificar campos protegidos (company_id, estado) | Usar DTOs explicitos que solo expongan campos editables |
+| Validación estructural incompleta | Se conserva JSON abierto y varios errores de entrada heredados | Diseñar validación compatible de metadatos y documentos sin perder extensiones del editor |
 
 #### Alto
 
@@ -307,23 +309,21 @@ ID de empresa por defecto: `c1000000-0000-0000-0000-000000000001`
 |--------|-------------|----------------------|
 | Evaluador de expresiones | `new Function()` en `expression-evaluator.ts` es un vector de inyeccion de codigo | Reemplazar con `mathjs` o `expr-eval` (parser seguro) |
 | template_json sin validar | Se acepta cualquier JSON sin validacion de schema | Validar estructura con JSON Schema o Zod antes de persistir |
-| Sin rate limiting | Endpoints sin proteccion contra abuso | Agregar `@nestjs/throttler` |
+| Límites generales de tráfico | El login ya tiene límites compartidos; falta dimensionar cuotas del resto de la API | Definir cuotas según usuarios/carga del entorno definitivo |
 
 #### Medio
 
 | Riesgo | Descripcion | Mitigacion propuesta |
 |--------|-------------|----------------------|
-| CORS hardcodeado | `origin: 'http://localhost:4200'` no es configurable | Mover a variable de entorno `CORS_ORIGIN` |
-| Sin headers de seguridad | No hay helmet.js (X-Frame-Options, CSP, HSTS) | Agregar `app.use(helmet())` en main.ts |
-| Sin HTTPS | Todo el trafico es HTTP plano | Configurar TLS en produccion (reverse proxy o cert directo) |
+| Política de headers | Falta definir CSP/HSTS y compatibilidad de vistas previas para el gateway real | Configurar y validar la política en preproducción |
+| HTTPS del entorno definitivo | Hay configuración de referencia, aún sin desplegar | Configurar certificados y DNS reales |
 | Sin audit logging | Solo se loguean errores de DB, no acciones de usuario | Agregar interceptor de auditoria con timestamp y usuario |
-| Sin limite de tamanio de request | template_json puede ser arbitrariamente grande | Configurar `bodyParser.json({ limit: '1mb' })` |
+| Dimensionamiento de documentos | El paquete fija 32 MiB en Nginx y ambas APIs | Ajustar límites coordinadamente con el gateway y la carga real |
 
 #### Bajo
 
 | Riesgo | Descripcion | Mitigacion propuesta |
 |--------|-------------|----------------------|
-| Company ID hardcodeado | Default `c1000000-...` en controllers y frontend | Derivar del token JWT del usuario autenticado |
 | logo_url sin validar | Podria apuntar a dominios maliciosos | Validar formato URL y dominios permitidos |
 
 ### Buenas practicas ya implementadas

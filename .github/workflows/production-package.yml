@@ -1,4 +1,4 @@
-name: Validate Docker images and isolated rollback (no production deployment)
+name: Validate authentication, tenant isolation and Docker rollback (no deployment)
 
 on:
   workflow_dispatch:
@@ -33,6 +33,6 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: docker-isolated-validation
-          path: e2e/test-results/stage7-*/
+          path: e2e/test-results/stage8-*/
           retention-days: 7
       # Only temporary test Compose projects. No push or production credentials/deployment.

@@ -3,6 +3,7 @@ using ReportDesigner.Api.Compatibility;
 using ReportDesigner.Application.Templates;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using ReportDesigner.Application.Common;
 
 namespace ReportDesigner.Api.Templates;
 
@@ -10,14 +11,14 @@ namespace ReportDesigner.Api.Templates;
 [Route("api/templates")]
 [Produces("application/json")]
 [ServiceFilter(typeof(LegacyApiExceptionFilter))]
-public sealed class TemplatesController(ITemplateQueries queries, ITemplateCommands commands) : ControllerBase
+public sealed class TemplatesController(ITemplateQueries queries, ITemplateCommands commands, ICompanyContext tenant) : ControllerBase
 {
-    private const string DefaultCompany = "c1000000-0000-0000-0000-000000000001";
+    private string DefaultCompany => tenant.CompanyId.ToString();
 
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
     {
-        // Default only when absent: an explicitly empty value must retain the legacy 500.
+        // Default only when absent; explicit values must match the authenticated company.
         var companyId = Request.Query.TryGetValue("companyId", out var value) ? value.ToString() : DefaultCompany;
         var rows = await queries.ListAsync(companyId, cancellationToken);
         return Ok(rows.Select(TemplateResponse.From).ToArray());

@@ -1,6 +1,6 @@
 /**
  * API Service
- * Central HTTP client for communicating with the NestJS backend.
+ * Central HTTP client for the selected backend through the same-origin proxy.
  * All API calls go through this service.
  */
 import { Injectable } from '@angular/core';
@@ -16,8 +16,8 @@ export class ApiService {
 
   // ─── Templates ───
 
-  getTemplates(companyId: string = 'c1000000-0000-0000-0000-000000000001'): Observable<any[]> {
-    return this.http.get<any[]>(`/api/templates?companyId=${companyId}`);
+  getTemplates(companyId?: string): Observable<any[]> {
+    return this.http.get<any[]>('/api/templates', { params: companyId ? { companyId } : {} });
   }
 
   getTemplate(id: string): Observable<any> {
@@ -56,8 +56,8 @@ export class ApiService {
 
   // ─── Invoices ───
 
-  getInvoices(companyId: string = 'c1000000-0000-0000-0000-000000000001'): Observable<any[]> {
-    return this.http.get<any[]>(`/api/invoices?companyId=${companyId}`);
+  getInvoices(companyId?: string): Observable<any[]> {
+    return this.http.get<any[]>('/api/invoices', { params: companyId ? { companyId } : {} });
   }
 
   getInvoiceData(invoiceId: string): Observable<Record<string, any>> {

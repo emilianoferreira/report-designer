@@ -11,6 +11,12 @@ public sealed class LegacyApiExceptionFilter(ILogger<LegacyApiExceptionFilter> l
     {
         if (context.Exception is OperationCanceledException && context.HttpContext.RequestAborted.IsCancellationRequested)
             return;
+        if (context.Exception is AccessDeniedException)
+        {
+            context.Result = new ObjectResult(new { statusCode = 403, message = "Forbidden", error = "Forbidden" }) { StatusCode = 403 };
+            context.ExceptionHandled = true;
+            return;
+        }
         if (context.Exception is ResourceNotFoundException missing)
         {
             context.Result = new NotFoundObjectResult(new { message = missing.Message, error = "Not Found", statusCode = 404 });

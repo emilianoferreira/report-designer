@@ -7,8 +7,8 @@ export class InvoicesController {
 
   /** GET /api/invoices?companyId=xxx - List invoices */
   @Get()
-  findAll(@Query('companyId') companyId: string = 'c1000000-0000-0000-0000-000000000001') {
-    return this.service.findAll(companyId);
+  findAll(@Query('companyId') companyId?: string) {
+    return this.service.findAll(companyId ?? this.service.company);
   }
 
   /** GET /api/invoices/:id/data - Get InvoiceData JSON for preview */

@@ -19,9 +19,17 @@ export function fixture(name: string): any {
   return JSON.parse(readFileSync(path.join(__dirname, 'fixtures', `${name}.json`), 'utf8'));
 }
 
-export const test = base.extend<{ api: APIRequestContext; db: any }>({
+export const test = base.extend<{ api: APIRequestContext; otherApi: APIRequestContext; db: any }>({
   api: async ({ playwright }, use) => {
-    const api = await playwright.request.newContext({ baseURL: process.env['STAGE0_API_URL'] });
+    const api = await playwright.request.newContext({ baseURL: process.env['STAGE0_API_URL'],
+      storageState: process.env['STAGE8_STORAGE_STATE'],
+      extraHTTPHeaders: process.env['STAGE8_CSRF'] ? { 'X-CSRF-Token': process.env['STAGE8_CSRF']! } : {} });
+    try { await use(api); } finally { await api.dispose(); }
+  },
+  otherApi: async ({ playwright }, use) => {
+    const state = JSON.parse(readFileSync(process.env['STAGE8_OTHER_STATE']!, 'utf8'));
+    const api = await playwright.request.newContext({ baseURL: process.env['STAGE0_API_URL'], storageState: state.storageState,
+      extraHTTPHeaders: { 'X-CSRF-Token': state.csrf } });
     try { await use(api); } finally { await api.dispose(); }
   },
   db: [async ({}, use: (client: any) => Promise<void>) => {

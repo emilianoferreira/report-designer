@@ -78,10 +78,10 @@ test('template defaults, omitted fields, null, empty strings and open JSON', asy
   } finally { await deleteTemplate(api, created.id); }
 });
 
-test('template lists filter by company, default company and updated_at DESC', async ({ api, db }) => {
+test('template lists filter by company, default company and updated_at DESC', async ({ api, otherApi, db }) => {
   const first = await createTemplate(api, 'report-a4', ' first');
   const second = await createTemplate(api, 'price-label', ' second');
-  const other = await responseContract(await api.post('/api/templates', {
+  const other = await responseContract(await otherApi.post('/api/templates', {
     data: { ...fixture('report-a4'), nombre: 'Empresa 2', company_id: COMPANY_2 },
   }), '/api/templates', 'post', 201);
   try {
@@ -91,28 +91,30 @@ test('template lists filter by company, default company and updated_at DESC', as
     const rows = await responseContract(await api.get(`/api/templates?companyId=${COMPANY_1}`), '/api/templates', 'get', 200);
     expect(rows.map((row: any) => row.id)).toEqual([second.id, first.id]);
     expect(await (await api.get('/api/templates')).json()).toEqual(rows);
-    const otherRows = await responseContract(await api.get(`/api/templates?companyId=${COMPANY_2}`), '/api/templates', 'get', 200);
+    const otherRows = await responseContract(await otherApi.get(`/api/templates?companyId=${COMPANY_2}`), '/api/templates', 'get', 200);
     expect(otherRows.map((row: any) => row.id)).toEqual([other.id]);
-    expect(await (await api.get(`/api/templates?companyId=${MISSING}`)).json()).toEqual([]);
+    expect((await api.get(`/api/templates?companyId=${MISSING}`)).status()).toBe(403);
   } finally {
-    for (const row of [first, second, other]) await deleteTemplate(api, row.id);
+    for (const row of [first, second]) await deleteTemplate(api, row.id);
+    await deleteTemplate(otherApi, other.id);
   }
 });
 
 for (const company of [COMPANY_1, COMPANY_2]) {
-  test(`invoice summaries: exact shape, decimal strings and ordering for ${company}`, async ({ api }) => {
-    const data = await responseContract(await api.get(`/api/invoices?companyId=${company}`), '/api/invoices', 'get', 200);
+  test(`invoice summaries: exact shape, decimal strings and ordering for ${company}`, async ({ api, otherApi }) => {
+    const client = company === COMPANY_1 ? api : otherApi;
+    const data = await responseContract(await client.get(`/api/invoices?companyId=${company}`), '/api/invoices', 'get', 200);
     expect(data.length).toBe(company === COMPANY_1 ? 4 : 1);
     expect(stableJson(data)).toMatchSnapshot(`invoices-${company}.json`);
     if (company === COMPANY_1) expect(await (await api.get('/api/invoices')).json()).toEqual(data);
-    expect(await (await api.get(`/api/invoices?companyId=${MISSING}`)).json()).toEqual([]);
+    expect((await client.get(`/api/invoices?companyId=${MISSING}`)).status()).toBe(403);
   });
 }
 
 for (const number of [1, 2, 3, 4, 5]) {
-  test(`invoice ${number}: complete render data contract`, async ({ api, db }) => {
+  test(`invoice ${number}: complete render data contract`, async ({ api, otherApi, db }) => {
     const id = invoiceId(number);
-    const data = await responseContract(await api.get(`/api/invoices/${id}/data`), '/api/invoices/{id}/data', 'get', 200);
+    const data = await responseContract(await (number === 4 ? otherApi : api).get(`/api/invoices/${id}/data`), '/api/invoices/{id}/data', 'get', 200);
     const sql = (await db.query('SELECT build_invoice_data($1) AS data', [id])).rows[0].data;
     expect(data).toEqual(sql);
     expect(data.invoiceLines).toEqual(data.Articulos);
@@ -153,28 +155,26 @@ for (const [method, route] of missingRoutes) {
   });
 }
 
-test('invalid company query and invalid create bodies expose the current generic 500', async ({ api }) => {
+test('unauthorized company inputs return 403; invalid document bodies retain generic 500', async ({ api }) => {
   for (const route of ['/api/templates', '/api/invoices']) {
-    await responseContract(await api.get(`${route}?companyId=invalid`), route, 'get', 500);
-    await responseContract(await api.get(`${route}?companyId=`), route, 'get', 500);
+    expect((await api.get(`${route}?companyId=invalid`)).status()).toBe(403);
+    expect((await api.get(`${route}?companyId=`)).status()).toBe(403);
   }
-  for (const data of [{}, { nombre: 'Missing design' }, { template_json: {} }, {
-    nombre: 'Unknown company', company_id: MISSING, template_json: {},
-  }, { nombre: 'x'.repeat(201), template_json: {} }]) {
+  for (const data of [{}, { nombre: 'Missing design' }, { template_json: {} }, { nombre: 'x'.repeat(201), template_json: {} }]) {
     await responseContract(await api.post('/api/templates', { data }), '/api/templates', 'post', 500);
   }
+  expect((await api.post('/api/templates',{data:{nombre:'Unknown company',company_id:MISSING,template_json:{}}})).status()).toBe(403);
 });
 
-test('known debt: individual lookup and PUT do not enforce tenant ownership', async ({ api }) => {
-  test.info().annotations.push({ type: 'known-debt', description: 'Characterizes existing missing authorization / mass assignment; not a future security requirement.' });
+test('ownership is immutable and a foreign session cannot read a template', async ({ api, otherApi }) => {
   const created = await createTemplate(api, 'report-a4');
   try {
-    const moved = await responseContract(await api.put(`/api/templates/${created.id}`, {
+    const denied = await api.put(`/api/templates/${created.id}`, {
       data: { company_id: COMPANY_2, autor: 'contract-characterization', tags: ['legacy'] },
-    }), '/api/templates/{id}', 'put', 200);
-    expect(moved.company_id).toBe(COMPANY_2);
-    expect(moved.autor).toBe('contract-characterization');
+    });
+    expect(denied.status()).toBe(403);
     const read = await responseContract(await api.get(`/api/templates/${created.id}?companyId=${COMPANY_1}`), '/api/templates/{id}', 'get', 200);
-    expect(read.company_id).toBe(COMPANY_2);
+    expect(read.company_id).toBe(COMPANY_1);
+    await responseContract(await otherApi.get(`/api/templates/${created.id}`),'/api/templates/{id}','get',404);
   } finally { await deleteTemplate(api, created.id); }
 });

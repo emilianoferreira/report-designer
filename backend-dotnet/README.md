@@ -1,4 +1,8 @@
-# Backend ASP.NET Core — etapas 1 a 7
+# Backend ASP.NET Core — etapas 1 a 8
+
+**Estado actual, etapa 8:** la [guía de autenticación y aislamiento](../e2e/stage8/README.md) sustituye las decisiones de seguridad y ejecución de pruebas históricas descritas más abajo. Las nueve operaciones requieren sesión, la empresa activa proviene de la sesión y las escrituras no permiten reasignar empresa/identidad. NestJS aplica la misma política y comparte las sesiones. Aplicar `database/004-auth.sql` explícitamente y aprovisionar usuarios antes de usar una base existente. El contrato de éxito se conserva; 401/403 y el ocultamiento de documentos ajenos están en `contracts/openapi.auth.json`.
+
+`npm run test:security` y los alias de aceptación ejecutan ahora las imágenes Docker, contratos/editor autenticados, pruebas de aislamiento y retorno sobre PostgreSQL TLS aislado. No hay un modo de desactivar autenticación para pruebas. Los conteos y las deudas indicados en las secciones de etapas anteriores son evidencia histórica; no describen permisos actuales.
 
 El host ASP.NET Core utiliza PostgreSQL mediante EF Core/Npgsql e implementa las siete operaciones de Templates y las dos consultas de Invoices. Desde etapa 5 es el backend predeterminado de Angular en desarrollo. NestJS se conserva como opción explícita de retorno sobre la misma base; los contratos y snapshots originales se conservan.
 

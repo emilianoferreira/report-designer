@@ -123,7 +123,8 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
   }
 
   async saveTemplate(): Promise<void> {
-    const saved = await this.storage.save(this.template);
+    const saved = await this.storage.save(this.template).catch(() => undefined);
+    if (!saved) return;
     this.state.setTemplate(saved);
     this.showSaveStatus('Guardado');
   }

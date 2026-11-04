@@ -1,4 +1,6 @@
-# Preparación y validación Docker — etapas 6 y 7
+# Preparación y validación Docker — etapas 6 a 8
+
+**Etapa 8:** ambas APIs requieren las nuevas tablas de autenticación y aplican autorización por empresa. Consultar [migración, aprovisionamiento y aceptación aislada](../e2e/stage8/README.md). Aplicar únicamente `004-auth.sql` como cambio aditivo y aprovisionar usuarios antes de habilitar acceso; no ejecutar seed/reset sobre una base utilizada. Las instrucciones de versiones anteriores conservadas más abajo son evidencia histórica. Los alias de pruebas ejecutan ahora la suite Docker autenticada de etapa 8.
 
 Paquete preparado para un host Linux con Docker Engine y Compose. No se ha desplegado ni publicado ninguna imagen. Angular se sirve como archivos optimizados con Nginx; las APIs .NET y NestJS permanecen disponibles en la red interna de Compose, conectadas al PostgreSQL existente. Solo el frontend se publica, por defecto en `127.0.0.1:8080`, detrás del gateway HTTPS del host.
 
@@ -65,7 +67,7 @@ El workflow `Validate Docker images and isolated rollback (no production deploym
 
 ## Arranque futuro y aceptación
 
-Antes de habilitar acceso, el gateway debe terminar HTTPS y aplicar autenticación o el acceso privado del entorno. La API conserva la deuda de autorización por empresa de NestJS; un gateway con contraseña no aporta aislamiento entre empresas. El ejemplo edge incluye autenticación básica para un entorno compartido de confianza; sustituirla por el mecanismo de identidad de la organización cuando corresponda. No publicar directamente los puertos de las APIs ni abrir el listener HTTP de Compose a Internet.
+Antes de habilitar acceso, el gateway debe terminar HTTPS. La aplicación exige sesión y autorización por empresa en ambos backends; la autenticación básica del ejemplo edge es una barrera adicional opcional del entorno. Mantener `AUTH_SECURE_COOKIE=true` (default). No publicar directamente los puertos de las APIs ni abrir el listener HTTP de Compose a Internet. El retorno debe usar la imagen NestJS de esta misma release autenticada, no una imagen histórica sin autorización.
 
 Para una base existente, acordar un respaldo consistente con su administrador antes del primer cambio de tráfico. Ejemplo para el operador: `pg_dump --format=custom --file=<ruta-privada>/before-release.dump --dbname=<base>` usando credenciales fuera de la línea de comandos (PGPASSFILE/secret manager) y verificar la restauración en otra base. No hay copias, restauraciones ni borrados automáticos en este paquete.
 
@@ -78,7 +80,7 @@ curl --fail http://127.0.0.1:8080/health/live
 curl --fail http://127.0.0.1:8080/health/ready
 ```
 
-Ambas APIs se mantienen activas para un retorno rápido; web espera su estado healthy en el arranque inicial. Healthcheck de .NET comprueba SELECT 1; el de NestJS consulta la lista de una empresa inexistente. La ruta web `/health/ready` consulta ese mismo endpoint en el backend seleccionado y conserva los errores. La ruta `/health/live` comprueba solo Nginx. Un estado unhealthy no reinicia automáticamente un contenedor: el operador debe observarlo e intervenir. Los logs van a stdout/stderr y se rotan; no incluyen access logs de cuerpos de plantillas.
+Ambas APIs se mantienen activas para un retorno rápido; web espera su estado healthy en el arranque inicial. `/health/ready` de cada API comprueba PostgreSQL y acceso a las tablas de autenticación sin requerir sesión ni modificar datos. Nginx consulta esa ruta en el backend seleccionado. `/health/live` comprueba solo Nginx. Un estado unhealthy no reinicia automáticamente un contenedor: el operador debe observarlo e intervenir. Los logs van a stdout/stderr y se rotan; no incluyen access logs de cuerpos de plantillas.
 
 Comprobar por el gateway real: acceso HTTPS/autenticado, recarga directa de /templates y /price-labels, apertura desde el listado, guardar/recargar/renderizar un reporte A4, un ticket y una etiqueta, exportaciones y consultas Invoices. Verificar que los datos llegan a PostgreSQL y que no se está usando localStorage como sustituto. El preview sigue usando los datos de muestra actuales; el endpoint de facturas se valida aparte.
 
@@ -112,7 +114,7 @@ En Linux se puede usar NGINX_HOST_PATH=/usr/sbin/nginx y opcionalmente NGINX_MIM
 
 La suite compila Angular production, publica .NET Release, arranca el assembly publicado en Production y NestJS compilado con NODE_ENV=production. Usa el bloque Nginx versionado, sustituyendo solo directorio de estáticos, puertos y destino loopback de la base aislada; ejecuta `nginx -t` y sirve los mismos bundles. Corre las 134 comparaciones previas, 68 pruebas de API/editor, 5 controles de retorno y comprobaciones de SPA, caché, salud, documento de 1 MiB y error 502 cuando el backend no responde. Los resultados quedan en e2e/test-results/stage0-<uuid>, incluido stage6.json; los procesos y la base se eliminan al finalizar.
 
-La prueba nativa de etapa 6 acredita los artefactos y Nginx; la etapa 7 añade la ejecución real de las imágenes Linux, entrypoints, secretos, permisos, DNS/red Compose y healthchecks. Se instaló Docker Engine en la distribución Ubuntu 24.04 WSL existente para esta comprobación. TLS, DNS, credenciales y gateway del servidor final, autorización por empresa y recuperación del PostgreSQL real siguen requiriendo la configuración del operador.
+La prueba nativa de etapa 6 acredita los artefactos y Nginx; la etapa 7 añade la ejecución real de las imágenes Linux, entrypoints, secretos, permisos, DNS/red Compose y healthchecks. La etapa 8 verifica además sesiones compartidas y aislamiento por empresa. TLS, DNS, credenciales, gateway del servidor final y recuperación del PostgreSQL real siguen requiriendo la configuración del operador.
 
 Verificado el 3 de noviembre de 2026 en Windows x64: Angular production compilado (con advertencias CommonJS existentes de jsbarcode/qrcode), .NET 10.0.403 publicado sin errores ni advertencias, Nginx 1.30.6 con sintaxis válida y Compose 5.7.0 con configuración válida. `npm run test:production` aprobó 134 comparaciones, 68 pruebas, cinco controles de retorno y cuatro grupos de comprobaciones de producción. Los scripts shell pasaron bash -n. No se ejecutó Docker build, el workflow, push ni Compose up; la base y los procesos locales de prueba se limpiaron.
 

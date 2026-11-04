@@ -1,0 +1,1807 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Report Designer — API autenticada",
+    "version": "0.0.2-stage8",
+    "description": "Etapa 8: conserva los cuerpos y estados exitosos originales. Sesión opaca HttpOnly compartida en PostgreSQL; empresa activa autorizada. 401 sin sesión; 403 por empresa/rol/CSRF; documento ajeno 404. No permite reasignar identidad, empresa ni timestamps. Referencia histórica: openapi.json."
+  },
+  "paths": {
+    "/api/templates": {
+      "get": {
+        "operationId": "listTemplates",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CompanyId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array completo, updated_at DESC",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Template"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 401
+                    },
+                    "message": {
+                      "const": "Unauthorized"
+                    },
+                    "error": {
+                      "const": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 403
+                    },
+                    "message": {
+                      "const": "Forbidden"
+                    },
+                    "error": {
+                      "const": "Forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createTemplate",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTemplate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/Template"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 401
+                    },
+                    "message": {
+                      "const": "Unauthorized"
+                    },
+                    "error": {
+                      "const": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 403
+                    },
+                    "message": {
+                      "const": "Forbidden"
+                    },
+                    "error": {
+                      "const": "Forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "csrf_token de GET /api/auth/session. Para login usar el literal login."
+          }
+        ]
+      }
+    },
+    "/api/templates/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "get": {
+        "operationId": "getTemplate",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Template"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 401
+                    },
+                    "message": {
+                      "const": "Unauthorized"
+                    },
+                    "error": {
+                      "const": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 403
+                    },
+                    "message": {
+                      "const": "Forbidden"
+                    },
+                    "error": {
+                      "const": "Forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateTemplate",
+        "description": "Actualización parcial. Incrementa version incluso para un objeto vacío. Campos omitidos se conservan.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTemplate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Template"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 401
+                    },
+                    "message": {
+                      "const": "Unauthorized"
+                    },
+                    "error": {
+                      "const": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 403
+                    },
+                    "message": {
+                      "const": "Forbidden"
+                    },
+                    "error": {
+                      "const": "Forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "csrf_token de GET /api/auth/session. Para login usar el literal login."
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteTemplate",
+        "responses": {
+          "200": {
+            "description": "Cuerpo vacío; no devuelve JSON ni 204"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 401
+                    },
+                    "message": {
+                      "const": "Unauthorized"
+                    },
+                    "error": {
+                      "const": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 403
+                    },
+                    "message": {
+                      "const": "Forbidden"
+                    },
+                    "error": {
+                      "const": "Forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "csrf_token de GET /api/auth/session. Para login usar el literal login."
+          }
+        ]
+      }
+    },
+    "/api/templates/{id}/design": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "put": {
+        "operationId": "saveDesign",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "template_json"
+                ],
+                "properties": {
+                  "template_json": {
+                    "$ref": "#/components/schemas/EditorDocument"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Template"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 401
+                    },
+                    "message": {
+                      "const": "Unauthorized"
+                    },
+                    "error": {
+                      "const": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 403
+                    },
+                    "message": {
+                      "const": "Forbidden"
+                    },
+                    "error": {
+                      "const": "Forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "csrf_token de GET /api/auth/session. Para login usar el literal login."
+          }
+        ]
+      }
+    },
+    "/api/templates/{id}/duplicate": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "post": {
+        "operationId": "duplicateTemplate",
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/Template"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 401
+                    },
+                    "message": {
+                      "const": "Unauthorized"
+                    },
+                    "error": {
+                      "const": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 403
+                    },
+                    "message": {
+                      "const": "Forbidden"
+                    },
+                    "error": {
+                      "const": "Forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "csrf_token de GET /api/auth/session. Para login usar el literal login."
+          }
+        ]
+      }
+    },
+    "/api/invoices": {
+      "get": {
+        "operationId": "listInvoices",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CompanyId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array de resúmenes, fecha DESC",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InvoiceSummary"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 401
+                    },
+                    "message": {
+                      "const": "Unauthorized"
+                    },
+                    "error": {
+                      "const": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 403
+                    },
+                    "message": {
+                      "const": "Forbidden"
+                    },
+                    "error": {
+                      "const": "Forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        }
+      }
+    },
+    "/api/invoices/{id}/data": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "get": {
+        "operationId": "getInvoiceData",
+        "responses": {
+          "200": {
+            "description": "Objeto JSON de build_invoice_data; conservar casing y tipos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceData"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 401
+                    },
+                    "message": {
+                      "const": "Unauthorized"
+                    },
+                    "error": {
+                      "const": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 403
+                    },
+                    "message": {
+                      "const": "Forbidden"
+                    },
+                    "error": {
+                      "const": "Forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/DatabaseError"
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "operationId": "login",
+        "security": [],
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "const": "login"
+            },
+            "description": "csrf_token de GET /api/auth/session. Para login usar el literal login."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254
+                  },
+                  "password": {
+                    "type": "string",
+                    "maxLength": 1024
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sesión autenticada; nunca incluye la credencial opaca de la cookie.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "rd_session; HttpOnly; SameSite=Strict; Secure en producción; Path=/; Max-Age=28800"
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 401
+                    },
+                    "message": {
+                      "const": "Unauthorized"
+                    },
+                    "error": {
+                      "const": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 403
+                    },
+                    "message": {
+                      "const": "Forbidden"
+                    },
+                    "error": {
+                      "const": "Forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Máximo 10 intentos por correo o 100 por conexión del proxy en 15 minutos."
+          }
+        }
+      }
+    },
+    "/api/auth/session": {
+      "get": {
+        "operationId": "session",
+        "responses": {
+          "200": {
+            "description": "Sesión autenticada; nunca incluye la credencial opaca de la cookie.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 401
+                    },
+                    "message": {
+                      "const": "Unauthorized"
+                    },
+                    "error": {
+                      "const": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 403
+                    },
+                    "message": {
+                      "const": "Forbidden"
+                    },
+                    "error": {
+                      "const": "Forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/company": {
+      "post": {
+        "operationId": "switchCompany",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "csrf_token de GET /api/auth/session. Para login usar el literal login."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "company_id"
+                ],
+                "properties": {
+                  "company_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sesión autenticada; nunca incluye la credencial opaca de la cookie.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 401
+                    },
+                    "message": {
+                      "const": "Unauthorized"
+                    },
+                    "error": {
+                      "const": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 403
+                    },
+                    "message": {
+                      "const": "Forbidden"
+                    },
+                    "error": {
+                      "const": "Forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "csrf_token de GET /api/auth/session. Para login usar el literal login."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Sesión revocada y cookie eliminada."
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 401
+                    },
+                    "message": {
+                      "const": "Unauthorized"
+                    },
+                    "error": {
+                      "const": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "message",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "const": 403
+                    },
+                    "message": {
+                      "const": "Forbidden"
+                    },
+                    "error": {
+                      "const": "Forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "Id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "description": "UUID. El servidor actual delega validación a PostgreSQL; mal formado produce 500."
+      },
+      "CompanyId": {
+        "name": "companyId",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        },
+        "description": "Opcional: debe coincidir con la empresa activa de la sesión; de lo contrario 403. Si se omite, se usa la empresa activa."
+      }
+    },
+    "responses": {
+      "Template": {
+        "description": "Fila de report_templates",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Template"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Recurso inexistente",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/NotFoundError"
+            }
+          }
+        }
+      },
+      "DatabaseError": {
+        "description": "Error existente de base de datos, sin detalle SQL público",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ServerError"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "EditorDocument": {
+        "description": "JSON abierto. Reporte: {documentType, template}; etiqueta: LabelTemplate directamente con type=price-label. Se conservan todas las propiedades desconocidas. El backend actual también acepta objetos ajenos a estos formatos.",
+        "type": "object",
+        "additionalProperties": true
+      },
+      "CreateTemplate": {
+        "type": "object",
+        "required": [
+          "nombre",
+          "template_json"
+        ],
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "company_id": {
+            "type": "string"
+          },
+          "descripcion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "template_json": {
+            "$ref": "#/components/schemas/EditorDocument"
+          }
+        }
+      },
+      "UpdateTemplate": {
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "descripcion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "estado": {
+            "type": "string"
+          },
+          "template_json": {
+            "$ref": "#/components/schemas/EditorDocument"
+          },
+          "id": false,
+          "company_id": false,
+          "company": false,
+          "created_at": false,
+          "updated_at": false
+        },
+        "description": "Patch dentro de la empresa activa. id, company_id, company, created_at y updated_at están protegidos (403 si se suministran). based_on solo puede referenciar una plantilla de la empresa activa."
+      },
+      "Template": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "company_id",
+          "nombre",
+          "descripcion",
+          "version",
+          "autor",
+          "tags",
+          "estado",
+          "template_json",
+          "based_on",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9a-f-]{36}$"
+          },
+          "company_id": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "descripcion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "autor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tags": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "estado": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "template_json": {
+            "$ref": "#/components/schemas/EditorDocument"
+          },
+          "based_on": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "InvoiceSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "serie",
+          "numero",
+          "fecha",
+          "total",
+          "estado",
+          "invoice_type",
+          "contact",
+          "currency"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "serie": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "numero": {
+            "type": "integer"
+          },
+          "fecha": {
+            "type": "string"
+          },
+          "total": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "numeric leído por pg/TypeORM se serializa como cadena"
+          },
+          "estado": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "invoice_type": {
+            "type": "object",
+            "required": [
+              "nombre",
+              "codigo"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "nombre": {
+                "type": "string"
+              },
+              "codigo": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "contact": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "required": [
+              "guardar_como"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "guardar_como": {
+                "type": "string"
+              }
+            }
+          },
+          "currency": {
+            "type": "object",
+            "required": [
+              "iso4217",
+              "simbolo"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "iso4217": {
+                "type": "string"
+              },
+              "simbolo": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "InvoiceData": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "invoice",
+          "invoiceLines",
+          "company",
+          "Moneda",
+          "Contacto",
+          "CFE",
+          "Articulos",
+          "Impuestos",
+          "SubtotalesDesglosados",
+          "Subtotal",
+          "Total",
+          "Redondeo",
+          "MontoDtoGlobal",
+          "isCFE",
+          "isConsumoFinal",
+          "isImpIncluidos",
+          "hasContacto",
+          "hasDtoGlobal",
+          "hasRedondeo",
+          "logoBase64",
+          "QRBase64"
+        ],
+        "properties": {
+          "invoice": {
+            "type": "object",
+            "required": [
+              "Tipo",
+              "Numero",
+              "Fecha",
+              "Comentario",
+              "TipoCambio",
+              "PorcentajeDescGlobal",
+              "DireccionFactura",
+              "Empresa",
+              "Sucursal"
+            ],
+            "properties": {
+              "Numero": {
+                "type": "object",
+                "required": [
+                  "Numero"
+                ],
+                "properties": {
+                  "Numero": {
+                    "type": "string"
+                  }
+                }
+              },
+              "Fecha": {
+                "type": "string"
+              }
+            }
+          },
+          "invoiceLines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceLine"
+            }
+          },
+          "Articulos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoiceLine"
+            }
+          },
+          "company": {
+            "type": "object",
+            "required": [
+              "Nombre",
+              "NombreComercial",
+              "RUT",
+              "Direccion",
+              "Ciudad",
+              "logoUrl"
+            ]
+          },
+          "Moneda": {
+            "type": "object",
+            "required": [
+              "ISO4217",
+              "Simbolo"
+            ]
+          },
+          "Contacto": {
+            "type": "object",
+            "required": [
+              "GuardarComo"
+            ]
+          },
+          "CFE": {
+            "type": "object",
+            "required": [
+              "TipoComprobanteFiscal",
+              "CodSeguridad",
+              "Adenda"
+            ]
+          },
+          "Impuestos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "Nombre",
+                "Valor"
+              ],
+              "properties": {
+                "Nombre": {
+                  "type": "string"
+                },
+                "Valor": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "SubtotalesDesglosados": {
+            "type": "array"
+          },
+          "Subtotal": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "Total": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "Redondeo": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "MontoDtoGlobal": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "isCFE": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "isConsumoFinal": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "isImpIncluidos": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "hasContacto": {
+            "type": "boolean"
+          },
+          "hasDtoGlobal": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "hasRedondeo": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "logoBase64": {
+            "type": "string"
+          },
+          "QRBase64": {
+            "type": "string"
+          }
+        }
+      },
+      "InvoiceLine": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "Articulo",
+          "Cantidad",
+          "PrecioUnitario",
+          "PrecioUnitarioNeto",
+          "Descuento",
+          "SubTotal"
+        ],
+        "properties": {
+          "Articulo": {
+            "type": "object",
+            "required": [
+              "Codigo",
+              "Nombre"
+            ],
+            "properties": {
+              "Codigo": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "Nombre": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "Cantidad": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "PrecioUnitario": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "PrecioUnitarioNeto": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "Descuento": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "SubTotal": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        }
+      },
+      "NotFoundError": {
+        "type": "object",
+        "required": [
+          "statusCode",
+          "message",
+          "error"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "statusCode": {
+            "const": 404
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "const": "Not Found"
+          }
+        }
+      },
+      "ServerError": {
+        "type": "object",
+        "required": [
+          "statusCode",
+          "message"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "statusCode": {
+            "const": 500
+          },
+          "message": {
+            "const": "Internal server error"
+          }
+        }
+      },
+      "Session": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "user",
+          "company_id",
+          "role",
+          "csrf_token",
+          "expires_at",
+          "companies"
+        ],
+        "properties": {
+          "user": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "email"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              }
+            }
+          },
+          "company_id": {
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "editor",
+              "viewer"
+            ]
+          },
+          "csrf_token": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "expires_at": {
+            "type": "string"
+          },
+          "companies": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "name",
+                "role"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "role": {
+                  "enum": [
+                    "editor",
+                    "viewer"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "SessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "rd_session"
+      }
+    }
+  },
+  "security": [
+    {
+      "SessionCookie": []
+    }
+  ]
+}

@@ -1,10 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
+import { authenticatedAgent } from './authenticated-agent';
 import { AppModule } from '../src/app.module';
 
 describe('InvoicesController (e2e)', () => {
   let app: INestApplication;
+  let agent: any;
+  let otherAgent: any;
+
   const COMPANY_1 = 'c1000000-0000-0000-0000-000000000001'; // Soluciones Tech
   const COMPANY_2 = 'c1000000-0000-0000-0000-000000000002'; // Distribuidora del Este
 
@@ -22,6 +25,8 @@ describe('InvoicesController (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     await app.init();
+    agent=await authenticatedAgent(app);
+    otherAgent=await authenticatedAgent(app,'bob');
   });
 
   afterAll(async () => {
@@ -31,7 +36,7 @@ describe('InvoicesController (e2e)', () => {
   // ─── GET /api/invoices ───
 
   it('GET /api/invoices → lists invoices for company 1', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await agent
       .get('/api/invoices')
       .query({ companyId: COMPANY_1 })
       .expect(200);
@@ -48,7 +53,7 @@ describe('InvoicesController (e2e)', () => {
   });
 
   it('GET /api/invoices → lists invoices for company 2', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await otherAgent
       .get('/api/invoices')
       .query({ companyId: COMPANY_2 })
       .expect(200);
@@ -60,7 +65,7 @@ describe('InvoicesController (e2e)', () => {
   // ─── GET /api/invoices/:id/data ─── InvoiceData structure tests ───
 
   it('GET /api/invoices/:id/data → returns InvoiceData for simple invoice (consumidor final)', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await agent
       .get(`/api/invoices/${INV_SIMPLE}/data`)
       .expect(200);
 
@@ -132,7 +137,7 @@ describe('InvoicesController (e2e)', () => {
   });
 
   it('GET /api/invoices/:id/data → invoice with contact (crédito)', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await agent
       .get(`/api/invoices/${INV_CREDITO}/data`)
       .expect(200);
 
@@ -150,7 +155,7 @@ describe('InvoicesController (e2e)', () => {
   });
 
   it('GET /api/invoices/:id/data → invoice with global discount', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await agent
       .get(`/api/invoices/${INV_DTO_GLOBAL}/data`)
       .expect(200);
 
@@ -165,7 +170,7 @@ describe('InvoicesController (e2e)', () => {
   });
 
   it('GET /api/invoices/:id/data → invoice in USD with rounding', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await agent
       .get(`/api/invoices/${INV_USD}/data`)
       .expect(200);
 
@@ -184,7 +189,7 @@ describe('InvoicesController (e2e)', () => {
   });
 
   it('GET /api/invoices/:id/data → invoice from second company', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await otherAgent
       .get(`/api/invoices/${INV_DISTRIBUIDORA}/data`)
       .expect(200);
 
@@ -198,7 +203,7 @@ describe('InvoicesController (e2e)', () => {
   // ─── Error cases ───
 
   it('GET /api/invoices/:id/data → 404 for non-existent invoice', async () => {
-    await request(app.getHttpServer())
+    await agent
       .get('/api/invoices/00000000-0000-0000-0000-000000000000/data')
       .expect(404);
   });
@@ -206,7 +211,7 @@ describe('InvoicesController (e2e)', () => {
   // ─── InvoiceData ↔ Frontend interface consistency ───
 
   it('InvoiceData contains all fields expected by HtmlRendererService', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await agent
       .get(`/api/invoices/${INV_CREDITO}/data`)
       .expect(200);
 

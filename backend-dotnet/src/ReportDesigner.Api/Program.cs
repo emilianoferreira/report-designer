@@ -2,6 +2,11 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using ReportDesigner.Infrastructure;
 using ReportDesigner.Api.Compatibility;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
+using ReportDesigner.Api.Authentication;
+using ReportDesigner.Application.Common;
+using ReportDesigner.Infrastructure.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 var maxRequestBodyBytes = builder.Configuration.GetValue<long?>("Http:MaxRequestBodyBytes");
@@ -18,15 +23,49 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 });
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<LegacyApiExceptionFilter>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICompanyContext, CompanyContext>();
+builder.Services.AddAuthentication("Session").AddScheme<AuthenticationSchemeOptions, SessionAuthentication>("Session", _ => { });
+builder.Services.AddAuthorization(options => options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
 var app = builder.Build();
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    try { await next(); }
+    catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested) { }
+    catch (Exception exception) when (!context.Response.HasStarted)
+    {
+        app.Logger.LogError(exception, "API authentication or request failed.");
+        context.Response.Clear();
+        context.Response.StatusCode = 500;
+        context.Response.Headers.CacheControl = "no-store";
+        await context.Response.WriteAsJsonAsync(new { statusCode = 500, message = "Internal server error" });
+    }
+});
+app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true && !HttpMethods.IsGet(context.Request.Method)
+        && !HttpMethods.IsHead(context.Request.Method) && !HttpMethods.IsOptions(context.Request.Method)
+        && context.Request.Path != "/api/auth/login")
+    {
+        var session = (AuthSession)context.Items["session"]!;
+        if (context.Request.Headers["X-CSRF-Token"] != session.CsrfToken || context.Request.Headers["Sec-Fetch-Site"] == "cross-site"
+            || (context.Request.Path.StartsWithSegments("/api/templates") && session.Role != "editor"))
+        { await SessionAuthentication.Error(context, 403); return; }
+    }
+    await next();
+});
+app.UseAuthorization();
 app.MapControllers();
-app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
-app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") }).AllowAnonymous();
 
-// This is the legacy reference, not a claim that these operations are implemented here.
+// The original contract is retained in Git; Development exposes its authenticated successor.
 if (app.Environment.IsDevelopment())
     app.MapGet("/reference/openapi.json", () => Results.File(
-        Path.Combine(AppContext.BaseDirectory, "contracts", "openapi.json"), "application/json"));
+        Path.Combine(AppContext.BaseDirectory, "contracts", "openapi.auth.json"), "application/json")).AllowAnonymous();
+else app.MapGet("/reference/openapi.json", () => Results.NotFound()).AllowAnonymous();
 
 app.Run();

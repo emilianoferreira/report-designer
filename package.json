@@ -17,12 +17,14 @@
     "test:e2e": "cd e2e && npx playwright test",
     "test:e2e:headed": "cd e2e && npx playwright test --headed",
     "test:backend": "cd server && npm run test:e2e",
-    "test:migration": "node e2e/stage0/run.mjs",
-    "test:migration:record": "node e2e/stage0/run.mjs --record",
-    "test:dotnet": "node e2e/stage0/run.mjs --with-dotnet",
-    "test:cutover": "node e2e/stage0/run.mjs --with-dotnet",
-    "test:production": "node e2e/stage0/run.mjs --with-dotnet --production",
-    "test:docker": "node e2e/stage7/run.mjs"
+    "test:migration": "node e2e/stage8/run.mjs",
+    "test:migration:record": "node e2e/stage8/run.mjs --record",
+    "test:dotnet": "node e2e/stage8/run.mjs",
+    "test:cutover": "node e2e/stage8/run.mjs",
+    "test:production": "node e2e/stage8/run.mjs",
+    "test:docker": "node e2e/stage8/run.mjs",
+    "test:security": "node e2e/stage8/run.mjs",
+    "auth:provision": "node scripts/provision-user.mjs"
   },
   "private": true,
   "dependencies": {

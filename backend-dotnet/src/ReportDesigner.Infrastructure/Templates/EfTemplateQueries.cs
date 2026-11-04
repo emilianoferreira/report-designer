@@ -2,13 +2,15 @@ using Microsoft.EntityFrameworkCore;
 using ReportDesigner.Application.Templates;
 using ReportDesigner.Infrastructure.Persistence;
 using ReportDesigner.Infrastructure.Persistence.Entities;
+using ReportDesigner.Application.Common;
 
 namespace ReportDesigner.Infrastructure.Templates;
 
-internal sealed class EfTemplateQueries(ReportDesignerDbContext db) : ITemplateQueries
+internal sealed class EfTemplateQueries(ReportDesignerDbContext db, ICompanyContext company) : ITemplateQueries
 {
     public async Task<IReadOnlyList<TemplateReadModel>> ListAsync(string companyId, CancellationToken cancellationToken)
     {
+        if (!Guid.TryParse(companyId, out var requested) || requested != company.CompanyId) throw new AccessDeniedException();
         // FromSql parameterizes these values. PostgreSQL retains the legacy UUID parsing semantics.
         var rows = await db.Templates.FromSql($"""
             SELECT id, company_id, nombre, descripcion, version, autor, tags, estado,
@@ -21,11 +23,11 @@ internal sealed class EfTemplateQueries(ReportDesignerDbContext db) : ITemplateQ
 
     public async Task<TemplateReadModel?> FindAsync(string id, CancellationToken cancellationToken)
     {
-        // Legacy lookup is by row identity only; tenant authorization is a separate migration decision.
+        // A foreign row is deliberately indistinguishable from an absent row.
         var row = await db.Templates.FromSql($"""
             SELECT id, company_id, nombre, descripcion, version, autor, tags, estado,
                    template_json, based_on, created_at, updated_at
-            FROM report_templates WHERE id = CAST({id} AS uuid)
+            FROM report_templates WHERE id = CAST({id} AS uuid) AND company_id = {company.CompanyId}
             """)
             .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
         return row is null ? null : ToReadModel(row);

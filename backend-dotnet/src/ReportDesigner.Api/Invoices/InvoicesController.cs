@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ReportDesigner.Api.Compatibility;
 using ReportDesigner.Application.Invoices;
+using ReportDesigner.Application.Common;
 
 namespace ReportDesigner.Api.Invoices;
 
@@ -8,14 +9,14 @@ namespace ReportDesigner.Api.Invoices;
 [Route("api/invoices")]
 [Produces("application/json")]
 [ServiceFilter(typeof(LegacyApiExceptionFilter))]
-public sealed class InvoicesController(IInvoiceQueries queries) : ControllerBase
+public sealed class InvoicesController(IInvoiceQueries queries, ICompanyContext tenant) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
     {
         // An empty value is not the same as an absent parameter in NestJS.
         var companyId = Request.Query.TryGetValue("companyId", out var value)
-            ? value.ToString() : "c1000000-0000-0000-0000-000000000001";
+            ? value.ToString() : tenant.CompanyId.ToString();
         return Ok((await queries.ListAsync(companyId, cancellationToken)).Select(InvoiceSummaryResponse.From).ToArray());
     }
 

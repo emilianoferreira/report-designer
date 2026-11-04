@@ -16,6 +16,7 @@ import { TemplateStateService } from '../../services/template-state.service';
 import { TemplateStorageService } from '../../services/template-storage.service';
 import { TemplateMold } from '../../../../core/models/template.model';
 import { HasUnsavedChanges } from '../../guards/unsaved-changes.guard';
+import { AuthService } from '../../../../core/auth/auth.service';
 
 type ViewMode = 'design' | 'preview';
 
@@ -72,6 +73,7 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
   private initialTemplateJson = '';
 
   constructor(
+    private auth: AuthService,
     private templateState: TemplateStateService,
     private templateStorage: TemplateStorageService,
     private route: ActivatedRoute,
@@ -122,7 +124,7 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
 
   @HostListener('window:beforeunload', ['$event'])
   onBeforeUnload(event: BeforeUnloadEvent): void {
-    if (this.isDirty) {
+    if (this.isDirty && !this.auth.leavingSession) {
       event.preventDefault();
       // Modern browsers show a generic message, but returnValue is required
       event.returnValue = '';
@@ -134,7 +136,7 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
   async saveTemplate(): Promise<void> {
     if (!this.currentMold) return;
     const template = this.templateState.getCurrentTemplate();
-    const updated = await this.templateStorage.saveTemplate(this.currentMold.id, template);
+    const updated = await this.templateStorage.saveTemplate(this.currentMold.id, template).catch(() => undefined);
     if (updated) {
       this.currentMold = updated;
       this.initialTemplateJson = JSON.stringify(template);

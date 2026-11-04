@@ -7,8 +7,8 @@ export class TemplatesController {
 
   /** GET /api/templates?companyId=xxx */
   @Get()
-  findAll(@Query('companyId') companyId: string = 'c1000000-0000-0000-0000-000000000001') {
-    return this.service.findAll(companyId);
+  findAll(@Query('companyId') companyId?: string) {
+    return this.service.findAll(companyId ?? this.service.company);
   }
 
   /** GET /api/templates/:id */
@@ -26,7 +26,7 @@ export class TemplatesController {
     template_json: Record<string, any>;
   }) {
     return this.service.create({
-      company_id: body.company_id || 'c1000000-0000-0000-0000-000000000001',
+      company_id: body.company_id || this.service.company,
       nombre: body.nombre,
       descripcion: body.descripcion || '',
       template_json: body.template_json,

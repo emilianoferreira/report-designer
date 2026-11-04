@@ -2,13 +2,15 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using ReportDesigner.Application.Templates;
 using ReportDesigner.Infrastructure.Persistence;
+using ReportDesigner.Application.Common;
 
 namespace ReportDesigner.Infrastructure.Templates;
 
-internal sealed class PostgresTemplateCommands(ReportDesignerDbContext db, ITemplateQueries queries) : ITemplateCommands
+internal sealed class PostgresTemplateCommands(ReportDesignerDbContext db, ITemplateQueries queries, ICompanyContext company) : ITemplateCommands
 {
     public async Task<TemplateReadModel> CreateAsync(CreateTemplate command, CancellationToken cancellationToken)
     {
+        if (!Guid.TryParse(command.CompanyId, out var requested) || requested != company.CompanyId) throw new AccessDeniedException();
         var fields = new Dictionary<string, object?> {
             ["company_id"] = command.CompanyId, ["nombre"] = command.Nombre, ["descripcion"] = command.Descripcion
         };
@@ -31,6 +33,11 @@ internal sealed class PostgresTemplateCommands(ReportDesignerDbContext db, ITemp
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         await Required(id, cancellationToken);
+        // Ownership and identity are immutable; cross-company references are never accepted.
+        foreach (var key in new[] { "id", "company_id", "company", "created_at", "updated_at" })
+            if (changes.Fields.ContainsKey(key)) throw new AccessDeniedException();
+        if (changes.Fields.TryGetValue("based_on", out var reference) && reference.ValueKind != JsonValueKind.Null)
+            await Required(reference.GetString()!, cancellationToken);
         // Fixed SQL column names; all client values remain parameters. Extra properties never become SQL.
         var json = JsonSerializer.Serialize(changes.Fields);
         var explicitTimestamp = changes.Fields.ContainsKey("updated_at");
@@ -42,8 +49,8 @@ internal sealed class PostgresTemplateCommands(ReportDesignerDbContext db, ITemp
                 updated_at = CASE WHEN {explicitTimestamp} THEN p.updated_at ELSE CURRENT_TIMESTAMP END
             FROM (SELECT p.* FROM report_templates original
                 CROSS JOIN LATERAL jsonb_populate_record(original, CAST({json} AS jsonb)) p
-                WHERE original.id = CAST({id} AS uuid)) p
-            WHERE t.id = CAST({id} AS uuid)
+                WHERE original.id = CAST({id} AS uuid) AND original.company_id = {company.CompanyId}) p
+            WHERE t.id = CAST({id} AS uuid) AND t.company_id = {company.CompanyId}
               AND ROW(t.nombre, t.descripcion, t.company_id, t.autor, t.tags, t.estado,
                       t.template_json, t.based_on, t.created_at, t.version, t.updated_at)
                   IS DISTINCT FROM ROW(p.nombre, p.descripcion, p.company_id, p.autor, p.tags, p.estado,
@@ -75,7 +82,7 @@ internal sealed class PostgresTemplateCommands(ReportDesignerDbContext db, ITemp
                 tags, estado, template_json, based_on)
             SELECT {copyId}, company_id, nombre || ' (copia)', descripcion, 1, autor,
                 tags, estado, template_json, based_on
-            FROM report_templates WHERE id = CAST({id} AS uuid)
+            FROM report_templates WHERE id = CAST({id} AS uuid) AND company_id = {company.CompanyId}
             """, cancellationToken);
         var result = await Required(copyId.ToString(), cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -86,7 +93,7 @@ internal sealed class PostgresTemplateCommands(ReportDesignerDbContext db, ITemp
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         await Required(id, cancellationToken);
-        await db.Database.ExecuteSqlAsync($"DELETE FROM report_templates WHERE id = CAST({id} AS uuid)", cancellationToken);
+        await db.Database.ExecuteSqlAsync($"DELETE FROM report_templates WHERE id = CAST({id} AS uuid) AND company_id = {company.CompanyId}", cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 

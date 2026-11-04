@@ -48,7 +48,7 @@ for (const fixtureName of ['report-a4', 'report-ticket-80']) {
       await assertStored(db, api, created.id, sent);
       await expect(save).toBeDisabled();
 
-      fresh = await browser.newContext({ baseURL: process.env['STAGE0_UI_URL'], locale: 'es-UY', timezoneId: 'America/Montevideo', viewport: { width: 1600, height: 1000 } });
+      fresh = await browser.newContext({ storageState: process.env['STAGE8_STORAGE_STATE'], baseURL: process.env['STAGE0_UI_URL'], locale: 'es-UY', timezoneId: 'America/Montevideo', viewport: { width: 1600, height: 1000 } });
       const reloaded = await fresh.newPage();
       await openReport(reloaded, created.id, created.nombre);
       await expect(reloaded.locator('.text-element').filter({ hasText: editedText })).toBeVisible();
@@ -114,7 +114,7 @@ test('price labels: UI save → PostgreSQL → fresh browser → render copies a
     expect(sent.elements.find((element: any) => element.type === 'text').content).toBe('Etiqueta guardada ñ 1,25');
     await assertStored(db, api, created.id, sent);
 
-    fresh = await browser.newContext({ baseURL: process.env['STAGE0_UI_URL'], locale: 'es-UY', timezoneId: 'America/Montevideo', viewport: { width: 1600, height: 1000 } });
+    fresh = await browser.newContext({ storageState: process.env['STAGE8_STORAGE_STATE'], baseURL: process.env['STAGE0_UI_URL'], locale: 'es-UY', timezoneId: 'America/Montevideo', viewport: { width: 1600, height: 1000 } });
     const reloaded = await fresh.newPage();
     await loadFromApi(reloaded, '/price-labels');
     await expect(reloaded.locator(`.template-select option[value="${created.id}"]`)).toHaveCount(1);

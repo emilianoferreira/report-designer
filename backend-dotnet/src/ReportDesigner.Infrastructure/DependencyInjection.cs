@@ -7,6 +7,7 @@ using ReportDesigner.Application.Templates;
 using ReportDesigner.Infrastructure.Templates;
 using ReportDesigner.Application.Invoices;
 using ReportDesigner.Infrastructure.Invoices;
+using ReportDesigner.Infrastructure.Authentication;
 
 namespace ReportDesigner.Infrastructure;
 
@@ -27,6 +28,8 @@ public static class DependencyInjection
             throw new InvalidOperationException("ConnectionStrings:Postgres requires Host, Database and Username.");
 
         services.AddDbContext<ReportDesignerDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddSingleton(_ => NpgsqlDataSource.Create(connectionString));
+        services.AddScoped<SessionStore>();
         services.AddScoped<ITemplateQueries, EfTemplateQueries>();
         services.AddScoped<ITemplateCommands, PostgresTemplateCommands>();
         services.AddScoped<IInvoiceQueries, PostgresInvoiceQueries>();

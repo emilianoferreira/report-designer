@@ -1,1 +1,14 @@
+@if (auth.session; as session) {
+  <nav aria-label="Sesión" style="display:flex;gap:16px;align-items:center;padding:8px 16px;background:#f3f5f8;color:#222">
+    <span>{{ session.user.email }}</span>
+    <label>Empresa <select #companyPicker aria-label="Empresa activa" [ngModel]="session.company_id" (ngModelChange)="changeCompany($event, companyPicker)">
+      @for (company of session.companies; track company.id) { <option [value]="company.id">{{ company.name }}</option> }
+    </select></label>
+    @if (session.role === 'viewer') { <span>Solo lectura</span> }
+    <button type="button" (click)="logout()">Cerrar sesión</button>
+  </nav>
+}
+@if (auth.error$ | async; as error) {
+  <div role="alert" style="padding:12px;background:#fff1e8;color:#8a2200">{{ error }} <a href="/login">Iniciar sesión</a></div>
+}
 <router-outlet />
