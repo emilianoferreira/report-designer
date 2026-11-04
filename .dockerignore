@@ -1,0 +1,17 @@
+.git
+**/node_modules
+**/bin
+**/obj
+dist
+tmp
+.angular
+e2e/test-results
+test-results
+playwright-report
+**/.env
+**/.env.*
+deployment/secrets
+deployment/*.env
+**/*.key
+**/*.pfx
+**/*.pem

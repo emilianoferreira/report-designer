@@ -1,0 +1,28 @@
+name: Validate production package (no deployment)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      RELEASE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Validate Compose without production secrets
+        run: docker compose --env-file deployment/production.env.example -f deployment/compose.yaml config --quiet
+      - name: Build the three release images
+        run: docker compose --env-file deployment/production.env.example -f deployment/compose.yaml build --pull
+      - name: Check packaged executables and Nginx configuration
+        run: |
+          docker run --rm --entrypoint dotnet "report-designer/api-dotnet:$RELEASE_TAG" --info
+          docker run --rm --entrypoint node "report-designer/api-nestjs:$RELEASE_TAG" --check dist/src/main.js
+          docker run --rm -e API_UPSTREAM=127.0.0.1:1 "report-designer/web:$RELEASE_TAG" nginx -t
+      # No push, deployment credentials, Compose up or database access in this workflow.

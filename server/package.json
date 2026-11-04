@@ -8,7 +8,7 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main.js",
     "seed": "psql -d bd_dis_reportes -f ../database/001-schema.sql && psql -d bd_dis_reportes -f ../database/002-seed.sql && psql -d bd_dis_reportes -f ../database/003-view-invoice-data.sql",
     "db:reset": "dropdb --if-exists bd_dis_reportes && createdb bd_dis_reportes && npm run seed",
     "test:e2e": "jest --config ./test/jest-e2e.json --runInBand --forceExit"

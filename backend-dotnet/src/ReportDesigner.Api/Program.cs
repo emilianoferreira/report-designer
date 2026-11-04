@@ -4,6 +4,10 @@ using ReportDesigner.Infrastructure;
 using ReportDesigner.Api.Compatibility;
 
 var builder = WebApplication.CreateBuilder(args);
+var maxRequestBodyBytes = builder.Configuration.GetValue<long?>("Http:MaxRequestBodyBytes");
+if (maxRequestBodyBytes is <= 0) throw new InvalidOperationException("Http:MaxRequestBodyBytes must be positive.");
+if (maxRequestBodyBytes.HasValue)
+    builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = maxRequestBodyBytes.Value);
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
     // Wire names will be explicit on DTOs. Never rewrite arbitrary editor JSON keys.

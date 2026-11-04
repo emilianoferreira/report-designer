@@ -20,7 +20,8 @@
     "test:migration": "node e2e/stage0/run.mjs",
     "test:migration:record": "node e2e/stage0/run.mjs --record",
     "test:dotnet": "node e2e/stage0/run.mjs --with-dotnet",
-    "test:cutover": "node e2e/stage0/run.mjs --with-dotnet"
+    "test:cutover": "node e2e/stage0/run.mjs --with-dotnet",
+    "test:production": "node e2e/stage0/run.mjs --with-dotnet --production"
   },
   "private": true,
   "dependencies": {

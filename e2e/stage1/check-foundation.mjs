@@ -3,19 +3,26 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 // Called only after the stage0 runner has created and verified its disposable database.
-export async function checkFoundation({ root, env, dbPort, database, password, freePort, launchExecutable, waitForExit, resultsDir }) {
+export async function checkFoundation({ root, runDir, env, dbPort, database, password, freePort, launchExecutable, waitForExit, resultsDir }) {
   const dotnet = process.env.DOTNET_HOST_PATH || 'dotnet';
   const directory = path.join(root, 'backend-dotnet');
-  const dll = path.join(directory, 'src/ReportDesigner.Api/bin/Release/net10.0/ReportDesigner.Api.dll');
+  let dll = path.join(directory, 'src/ReportDesigner.Api/bin/Release/net10.0/ReportDesigner.Api.dll');
   const baseEnv = {
     ...env, DOTNET_CLI_HOME: path.join(root, 'tmp/dotnet-home'),
     NUGET_PACKAGES: path.join(root, 'tmp/nuget-packages'),
     DOTNET_CLI_TELEMETRY_OPTOUT: '1', DOTNET_GENERATE_ASPNET_CERTIFICATE: 'false',
-    ASPNETCORE_ENVIRONMENT: 'Development',
+    ASPNETCORE_ENVIRONMENT: env.STAGE6_PRODUCTION ? 'Production' : 'Development',
+    DOTNET_ENVIRONMENT: env.STAGE6_PRODUCTION ? 'Production' : 'Development',
   };
   console.log('[stage1] Restoring locked packages and building ASP.NET Core.');
   await waitForExit(launchExecutable('dotnet-restore', dotnet, ['restore', 'ReportDesigner.slnx', '--locked-mode'], baseEnv, directory), 'dotnet restore');
   await waitForExit(launchExecutable('dotnet-build', dotnet, ['build', 'ReportDesigner.slnx', '-c', 'Release', '--no-restore'], baseEnv, directory), 'dotnet build');
+  if (env.STAGE6_PRODUCTION) {
+    const output = path.join(runDir, 'published-api');
+    await waitForExit(launchExecutable('dotnet-publish', dotnet, ['publish', 'src/ReportDesigner.Api/ReportDesigner.Api.csproj',
+      '-c', 'Release', '--no-restore', '--no-build', '--no-self-contained', '-o', output], baseEnv, directory), 'dotnet publish');
+    dll = path.join(output, 'ReportDesigner.Api.dll');
+  }
 
   const port = await freePort();
   const baseUrl = `http://127.0.0.1:${port}`;
@@ -49,8 +56,8 @@ export async function checkFoundation({ root, env, dbPort, database, password, f
   try {
     assert.equal(await (await response(healthy, '/health/live', 200)).text(), 'Healthy');
     assert.equal(await (await response(healthy, '/health/ready', 200)).text(), 'Healthy');
-    const reference = await response(healthy, '/reference/openapi.json', 200);
-    assert.equal(await reference.text(), await readFile(path.join(root, 'contracts/openapi.json'), 'utf8'));
+    const reference = await response(healthy, '/reference/openapi.json', env.STAGE6_PRODUCTION ? 404 : 200);
+    if (!env.STAGE6_PRODUCTION) assert.equal(await reference.text(), await readFile(path.join(root, 'contracts/openapi.json'), 'utf8'));
     const { checkTemplateQueries } = await import('../stage2/check-template-queries.mjs');
     await checkTemplateQueries({ root, env, baseUrl, resultsDir });
     const { checkInvoiceQueries } = await import('../stage4/check-invoice-queries.mjs');
@@ -78,7 +85,7 @@ export async function checkFoundation({ root, env, dbPort, database, password, f
   const { checkTemplateCommands } = await import('../stage3/check-template-commands.mjs');
   await checkTemplateCommands({ root, env, baseUrl, resultsDir });
   await writeFile(path.join(resultsDir, 'stage1.json'), JSON.stringify({
-    passed: true, checks: ['build', 'liveness', 'postgres-readiness', 'unchanged-contract-reference', 'unavailable-database-errors', 'missing-config-fails-startup'],
+    passed: true, checks: ['build', 'liveness', 'postgres-readiness', env.STAGE6_PRODUCTION ? 'production-reference-hidden' : 'unchanged-contract-reference', 'unavailable-database-errors', 'missing-config-fails-startup'],
   }, null, 2));
   console.log('[stage1] Foundation checks passed; continuing with all NestJS stage0 tests.');
   return { baseUrl };

@@ -27,7 +27,10 @@ let cleanupPromise;
 let dotnet;
 
 const args = process.argv.slice(2);
-if (args.some(arg => !['--record', '--with-dotnet'].includes(arg))) throw new Error('Only --record and --with-dotnet are supported.');
+if (args.some(arg => !['--record', '--with-dotnet', '--production'].includes(arg))) throw new Error('Unknown runner argument.');
+const production = args.includes('--production');
+if (production && (!args.includes('--with-dotnet') || !process.env.NGINX_HOST_PATH || args.includes('--record')))
+  throw new Error('Production preview requires --with-dotnet, NGINX_HOST_PATH and existing snapshots.');
 await mkdir(runDir, { recursive: true });
 await mkdir(resultsDir, { recursive: true });
 
@@ -128,7 +131,12 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 try {
   console.log(`[stage0] Run ${runId}; artifacts: ${resultsDir}`);
   // Every connection variable is explicit. Existing .env values cannot select a DB.
-  const env = { ...process.env, NODE_ENV: 'test', TZ: 'UTC', NG_CLI_ANALYTICS: 'false' };
+  const env = { ...process.env, NODE_ENV: production ? 'production' : 'test', TZ: 'UTC', NG_CLI_ANALYTICS: 'false',
+    ...(production ? { STAGE6_PRODUCTION: '1', JSON_BODY_LIMIT: '32mb', Http__MaxRequestBodyBytes: '33554432' } : {}) };
+  const frontendRoot = path.join(runDir, 'frontend', 'browser');
+  if (production) await waitForExit(launch('build-angular-production', path.join(root, 'node_modules/@angular/cli/bin/ng.js'), [
+    'build', '--configuration', 'production', '--output-path', path.join(runDir, 'frontend'),
+  ], env), 'Angular production build');
   console.log('[stage0] Building the existing NestJS backend.');
   await waitForExit(launch('build', requireServer.resolve('@nestjs/cli/bin/nest.js'), ['build'], env, server), 'Nest build');
   const dbPort = await freePort();
@@ -167,7 +175,7 @@ try {
     const version = (await admin.query('SHOW server_version')).rows[0].server_version;
     await writeFile(path.join(resultsDir, 'environment.json'), JSON.stringify({
       runId, database, postgresVersion: version, node: process.version,
-      apiPort, uiPort, dbPort, recorded: args.includes('--record'),
+      apiPort, uiPort, dbPort, recorded: args.includes('--record'), productionPreview: production,
     }, null, 2));
     console.log(`[stage0] PostgreSQL ${version}; isolated database ${database}.`);
   } finally { await admin.end(); }
@@ -189,11 +197,14 @@ try {
   finally { await probeClient.end(); }
   if (args.includes('--with-dotnet')) {
     const { checkFoundation } = await import('../stage1/check-foundation.mjs');
-    dotnet = await checkFoundation({ root, env, dbPort, database, password, freePort, launchExecutable, waitForExit, resultsDir });
+    dotnet = await checkFoundation({ root, runDir, env, dbPort, database, password, freePort, launchExecutable, waitForExit, resultsDir });
   }
-  // Exercise the checked-in profiles, never a substitute generated proxy.
+  // Development uses checked-in Angular profiles; production uses the Nginx server block.
   Object.assign(env, { NESTJS_API_URL: env.STAGE0_API_URL, ASPNETCORE_API_URL: dotnet?.baseUrl || 'http://127.0.0.1:1' });
-  const ui = launch('angular', path.join(root, 'node_modules/@angular/cli/bin/ng.js'), [
+  const { startProductionProxy } = production ? await import('../stage6/production-proxy.mjs') : {};
+  const ui = production ? (await startProductionProxy({ root, runDir, name: 'nginx-nestjs', port: uiPort,
+    apiUrl: env.STAGE0_API_URL, frontendRoot, launchExecutable, waitForExit })).child
+    : launch('angular', path.join(root, 'node_modules/@angular/cli/bin/ng.js'), [
     'serve', '--configuration', 'nestjs', '--host', '127.0.0.1', '--port', String(uiPort),
   ], env);
   await ready(env.STAGE0_UI_URL, ui, 'Angular');
@@ -201,7 +212,7 @@ try {
   console.log('[stage0] Running HTTP contracts and save/reload/render browser tests.');
   const playwright = launch('playwright', path.join(root, 'node_modules/@playwright/test/cli.js'), [
     'test', '--config', 'e2e/playwright.stage0.config.ts',
-  ], env);
+  ], production ? { ...env, STAGE0_API_URL: env.STAGE0_UI_URL } : env);
   playwright.stdout.pipe(process.stdout);
   playwright.stderr.pipe(process.stderr);
   await waitForExit(playwright, 'Stage 0 tests');
@@ -215,18 +226,28 @@ try {
   await waitForExit(jest, 'Existing backend tests');
 
   if (dotnet) {
-    console.log('[stage5] Running all 25 API/editor baseline tests against the default Angular/.NET profile.');
+    console.log(production ? '[stage6] Running all 25 API/editor tests through production Nginx/.NET.'
+      : '[stage5] Running all 25 API/editor baseline tests against the default Angular/.NET profile.');
     const dotnetUiPort = await freePort();
     const dotnetResults = path.join(resultsDir, 'dotnet-regression');
     await mkdir(dotnetResults, { recursive: true });
-    const dotnetEnv = { ...env, STAGE0_API_URL: dotnet.baseUrl, STAGE0_UI_URL: `http://127.0.0.1:${dotnetUiPort}`,
+    const dotnetEnv = { ...env, STAGE0_API_URL: production ? `http://127.0.0.1:${dotnetUiPort}` : dotnet.baseUrl, STAGE0_UI_URL: `http://127.0.0.1:${dotnetUiPort}`,
       STAGE0_RESULTS_DIR: dotnetResults, STAGE0_RECORD: '0' };
-    const dotnetUi = launch('angular-dotnet', path.join(root, 'node_modules/@angular/cli/bin/ng.js'), [
+    const dotnetUi = production ? (await startProductionProxy({ root, runDir, name: 'nginx-dotnet', port: dotnetUiPort,
+      apiUrl: dotnet.baseUrl, frontendRoot, launchExecutable, waitForExit })).child
+      : launch('angular-dotnet', path.join(root, 'node_modules/@angular/cli/bin/ng.js'), [
       'serve', '--host', '127.0.0.1', '--port', String(dotnetUiPort),
     ], dotnetEnv);
     await ready(dotnetEnv.STAGE0_UI_URL, dotnetUi, 'Angular default .NET profile');
     const { checkCutover } = await import('../stage5/check-cutover.mjs');
     await checkCutover({ root, env, dotnetUiUrl: dotnetEnv.STAGE0_UI_URL, resultsDir });
+    if (production) {
+      const unavailable = await startProductionProxy({ root, runDir, name: 'nginx-unavailable', port: await freePort(),
+        apiUrl: 'http://127.0.0.1:1', frontendRoot, launchExecutable, waitForExit });
+      await ready(unavailable.url, unavailable.child, 'Nginx unavailable-API test');
+      const { checkProduction } = await import('../stage6/check-production.mjs');
+      await checkProduction({ dotnetUrl: dotnetEnv.STAGE0_UI_URL, nestjsUrl: env.STAGE0_UI_URL, unavailableUrl: unavailable.url, resultsDir });
+    }
     const regression = launch('playwright-dotnet', path.join(root, 'node_modules/@playwright/test/cli.js'), [
       'test', '--config', 'e2e/playwright.stage0.config.ts',
     ], dotnetEnv);

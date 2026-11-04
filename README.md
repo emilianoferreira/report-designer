@@ -8,7 +8,9 @@ Diseñador visual de plantillas de impresion para el ERP Zureo. Permite crear, e
 
 Pruebas de referencia para la migración del backend: [Etapa 0 — contratos, fixtures y PostgreSQL aislado](e2e/stage0/README.md). Ejecutar `npm run test:migration`.
 
-Backend predeterminado ASP.NET Core, con opción de volver a NestJS: [Migración y cambio de backend — etapas 1 a 5](backend-dotnet/README.md). Verificar ambos perfiles con `npm run test:cutover`.
+Backend predeterminado ASP.NET Core, con opción de volver a NestJS: [Migración y cambio de backend — etapas 1 a 6](backend-dotnet/README.md). Verificar ambos perfiles con `npm run test:cutover`.
+
+Producción preparada, aún sin desplegar: [Etapa 6 — imágenes, Compose, PostgreSQL externo y retorno](deployment/README.md). Validación local de artefactos: `npm run test:production` (requiere Nginx local).
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -153,7 +155,7 @@ npm run start:nestjs
 
 Para regresar a .NET, detener Angular y ejecutar `npm start` con la API .NET en marcha. Reiniciar Angular después de cambiar el perfil o sus variables. `ASPNETCORE_API_URL` y `NESTJS_API_URL` permiten cambiar el destino de cada proxy; sus valores predeterminados son `http://127.0.0.1:5080` y `http://127.0.0.1:3000`. La selección es explícita: un error de .NET no reenvía automáticamente escrituras a NestJS. El fallback existente a localStorage sigue siendo independiente de esta selección.
 
-El frontend compilado conserva URLs relativas `/api`. Los perfiles de Angular configuran solo `ng serve`; en producción, el servidor web o reverse proxy debe enviar `/api` al backend elegido y servir las rutas Angular con fallback a `index.html`. Para volver a NestJS allí, cambiar ese destino de 5080 a 3000 y recargar la configuración del servidor web; no hace falta recompilar Angular. Esta etapa no despliega ni modifica un servidor externo.
+El frontend compilado conserva URLs relativas `/api`. Los perfiles de Angular configuran solo `ng serve`. El [paquete de producción](deployment/README.md) sirve los bundles con Nginx y permite cambiar API_UPSTREAM entre api-dotnet:8080 y api-nestjs:3000 sin recompilar Angular. Mantiene PostgreSQL externo y secretos de runtime. Aún no se ha desplegado ni modificado un servidor externo.
 
 ### Modo sin backend (solo frontend)
 
@@ -349,6 +351,7 @@ ID de empresa por defecto: `c1000000-0000-0000-0000-000000000001`
 | `npm run test:e2e`    | Suite histórica Playwright con perfil NestJS    |
 | `npm run test:e2e:headed` | Tests E2E con navegador visible              |
 | `npm run test:cutover` | Contratos/editor, perfiles reales y retorno sobre PostgreSQL aislado |
+| `npm run test:production` | Artefactos Production con Nginx y base aislada, sin despliegue |
 
 ---
 

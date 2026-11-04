@@ -1,0 +1,24 @@
+# Optional host-side TLS/auth gateway. Replace hostname and certificate/auth paths.
+# The Compose web listener stays on 127.0.0.1:8080 behind this gateway.
+server {
+    listen 443 ssl;
+    server_name reports.example.com;
+    ssl_certificate /etc/ssl/report-designer/fullchain.pem;
+    ssl_certificate_key /etc/ssl/report-designer/private.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    auth_basic "Report Designer";
+    auth_basic_user_file /etc/nginx/report-designer.htpasswd;
+    client_max_body_size 32m;
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_next_upstream off;
+    }
+}
+server {
+    listen 80;
+    server_name reports.example.com;
+    return 301 https://reports.example.com$request_uri;
+}

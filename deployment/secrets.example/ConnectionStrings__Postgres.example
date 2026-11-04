@@ -1,0 +1,1 @@
+Host=postgres.example.com;Port=5432;Database=bd_dis_reportes;Username=report_designer_app;Password="REPLACE_ME";SSL Mode=VerifyFull;Root Certificate=/run/secrets/pg-ca.pem;Timeout=5;Command Timeout=30;Include Error Detail=false

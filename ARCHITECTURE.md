@@ -10,6 +10,8 @@
 
 Desde etapa 5, Angular usa ASP.NET Core por defecto. `npm run start:nestjs` selecciona el backend anterior. Configuración y retorno: [guía de migración](backend-dotnet/README.md).
 
+Etapa 6 prepara el [paquete de producción](deployment/README.md): tres imágenes, Compose y PostgreSQL externo. Todavía no se ha desplegado.
+
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  Frontend — Angular 18 (standalone + OnPush)                  │
@@ -81,6 +83,8 @@ Desde etapa 5, Angular usa ASP.NET Core por defecto. `npm run start:nestjs` sele
 | Proxy dev → API .NET | [`proxy.conf.cjs`](./proxy.conf.cjs) | `/api` → `127.0.0.1:5080` o ASPNETCORE_API_URL |
 | Proxy de retorno NestJS | [`proxy.nestjs.conf.cjs`](./proxy.nestjs.conf.cjs) | Perfil nestjs → `127.0.0.1:3000` o NESTJS_API_URL |
 | API ASP.NET Core | [`backend-dotnet/README.md`](./backend-dotnet/README.md) | Mapa de capas, controladores, persistencia y pruebas de paridad |
+| Producción | [`deployment/compose.yaml`](./deployment/compose.yaml) | Angular/Nginx, .NET, NestJS y secretos; base externa |
+| Proxy de producción | [`deployment/nginx/default.conf.template`](./deployment/nginx/default.conf.template) | /api, SPA, caché, readiness y retorno por API_UPSTREAM |
 
 **Backend NestJS conservado para retorno**
 

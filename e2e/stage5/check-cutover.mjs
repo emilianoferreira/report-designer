@@ -62,8 +62,10 @@ export async function checkCutover({ root, env, dotnetUiUrl, resultsDir }) {
       checks.push(`${fixtureName}: .NET create → NestJS reload/save → .NET reload/update → NestJS reload → delete`);
     }
     await writeFile(path.join(resultsDir, 'stage5.json'), JSON.stringify({ passed: true, checks,
-      configuration: 'Real checked-in default and nestjs Angular profiles; only API port environment variables are overridden for isolation.' }, null, 2));
-    console.log(`[stage5] ${checks.length} routing/rollback checks passed through the real Angular profiles.`);
+      configuration: env.STAGE6_PRODUCTION
+        ? 'Production Nginx server block and compiled Angular; only loopback ports, upstream and static root are substituted.'
+        : 'Real checked-in default and nestjs Angular profiles; only API port environment variables are overridden for isolation.' }, null, 2));
+    console.log(`[stage5] ${checks.length} routing/rollback checks passed through ${env.STAGE6_PRODUCTION ? 'production Nginx' : 'the real Angular profiles'}.`);
   } finally {
     try { await db.query('DELETE FROM report_templates WHERE id=ANY($1::uuid[])', [ids]); }
     finally { await db.end(); }

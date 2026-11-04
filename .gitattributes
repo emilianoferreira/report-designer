@@ -1,5 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+*.sh text eol=lf
 
 # Preserve deterministic snapshots across Windows and Unix checkouts.
 e2e/stage0/snapshots/* text eol=lf

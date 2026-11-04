@@ -1,8 +1,10 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  if (process.env.JSON_BODY_LIMIT) app.useBodyParser('json', { limit: process.env.JSON_BODY_LIMIT });
 
   // Enable CORS for Angular dev server
   app.enableCors({
