@@ -18,7 +18,8 @@ export async function checkInvoiceQueries({ root, env, baseUrl, resultsDir }) {
   };
   assert.match(env.DB_NAME, /^stage0_[a-f0-9]{32}$/);
   assert.equal(env.DB_HOST, '127.0.0.1');
-  const db = new Client({ host: env.DB_HOST, port: Number(env.DB_PORT), user: env.DB_USERNAME, password: env.DB_PASSWORD, database: env.DB_NAME });
+  const db = new Client({ host: env.DB_HOST, port: Number(env.DB_PORT), user: env.DB_USERNAME, password: env.DB_PASSWORD, database: env.DB_NAME,
+    ssl: env.STAGE0_CA_FILE ? { ca: await readFile(env.STAGE0_CA_FILE, 'utf8'), rejectUnauthorized: true } : undefined });
   const company1 = 'c1000000-0000-0000-0000-000000000001';
   const company2 = 'c1000000-0000-0000-0000-000000000002';
   const missing = '00000000-0000-0000-0000-000000000000';

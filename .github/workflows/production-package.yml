@@ -1,4 +1,4 @@
-name: Validate production package (no deployment)
+name: Validate Docker images and isolated rollback (no production deployment)
 
 on:
   workflow_dispatch:
@@ -9,20 +9,30 @@ permissions:
 jobs:
   package:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    env:
-      RELEASE_TAG: ${{ github.sha }}
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - name: Validate Compose without production secrets
-        run: docker compose --env-file deployment/production.env.example -f deployment/compose.yaml config --quiet
-      - name: Build the three release images
-        run: docker compose --env-file deployment/production.env.example -f deployment/compose.yaml build --pull
-      - name: Check packaged executables and Nginx configuration
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - name: Install the test tools
         run: |
-          docker run --rm --entrypoint dotnet "report-designer/api-dotnet:$RELEASE_TAG" --info
-          docker run --rm --entrypoint node "report-designer/api-nestjs:$RELEASE_TAG" --check dist/src/main.js
-          docker run --rm -e API_UPSTREAM=127.0.0.1:1 "report-designer/web:$RELEASE_TAG" nginx -t
-      # No push, deployment credentials, Compose up or database access in this workflow.
+          npm ci --no-audit --no-fund
+          npm ci --prefix server --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Build and run production images on isolated TLS PostgreSQL
+        run: npm run test:docker
+      - name: Preserve test evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: docker-isolated-validation
+          path: e2e/test-results/stage7-*/
+          retention-days: 7
+      # Only temporary test Compose projects. No push or production credentials/deployment.

@@ -12,6 +12,8 @@ Desde etapa 5, Angular usa ASP.NET Core por defecto. `npm run start:nestjs` sele
 
 Etapa 6 prepara el [paquete de producción](deployment/README.md): tres imágenes, Compose y PostgreSQL externo. Todavía no se ha desplegado.
 
+La [etapa 7](e2e/stage7/README.md) construye y ejecuta esas imágenes con Docker local y PostgreSQL TLS descartable, incluyendo el editor y retorno al recrear el mismo proxy.
+
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  Frontend — Angular 18 (standalone + OnPush)                  │

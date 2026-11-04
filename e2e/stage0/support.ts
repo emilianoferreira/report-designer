@@ -32,6 +32,7 @@ export const test = base.extend<{ api: APIRequestContext; db: any }>({
     const client = new Client({
       host: env['DB_HOST'], port: Number(env['DB_PORT']), user: env['DB_USERNAME'],
       password: env['DB_PASSWORD'], database: env['DB_NAME'],
+      ssl: env['STAGE0_CA_FILE'] ? { ca: readFileSync(env['STAGE0_CA_FILE'], 'utf8'), rejectUnauthorized: true } : undefined,
     });
     await client.connect();
     try {

@@ -8,9 +8,11 @@ Diseñador visual de plantillas de impresion para el ERP Zureo. Permite crear, e
 
 Pruebas de referencia para la migración del backend: [Etapa 0 — contratos, fixtures y PostgreSQL aislado](e2e/stage0/README.md). Ejecutar `npm run test:migration`.
 
-Backend predeterminado ASP.NET Core, con opción de volver a NestJS: [Migración y cambio de backend — etapas 1 a 6](backend-dotnet/README.md). Verificar ambos perfiles con `npm run test:cutover`.
+Backend predeterminado ASP.NET Core, con opción de volver a NestJS: [Migración y cambio de backend — etapas 1 a 7](backend-dotnet/README.md). Verificar ambos perfiles con `npm run test:cutover`.
 
 Producción preparada, aún sin desplegar: [Etapa 6 — imágenes, Compose, PostgreSQL externo y retorno](deployment/README.md). Validación local de artefactos: `npm run test:production` (requiere Nginx local).
+
+Validación de las imágenes Linux: [Etapa 7 — Docker, PostgreSQL TLS aislado y retorno real](e2e/stage7/README.md). Ejecutar `npm run test:docker` desde Linux/WSL con Docker local. No accede a producción.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -352,6 +354,7 @@ ID de empresa por defecto: `c1000000-0000-0000-0000-000000000001`
 | `npm run test:e2e:headed` | Tests E2E con navegador visible              |
 | `npm run test:cutover` | Contratos/editor, perfiles reales y retorno sobre PostgreSQL aislado |
 | `npm run test:production` | Artefactos Production con Nginx y base aislada, sin despliegue |
+| `npm run test:docker` | Construcción/ejecución de imágenes Linux, editor y retorno con PostgreSQL TLS aislado |
 
 ---
 

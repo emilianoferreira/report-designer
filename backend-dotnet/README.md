@@ -1,4 +1,4 @@
-# Backend ASP.NET Core — etapas 1 a 6
+# Backend ASP.NET Core — etapas 1 a 7
 
 El host ASP.NET Core utiliza PostgreSQL mediante EF Core/Npgsql e implementa las siete operaciones de Templates y las dos consultas de Invoices. Desde etapa 5 es el backend predeterminado de Angular en desarrollo. NestJS se conserva como opción explícita de retorno sobre la misma base; los contratos y snapshots originales se conservan.
 
@@ -140,4 +140,4 @@ Etapa 4 verificada en el mismo entorno: 29 comparaciones Invoices aprobadas sin 
 
 Etapa 5 verificada el 3 de noviembre de 2026 en Windows x64: cinco controles de enrutamiento/retorno aprobados usando los perfiles reales (dos destinos y tres formatos de documento). Se mantienen aprobadas las 134 comparaciones de paridad y las 68 pruebas de regresión: 25 sobre Angular/NestJS, 18 de NestJS y 25 sobre Angular/.NET. Los recorridos del editor guardan en PostgreSQL, recargan en un navegador nuevo y renderizan/exportan con los snapshots originales; no usan localStorage como sustituto. Build .NET sin errores ni advertencias y limpieza del clúster confirmada.
 
-El backend elegido por defecto en desarrollo ya es ASP.NET Core. La etapa 6 prepara las imágenes de producción, Compose, secretos y retorno mediante Nginx en [deployment/README.md](../deployment/README.md). `npm run test:production` verifica artefactos publicados y frontend optimizado en Production sobre PostgreSQL descartable. No se ha desplegado ni publicado ninguna imagen; el build Linux de contenedores queda pendiente de Docker Engine o del workflow manual incluido.
+El backend elegido por defecto en desarrollo ya es ASP.NET Core. La etapa 6 prepara las imágenes de producción, Compose, secretos y retorno mediante Nginx en [deployment/README.md](../deployment/README.md). `npm run test:production` verifica artefactos nativos y `npm run test:docker` (etapa 7) construye/ejecuta las imágenes con PostgreSQL TLS aislado, 134 comparaciones y los casos API/editor en .NET → NestJS → .NET. La validación Linux ya se ejecutó localmente en WSL; no se ha desplegado en producción ni publicado imágenes.

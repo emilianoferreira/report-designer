@@ -11,7 +11,8 @@ export async function checkTemplateCommands({ root, env, baseUrl, resultsDir }) 
   const ajv = new Ajv({ strict: false, allErrors: true });
   ajv.addSchema(contract, 'urn:report-designer:stage3');
   const validate = ajv.compile({ $ref: 'urn:report-designer:stage3#/components/schemas/Template' });
-  const db = new Client({ host: env.DB_HOST, port: Number(env.DB_PORT), user: env.DB_USERNAME, password: env.DB_PASSWORD, database: env.DB_NAME });
+  const db = new Client({ host: env.DB_HOST, port: Number(env.DB_PORT), user: env.DB_USERNAME, password: env.DB_PASSWORD, database: env.DB_NAME,
+    ssl: env.STAGE0_CA_FILE ? { ca: await readFile(env.STAGE0_CA_FILE, 'utf8'), rejectUnauthorized: true } : undefined });
   const urls = [env.STAGE0_API_URL, baseUrl];
   const ids = [];
   const cases = [];

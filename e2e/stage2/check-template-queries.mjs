@@ -23,7 +23,8 @@ export async function checkTemplateQueries({ root, env, baseUrl, resultsDir }) {
   const cases = [];
   assert.match(env.DB_NAME, /^stage0_[a-f0-9]{32}$/);
   assert.equal(env.DB_HOST, '127.0.0.1');
-  const db = new Client({ host: env.DB_HOST, port: Number(env.DB_PORT), user: env.DB_USERNAME, password: env.DB_PASSWORD, database: env.DB_NAME });
+  const db = new Client({ host: env.DB_HOST, port: Number(env.DB_PORT), user: env.DB_USERNAME, password: env.DB_PASSWORD, database: env.DB_NAME,
+    ssl: env.STAGE0_CA_FILE ? { ca: await readFile(env.STAGE0_CA_FILE, 'utf8'), rejectUnauthorized: true } : undefined });
   await db.connect();
 
   async function json(url, status, options) {
