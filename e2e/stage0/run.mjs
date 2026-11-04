@@ -179,8 +179,6 @@ try {
     STAGE0_UI_URL: `http://127.0.0.1:${uiPort}`, STAGE0_RESULTS_DIR: resultsDir,
     STAGE0_RECORD: args.includes('--record') ? '1' : '0',
   });
-  const proxyFile = path.join(runDir, 'proxy.json');
-  await writeFile(proxyFile, JSON.stringify({ '/api': { target: env.STAGE0_API_URL, secure: false } }));
   const api = launch('api', path.join(server, 'dist', 'src', 'main.js'), [], env, server);
   await ready(`${env.STAGE0_API_URL}/api/templates`, api, 'API');
   const probe = await fetch(`${env.STAGE0_API_URL}/api/templates/${probeId}`).then(response => response.json());
@@ -193,8 +191,10 @@ try {
     const { checkFoundation } = await import('../stage1/check-foundation.mjs');
     dotnet = await checkFoundation({ root, env, dbPort, database, password, freePort, launchExecutable, waitForExit, resultsDir });
   }
+  // Exercise the checked-in profiles, never a substitute generated proxy.
+  Object.assign(env, { NESTJS_API_URL: env.STAGE0_API_URL, ASPNETCORE_API_URL: dotnet?.baseUrl || 'http://127.0.0.1:1' });
   const ui = launch('angular', path.join(root, 'node_modules/@angular/cli/bin/ng.js'), [
-    'serve', '--host', '127.0.0.1', '--port', String(uiPort), '--proxy-config', proxyFile,
+    'serve', '--configuration', 'nestjs', '--host', '127.0.0.1', '--port', String(uiPort),
   ], env);
   await ready(env.STAGE0_UI_URL, ui, 'Angular');
 
@@ -215,18 +215,18 @@ try {
   await waitForExit(jest, 'Existing backend tests');
 
   if (dotnet) {
-    console.log('[stage4] Running all 25 API/editor baseline tests against .NET with a temporary test proxy.');
+    console.log('[stage5] Running all 25 API/editor baseline tests against the default Angular/.NET profile.');
     const dotnetUiPort = await freePort();
-    const dotnetProxy = path.join(runDir, 'dotnet-proxy.json');
-    await writeFile(dotnetProxy, JSON.stringify({ '/api': { target: dotnet.baseUrl, secure: false } }));
     const dotnetResults = path.join(resultsDir, 'dotnet-regression');
     await mkdir(dotnetResults, { recursive: true });
     const dotnetEnv = { ...env, STAGE0_API_URL: dotnet.baseUrl, STAGE0_UI_URL: `http://127.0.0.1:${dotnetUiPort}`,
       STAGE0_RESULTS_DIR: dotnetResults, STAGE0_RECORD: '0' };
     const dotnetUi = launch('angular-dotnet', path.join(root, 'node_modules/@angular/cli/bin/ng.js'), [
-      'serve', '--host', '127.0.0.1', '--port', String(dotnetUiPort), '--proxy-config', dotnetProxy,
+      'serve', '--host', '127.0.0.1', '--port', String(dotnetUiPort),
     ], dotnetEnv);
-    await ready(dotnetEnv.STAGE0_UI_URL, dotnetUi, 'Angular .NET test proxy');
+    await ready(dotnetEnv.STAGE0_UI_URL, dotnetUi, 'Angular default .NET profile');
+    const { checkCutover } = await import('../stage5/check-cutover.mjs');
+    await checkCutover({ root, env, dotnetUiUrl: dotnetEnv.STAGE0_UI_URL, resultsDir });
     const regression = launch('playwright-dotnet', path.join(root, 'node_modules/@playwright/test/cli.js'), [
       'test', '--config', 'e2e/playwright.stage0.config.ts',
     ], dotnetEnv);

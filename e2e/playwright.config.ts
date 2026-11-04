@@ -16,16 +16,16 @@ export default defineConfig({
       use: { browserName: 'chromium' },
     },
   ],
-  // Expect both Angular dev server (4200) and NestJS API (3000) to be running
+  // Legacy NestJS suite. Use test:cutover for both backends on disposable PostgreSQL.
   webServer: [
     {
-      command: 'cd .. && npm run server',
+      command: 'cd .. && npm run server:nestjs',
       port: 3000,
       reuseExistingServer: true,
       timeout: 30_000,
     },
     {
-      command: 'cd .. && npm start',
+      command: 'cd .. && npm run start:nestjs',
       port: 4200,
       reuseExistingServer: true,
       timeout: 60_000,

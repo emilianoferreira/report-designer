@@ -4,10 +4,14 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "start:dotnet": "ng serve --configuration dotnet",
+    "start:nestjs": "ng serve --configuration nestjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "server": "cd server && npm run start:dev",
+    "server": "node scripts/start-dotnet.mjs",
+    "server:dotnet": "node scripts/start-dotnet.mjs",
+    "server:nestjs": "cd server && npm run start:dev",
     "server:install": "cd server && npm install",
     "db:reset": "cd server && npm run db:reset",
     "test:e2e": "cd e2e && npx playwright test",
@@ -15,7 +19,8 @@
     "test:backend": "cd server && npm run test:e2e",
     "test:migration": "node e2e/stage0/run.mjs",
     "test:migration:record": "node e2e/stage0/run.mjs --record",
-    "test:dotnet": "node e2e/stage0/run.mjs --with-dotnet"
+    "test:dotnet": "node e2e/stage0/run.mjs --with-dotnet",
+    "test:cutover": "node e2e/stage0/run.mjs --with-dotnet"
   },
   "private": true,
   "dependencies": {

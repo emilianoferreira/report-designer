@@ -8,6 +8,8 @@
 
 ## 1. Vision general
 
+Desde etapa 5, Angular usa ASP.NET Core por defecto. `npm run start:nestjs` selecciona el backend anterior. Configuración y retorno: [guía de migración](backend-dotnet/README.md).
+
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  Frontend — Angular 18 (standalone + OnPush)                  │
@@ -25,13 +27,13 @@
 │  Services: TemplateState (BehaviorSubject) | Selection         │
 │            TemplateStorage | HtmlRenderer | Api                │
 └───────────────────────────┬──────────────────────────────────┘
-                            │ HTTP /api/*  (proxy.conf.json)
+                            │ HTTP /api/*  (proxy.conf.cjs)
 ┌───────────────────────────▼──────────────────────────────────┐
-│  Backend — NestJS 10 + TypeORM 0.3                             │
-│  http://localhost:3000                                          │
+│  Backend — ASP.NET Core 10 + EF Core/Npgsql                    │
+│  http://127.0.0.1:5080; NestJS opcional en 3000                 │
 │                                                                 │
-│    TemplatesModule (CRUD moldes)                                │
-│    InvoicesModule  (datos de factura para el preview)           │
+│    Templates (CRUD moldes)                                     │
+│    Invoices (consultas y datos de factura)                      │
 └───────────────────────────┬──────────────────────────────────┘
                             │ SQL
 ┌───────────────────────────▼──────────────────────────────────┐
@@ -42,7 +44,7 @@
 
 **Flujo de render del preview:**
 1. Usuario abre preview en el editor.
-2. Frontend pide `GET /api/invoices/:id/data` → NestJS ejecuta `build_invoice_data()` → devuelve JSON.
+2. El preview actual usa datos de muestra del frontend. La API ofrece `GET /api/invoices/:id/data` mediante `build_invoice_data()`, pero ese endpoint se verifica por separado y todavía no alimenta el preview.
 3. `HtmlRendererService` combina `ReportTemplate` + `InvoiceData` → HTML + CSS.
 4. `PreviewComponent` inyecta el HTML en un iframe sandbox.
 
@@ -76,9 +78,11 @@
 | Factory de elementos | [`src/app/features/template-designer/utils/element-factory.ts`](./src/app/features/template-designer/utils/element-factory.ts) | `createElement`, `cloneElement`, defaults |
 | Evaluador de expresiones | [`src/app/features/template-designer/utils/expression-evaluator.ts`](./src/app/features/template-designer/utils/expression-evaluator.ts) | Evaluacion segura para formulas |
 | Guard unsaved | [`src/app/features/template-designer/guards/unsaved-changes.guard.ts`](./src/app/features/template-designer/guards/unsaved-changes.guard.ts) | Confirmacion al salir con cambios |
-| Proxy dev → API | [`proxy.conf.json`](./proxy.conf.json) | `/api` → `localhost:3000` |
+| Proxy dev → API .NET | [`proxy.conf.cjs`](./proxy.conf.cjs) | `/api` → `127.0.0.1:5080` o ASPNETCORE_API_URL |
+| Proxy de retorno NestJS | [`proxy.nestjs.conf.cjs`](./proxy.nestjs.conf.cjs) | Perfil nestjs → `127.0.0.1:3000` o NESTJS_API_URL |
+| API ASP.NET Core | [`backend-dotnet/README.md`](./backend-dotnet/README.md) | Mapa de capas, controladores, persistencia y pruebas de paridad |
 
-**Backend**
+**Backend NestJS conservado para retorno**
 
 | Feature | Archivo | Que hace |
 |---|---|---|
@@ -293,7 +297,8 @@ Cobertura actual:
 - [`src/app/app.routes.ts`](./src/app/app.routes.ts).
 
 ### Cambiar el proxy de desarrollo (redireccion a backend)
-- [`proxy.conf.json`](./proxy.conf.json).
+- [`angular.json`](./angular.json) selecciona dotnet por defecto; `npm run start:nestjs` usa el perfil de retorno.
+- [`proxy.conf.cjs`](./proxy.conf.cjs) y [`proxy.nestjs.conf.cjs`](./proxy.nestjs.conf.cjs) admiten ASPNETCORE_API_URL/NESTJS_API_URL. Reiniciar Angular tras cambiar selección o entorno.
 
 ### Agregar una propiedad editable a un elemento existente
 1. Extender la interface correspondiente en [`template.model.ts`](./src/app/core/models/template.model.ts).

@@ -1,6 +1,6 @@
-# Backend ASP.NET Core — etapas 1 a 4
+# Backend ASP.NET Core — etapas 1 a 5
 
-Base de la migración progresiva. El host ASP.NET Core arranca junto a NestJS y utiliza PostgreSQL mediante EF Core/Npgsql. Implementa las siete operaciones de Templates y las dos consultas de Invoices en paralelo. Angular mantiene su proxy actual hacia NestJS; los contratos y snapshots originales se conservan.
+El host ASP.NET Core utiliza PostgreSQL mediante EF Core/Npgsql e implementa las siete operaciones de Templates y las dos consultas de Invoices. Desde etapa 5 es el backend predeterminado de Angular en desarrollo. NestJS se conserva como opción explícita de retorno sobre la misma base; los contratos y snapshots originales se conservan.
 
 ## Estructura y límites
 
@@ -33,6 +33,8 @@ dotnet run --project src/ReportDesigner.Api --launch-profile http
 
 El perfil HTTP usa `http://127.0.0.1:5080`, distinto de NestJS. Para un entorno real, configurar `ASPNETCORE_URLS` y `ASPNETCORE_ENVIRONMENT` según el despliegue, sin usar el perfil de desarrollo. `AllowedHosts` admite loopback por defecto; configurar los hosts del despliegue al publicarlo.
 
+Desde la raíz también se puede ejecutar `npm run server` o `npm run server:dotnet`. Ambos usan `scripts/start-dotnet.mjs`, que invoca el SDK en PATH o `DOTNET_HOST_PATH` desde `backend-dotnet` para respetar global.json. `npm run server:nestjs` conserva el arranque anterior. Las credenciales siguen configurándose mediante ConnectionStrings__Postgres/user-secrets para .NET y server/.env para NestJS.
+
 También puede usarse `dotnet user-secrets set 'ConnectionStrings:Postgres' '<cadena>' --project src/ReportDesigner.Api` en desarrollo. El archivo versionado contiene una cadena vacía. La API falla al arrancar si falta la cadena o no especifica host/base/usuario; no utiliza una base implícita ni lee `server/.env`. No guardar credenciales en archivos versionados ni usar cuentas administradoras para la aplicación.
 
 ## Persistencia y contratos
@@ -56,7 +58,23 @@ También puede usarse `dotnet user-secrets set 'ConnectionStrings:Postgres' '<ca
 
 Readiness comprueba conectividad, no existencia ni compatibilidad del esquema. Los cuerpos de salud no exponen errores SQL ni credenciales. La API puede arrancar con una base inaccesible y seguir viva; readiness indica que aún no está lista.
 
-El contrato compartido se copia desde `contracts/openapi.json` al compilar/publicar. La ruta `reference` sirve la referencia original de migración y no genera OpenAPI a partir de los controladores. Las nueve operaciones del contrato están implementadas en paralelo; no existe redirección ni cambio del proxy Angular.
+El contrato compartido se copia desde `contracts/openapi.json` al compilar/publicar. La ruta `reference` sirve la referencia original de migración y no genera OpenAPI a partir de los controladores. Las nueve operaciones del contrato están implementadas en ambos backends; la selección del proxy Angular se describe a continuación.
+
+## Selección Angular y retorno — etapa 5
+
+| Uso desde la raíz | API elegida por Angular |
+|---|---|
+| `npm start` | Perfil predeterminado dotnet → http://127.0.0.1:5080 |
+| `npm run start:dotnet` | Selección explícita del mismo perfil dotnet |
+| `npm run start:nestjs` | Perfil de retorno nestjs → http://127.0.0.1:3000 |
+
+`angular.json` declara dotnet como configuración de serve por defecto. `proxy.conf.cjs` usa ASPNETCORE_API_URL y `proxy.nestjs.conf.cjs` usa NESTJS_API_URL; cada una admite un destino alternativo independiente. Ambas reenvían `/api` conservando el contrato y `changeOrigin`. Los servicios Angular mantienen sus URLs relativas. Los perfiles development y production de ng serve heredan el destino .NET; el perfil nestjs selecciona explícitamente el proxy anterior.
+
+Para volver a NestJS, detener Angular, arrancar `npm run server:nestjs` si hace falta y ejecutar `npm run start:nestjs`. Para regresar a .NET, detener Angular y ejecutar `npm start` con `npm run server:dotnet` en otra terminal. Reiniciar el dev server después de cambiar un perfil o sus variables: el proxy se carga al arrancar. Ningún perfil intenta automáticamente otro backend cuando una petición falla. El fallback existente a localStorage es un mecanismo separado, no una reversión a NestJS.
+
+Ambas APIs deben conectarse a la misma base PostgreSQL. El retorno no necesita exportar ni transformar reportes o etiquetas, y se verifica con un recorrido .NET → NestJS → .NET para cada formato. No se ejecutan scripts de reset durante un cambio de perfil. La suite histórica `npm run test:e2e` queda fijada explícitamente a NestJS; la comprobación aislada recomendada para el cambio es `npm run test:cutover`.
+
+Esto configura el dev server de Angular. Un `ng build` conserva `/api` relativo y no incluye este proxy: en producción, el servidor web/reverse proxy debe dirigir `/api` a .NET, o a NestJS al revertir, y servir las rutas Angular. Cambiar ese destino permite alternar sin recompilar el frontend. Esta etapa no despliega ni cambia configuración en servidores externos.
 
 Las consultas usan DTO con nombres explícitos, conservan nulls y mantienen `template_json` como `JsonElement` abierto, incluyendo extensiones del editor. Las fechas se emiten en UTC con exactamente tres decimales, como `Date.toJSON` de NestJS: se truncan los microsegundos sin redondear. El listado no filtra reportes/etiquetas ni agrega paginación. Se conserva el orden PostgreSQL DESC (incluyendo NULL primero); el orden entre timestamps iguales no está definido por el contrato.
 
@@ -94,11 +112,15 @@ Desde la raíz del repositorio, con dependencias npm y Chromium instalados segú
 # Solo si el SDK no está en PATH:
 $env:DOTNET_HOST_PATH = "$PWD/tmp/dotnet-sdk/dotnet.exe"
 npm run test:dotnet
+# Alias explícito para verificar el cambio y el retorno:
+npm run test:cutover
 ```
 
 Reutiliza el runner de etapa 0: crea PostgreSQL descartable, carga los SQL y verifica su marcador antes de iniciar las comprobaciones .NET. Restaura paquetes con lock, compila y comprueba salud, conexión real, fallo con credenciales incorrectas en las cuatro consultas, rechazo de configuración ausente e identidad del contrato. Ejecuta la paridad de consultas Templates/Invoices con una conexión .NET de solo lectura, reinicia el host con permisos de escritura y compara comandos. Después ejecuta los 25 casos de etapa 0 y los 18 existentes de NestJS contra esa misma base aislada. La configuración del entorno de desarrollo y los datos existentes no se usan.
 
-Finalmente ejecuta los 25 casos completos de etapa 0 contra .NET, incluidos contratos Invoices y guardar, recargar en navegador nuevo, renderizar y exportar reportes A4, ticket y etiquetas. Desde etapa 4 ya no se excluyen casos. Solo para esa ejecución inicia otra instancia Angular con un proxy creado dentro del directorio descartable. No modifica el proxy del repositorio ni la configuración de Angular. Esta ejecución .NET prohíbe actualizar snapshots incluso si se solicita modo record.
+Ejecuta los 25 casos completos de etapa 0 con Angular usando el perfil nestjs y los repite con el perfil predeterminado dotnet, incluidos contratos Invoices y guardar, recargar en navegador nuevo, renderizar y exportar reportes A4, ticket y etiquetas. Desde etapa 4 ya no se excluyen casos. Desde etapa 5 carga los archivos de proxy reales del repositorio: solo sobrescribe ASPNETCORE_API_URL/NESTJS_API_URL para apuntar a los puertos aleatorios de las APIs aisladas, sin generar un proxy sustituto. Esta ejecución .NET prohíbe actualizar snapshots incluso si se solicita modo record.
+
+`e2e/stage5/check-cutover.mjs` prueba a través de ambas URLs Angular que cada perfil llega exclusivamente al proceso elegido. Envía un UUID inválido único y comprueba el log de la API destino y la ausencia de ese marcador en la otra API, sin agregar endpoints ni headers al producto. Luego crea un reporte A4, un ticket y una etiqueta mediante .NET, los recarga y guarda por NestJS, vuelve a leer/actualizar por .NET y comprueba la lectura final en NestJS y el JSON/versionado en SQL. Las filas se eliminan al terminar. Estos controles son adicionales a los recorridos de navegador completos de ambos perfiles y a las 134 comparaciones de paridad de etapas anteriores.
 
 La paridad de `e2e/stage2/check-template-queries.mjs` compara estados y cuerpos JSON completos de NestJS y .NET, sin normalizar ids, timestamps, documentos ni orden de arrays. También valida respuestas contra el esquema de etapa 0. Incluye lista vacía, dos empresas, tres formatos de fixture, valores nulos, precisión temporal, based_on, Unicode, tags y extensiones JSON; errores de UUID y entradas que parecen SQL; cambios/guardados/borrados desde NestJS visibles inmediatamente en .NET. Compara las filas SQL antes/después de lecturas y conecta .NET con `default_transaction_read_only=on`. Los fixtures se eliminan al terminar para no afectar las demás pruebas. La comparación es de JSON y estados, no de bytes, orden de claves, headers de infraestructura ni formato textual de escape Unicode.
 
@@ -106,7 +128,7 @@ La paridad de escrituras (`e2e/stage3/check-template-commands.mjs`) aplica cada 
 
 La paridad de Invoices (`e2e/stage4/check-invoice-queries.mjs`) compara estados y JSON completos con NestJS, sin normalizar valores, y valida los esquemas originales. Comprueba además cada JSON de renderizado contra la función SQL. Incluye las cinco facturas del seed, dos empresas, UUID compactos/mayúsculas, errores y entradas que parecen SQL; una factura aislada sin líneas/contacto/sucursal/impuestos; importes y flags nulos, precisión decimal, fecha con microsegundos, fecha bisiesta y líneas insertadas fuera de orden. Comprueba cambios y borrados inmediatamente visibles y compara las ocho tablas de entrada antes/después de lecturas para detectar mutaciones. Las filas adicionales se eliminan al terminar.
 
-Los logs .NET y los detalles de `stage1.json` a `stage4.json` quedan junto a los resultados de etapa 0 en `e2e/test-results/stage0-<uuid>`. La regresión con .NET conserva su propio `dotnet-regression/results.json` y trazas de fallos, sin sobrescribir el resultado NestJS. El SDK debe estar instalado o indicado por `DOTNET_HOST_PATH`; el runner no lo descarga. La caché de NuGet y el directorio CLI quedan bajo `tmp`.
+Los logs .NET y los detalles de `stage1.json` a `stage5.json` quedan junto a los resultados de etapa 0 en `e2e/test-results/stage0-<uuid>`. La regresión con .NET conserva su propio `dotnet-regression/results.json` y trazas de fallos, sin sobrescribir el resultado NestJS. El SDK debe estar instalado o indicado por `DOTNET_HOST_PATH`; el runner no lo descarga. La caché de NuGet y el directorio CLI quedan bajo `tmp`.
 
 Validación del 3 de noviembre de 2026 en Windows x64: build Release sin errores ni advertencias, siete comprobaciones de la base .NET aprobadas y regresión completa de 25 casos de etapa 0 más 18 casos preexistentes del backend aprobada. Se conserva la referencia original; no se regeneran snapshots para esta etapa.
 
@@ -116,4 +138,6 @@ Etapa 3 verificada en el mismo entorno: 81 comparaciones de escrituras y las 24 
 
 Etapa 4 verificada en el mismo entorno: 29 comparaciones Invoices aprobadas sin normalizar respuestas; se mantienen aprobadas las 24 de consultas y 81 de escrituras Templates. Las 43 pruebas NestJS y las 25 pruebas completas de API/editor contra .NET pasaron con las referencias originales. Build Release sin errores ni advertencias; comprobaciones 500 por fallo de conexión en las cuatro consultas aprobadas. Se verificaron lecturas sin mutaciones y limpieza del clúster descartable.
 
-El cambio de tráfico queda pendiente de una decisión posterior; no forma parte de esta entrega.
+Etapa 5 verificada el 3 de noviembre de 2026 en Windows x64: cinco controles de enrutamiento/retorno aprobados usando los perfiles reales (dos destinos y tres formatos de documento). Se mantienen aprobadas las 134 comparaciones de paridad y las 68 pruebas de regresión: 25 sobre Angular/NestJS, 18 de NestJS y 25 sobre Angular/.NET. Los recorridos del editor guardan en PostgreSQL, recargan en un navegador nuevo y renderizan/exportan con los snapshots originales; no usan localStorage como sustituto. Build .NET sin errores ni advertencias y limpieza del clúster confirmada.
+
+El backend elegido por defecto en desarrollo ya es ASP.NET Core. El despliegue y la selección de tráfico en un servidor de producción quedan fuera de esta configuración local.

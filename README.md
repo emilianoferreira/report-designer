@@ -8,7 +8,7 @@ Diseñador visual de plantillas de impresion para el ERP Zureo. Permite crear, e
 
 Pruebas de referencia para la migración del backend: [Etapa 0 — contratos, fixtures y PostgreSQL aislado](e2e/stage0/README.md). Ejecutar `npm run test:migration`.
 
-Backend paralelo ASP.NET Core: [Etapas 1 a 4 — Templates e Invoices con paridad](backend-dotnet/README.md). Verificar con `npm run test:dotnet`.
+Backend predeterminado ASP.NET Core, con opción de volver a NestJS: [Migración y cambio de backend — etapas 1 a 5](backend-dotnet/README.md). Verificar ambos perfiles con `npm run test:cutover`.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -23,12 +23,12 @@ Backend paralelo ASP.NET Core: [Etapas 1 a 4 — Templates e Invoices con parida
 └──────────────────────┬──────────────────────────────────────────┘
                        │ /api/* (proxy)
 ┌──────────────────────▼──────────────────────────────────────────┐
-│                    Backend (NestJS 10)                          │
-│                    http://localhost:3000                        │
-│  Modules: Templates (CRUD) | Invoices (datos de prueba)         │
-│  Entities: Company, Invoice, Article, Contact, Currency, ...    │
+│                    Backend (ASP.NET Core 10)                    │
+│                    http://127.0.0.1:5080                        │
+│  Templates (CRUD) | Invoices (consultas)                        │
+│  Retorno opcional: NestJS 10 en http://127.0.0.1:3000            │
 └──────────────────────┬──────────────────────────────────────────┘
-                       │ TypeORM
+                       │ EF Core / Npgsql
 ┌──────────────────────▼──────────────────────────────────────────┐
 │                    PostgreSQL 16                                │
 │                    bd_dis_reportes                              │
@@ -36,7 +36,7 @@ Backend paralelo ASP.NET Core: [Etapas 1 a 4 — Templates e Invoices con parida
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Stack:** Angular 18 + NestJS 10 + TypeORM 0.3 + PostgreSQL 16
+**Stack:** Angular 18 + ASP.NET Core 10 + EF Core/Npgsql + PostgreSQL 16. NestJS 10 y TypeORM se conservan para volver al backend anterior.
 
 El frontend puede funcionar sin backend (usa localStorage como fallback).
 
@@ -46,8 +46,9 @@ El frontend puede funcionar sin backend (usa localStorage como fallback).
 
 | Herramienta   | Version minima | Verificar con         |
 |---------------|----------------|-----------------------|
-| Node.js       | 18.x           | `node -v`             |
+| Node.js       | 22.x           | `node -v`             |
 | npm           | 9.x            | `npm -v`              |
+| .NET SDK      | 10.0           | `dotnet --info`       |
 | PostgreSQL    | 14+            | `psql --version`      |
 
 PostgreSQL debe estar corriendo y accesible en `localhost:5432`.
@@ -69,8 +70,11 @@ cd zureo-report-designer
 # Frontend
 npm install
 
-# Backend
+# Backend NestJS y herramientas de pruebas aisladas
 cd server && npm install && cd ..
+
+# Backend ASP.NET Core
+dotnet restore backend-dotnet/ReportDesigner.slnx --locked-mode
 ```
 
 ### 3. Configurar la base de datos
@@ -89,7 +93,7 @@ Copiar el archivo de ejemplo y ajustar los valores:
 cp server/.env.example server/.env
 ```
 
-Editar `server/.env` con tus credenciales:
+`server/.env` configura NestJS. Editarlo con tus credenciales:
 
 ```env
 # ─── Database ───
@@ -102,6 +106,8 @@ DB_NAME=bd_dis_reportes
 # ─── Server ───
 PORT=3000
 ```
+
+ASP.NET Core usa `ConnectionStrings__Postgres` o user-secrets, según la [guía del backend](backend-dotnet/README.md). Configurarlo con la **misma base** que NestJS para poder alternar sin trasladar datos. El servidor .NET no lee `server/.env` ni crea el esquema automáticamente.
 
 #### 3.3 Cargar schema y datos de prueba
 
@@ -118,12 +124,15 @@ Esto ejecuta en orden:
 
 ## Ejecucion
 
-### Modo desarrollo (con backend)
+### Modo desarrollo con ASP.NET Core (predeterminado)
 
 Abrir **dos terminales**:
 
-```bash
-# Terminal 1 — API backend (puerto 3000)
+```powershell
+# Terminal 1 — API ASP.NET Core (puerto 5080)
+$env:ConnectionStrings__Postgres = 'Host=127.0.0.1;Port=5432;Database=bd_dis_reportes;Username=tu_usuario;Password=tu_password'
+# Si el SDK solo está en la instalación local usada en la migración:
+# $env:DOTNET_HOST_PATH = "$PWD/tmp/dotnet-sdk/dotnet.exe"
 npm run server
 
 # Terminal 2 — Frontend Angular (puerto 4200)
@@ -131,6 +140,20 @@ npm start
 ```
 
 Abrir en el navegador: **http://localhost:4200/templates**
+
+`npm run start:dotnet` selecciona explícitamente el mismo destino. Para volver a NestJS, detener Angular y arrancar estos comandos en dos terminales:
+
+```sh
+# Terminal 1 — API NestJS (puerto 3000, usa server/.env)
+npm run server:nestjs
+
+# Terminal 2 — Angular con el perfil anterior
+npm run start:nestjs
+```
+
+Para regresar a .NET, detener Angular y ejecutar `npm start` con la API .NET en marcha. Reiniciar Angular después de cambiar el perfil o sus variables. `ASPNETCORE_API_URL` y `NESTJS_API_URL` permiten cambiar el destino de cada proxy; sus valores predeterminados son `http://127.0.0.1:5080` y `http://127.0.0.1:3000`. La selección es explícita: un error de .NET no reenvía automáticamente escrituras a NestJS. El fallback existente a localStorage sigue siendo independiente de esta selección.
+
+El frontend compilado conserva URLs relativas `/api`. Los perfiles de Angular configuran solo `ng serve`; en producción, el servidor web o reverse proxy debe enviar `/api` al backend elegido y servir las rutas Angular con fallback a `index.html`. Para volver a NestJS allí, cambiar ese destino de 5080 a 3000 y recargar la configuración del servidor web; no hace falta recompilar Angular. Esta etapa no despliega ni modifica un servidor externo.
 
 ### Modo sin backend (solo frontend)
 
@@ -176,7 +199,9 @@ zureo-report-designer/
 │               └── data/
 │                   ├── default-template.ts           # Template inicial A4
 │                   └── sample-invoice.ts             # Datos mock para preview
-├── server/                       # Backend NestJS
+├── backend-dotnet/               # Backend ASP.NET Core predeterminado
+├── scripts/start-dotnet.mjs      # Arranque .NET con SDK en PATH o DOTNET_HOST_PATH
+├── server/                       # Backend NestJS opcional para retorno
 │   ├── src/
 │   │   ├── entities/             # 11 entidades TypeORM
 │   │   ├── modules/
@@ -194,7 +219,8 @@ zureo-report-designer/
 ├── e2e/                          # Tests E2E Playwright
 │   ├── playwright.config.ts
 │   └── tests/
-├── proxy.conf.json               # /api → localhost:3000
+├── proxy.conf.cjs                # /api → ASP.NET Core (5080)
+├── proxy.nestjs.conf.cjs         # /api → NestJS (3000), perfil nestjs
 └── package.json
 ```
 
@@ -310,21 +336,25 @@ ID de empresa por defecto: `c1000000-0000-0000-0000-000000000001`
 
 | Script                | Descripcion                                      |
 |-----------------------|--------------------------------------------------|
-| `npm start`           | Inicia Angular dev server (puerto 4200)          |
+| `npm start`           | Angular (4200), API ASP.NET Core por defecto    |
+| `npm run start:dotnet` | Angular con selección explícita de .NET        |
+| `npm run start:nestjs` | Angular con proxy hacia NestJS para retorno    |
 | `npm run build`       | Build de produccion del frontend                 |
 | `npm test`            | Tests unitarios frontend (Karma + Jasmine)       |
-| `npm run server`      | Inicia NestJS API en modo watch (puerto 3000)    |
+| `npm run server`      | Inicia ASP.NET Core (5080); alias server:dotnet  |
+| `npm run server:nestjs` | Inicia NestJS API en modo watch (3000)       |
 | `npm run server:install` | Instala dependencias del backend              |
 | `npm run db:reset`    | Recrea la BD con schema + seed + funciones       |
 | `npm run test:backend`| Tests E2E del backend (Jest + Supertest)         |
-| `npm run test:e2e`    | Tests E2E del navegador (Playwright)             |
+| `npm run test:e2e`    | Suite histórica Playwright con perfil NestJS    |
 | `npm run test:e2e:headed` | Tests E2E con navegador visible              |
+| `npm run test:cutover` | Contratos/editor, perfiles reales y retorno sobre PostgreSQL aislado |
 
 ---
 
 ## Tecnologias principales
 
 **Frontend:** Angular 18, RxJS, jsbarcode, qrcode
-**Backend:** NestJS 10, TypeORM 0.3, PostgreSQL 16
+**Backend:** ASP.NET Core 10, EF Core/Npgsql, PostgreSQL 16; NestJS 10/TypeORM como opción de retorno
 **Testing:** Karma/Jasmine (unit), Jest/Supertest (backend E2E), Playwright (browser E2E)
 **Unidad de medida:** Todas las coordenadas en milimetros (1mm = 3.7795px @ 96 DPI)
