@@ -13,6 +13,13 @@ playwright-report
 deployment/secrets
 deployment/preproduction-secrets
 deployment/*.env
+deployment/production.review.local.json
+deployment/backups
+**/*.dump.age
+**/*.dump.age.partial
+**/*.dump.age.json
+**/*.agekey
+deployment/operations.local.json
 **/*.key
 **/*.pfx
 **/*.pem

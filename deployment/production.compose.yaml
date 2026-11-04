@@ -1,0 +1,33 @@
+# Controlled release overlay. Resolve image digests and review production.review.json first.
+services:
+  web:
+    image: ${WEB_IMAGE:?Set the reviewed immutable web image}
+    build: !reset null
+    ports: !reset []
+    environment:
+      API_UPSTREAM: ${API_UPSTREAM:-api-nestjs:3000}
+  api-dotnet:
+    image: ${DOTNET_IMAGE:?Set the reviewed immutable ASP.NET Core image}
+    build: !reset null
+    environment:
+      Auth__SecureCookie: "true"
+  api-nestjs:
+    image: ${NESTJS_IMAGE:?Set the reviewed immutable authenticated NestJS image}
+    build: !reset null
+    environment:
+      AUTH_SECURE_COOKIE: "true"
+  gateway:
+    # Reuse the TLS, DNS refresh, HTTP rejection and health settings validated in stage 9.
+    extends: { file: ./preproduction.compose.yaml, service: gateway }
+    image: ${GATEWAY_IMAGE:?Set the reviewed immutable gateway image}
+    environment:
+      MAINTENANCE_MODE: ${MAINTENANCE_MODE:-1}
+    ports: !override
+      - "${PRODUCTION_BIND:-127.0.0.1}:${HTTPS_PORT:-443}:8443"
+      - "${PRODUCTION_BIND:-127.0.0.1}:${REDIRECT_PORT:-80}:8080"
+
+secrets:
+  https_certificate:
+    file: ${TLS_CERT_FILE:?Set the production certificate chain file}
+  https_private_key:
+    file: ${TLS_KEY_FILE:?Set the production private key file}

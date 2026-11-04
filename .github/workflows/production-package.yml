@@ -1,4 +1,4 @@
-name: Validate preproduction HTTPS and isolated rollback (no deployment)
+name: Validate controlled release and isolated recovery (no deployment)
 
 on:
   workflow_dispatch:
@@ -24,17 +24,17 @@ jobs:
       - name: Install the test tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends libnss3-tools
+          sudo apt-get install -y --no-install-recommends libnss3-tools age
           npm ci --no-audit --no-fund
           npm ci --prefix server --no-audit --no-fund
           npx playwright install --with-deps chromium
-      - name: Validate preproduction HTTPS on isolated TLS PostgreSQL
-        run: npm run test:preproduction
+      - name: Validate encrypted backup, isolated restore and HTTPS rollback
+        run: npm run test:release
       - name: Preserve test evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: preproduction-https-isolated-validation
-          path: e2e/test-results/stage9-*/
+          name: release-recovery-isolated-validation
+          path: e2e/test-results/stage10-*/
           retention-days: 7
       # Only temporary test Compose projects. No push or production credentials/deployment.

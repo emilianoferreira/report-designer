@@ -1,6 +1,20 @@
 # Docker DNS must be refreshed when web is recreated to select the other backend.
 resolver 127.0.0.11 valid=2s ipv6=off;
 resolver_timeout 3s;
+map $request_method $release_mutation {
+    default 1;
+    GET 0;
+    HEAD 0;
+    OPTIONS 0;
+}
+map "${MAINTENANCE_MODE}:$release_mutation" $release_write_blocked {
+    default 1;
+    "0:0" 0;
+    "0:1" 0;
+    "1:0" 0;
+}
+map $release_write_blocked $release_cache_control { default ""; 1 "no-store"; }
+map $release_write_blocked $release_retry_after { default ""; 1 "30"; }
 upstream preproduction_web {
     zone preproduction_web 64k;
     server web:8080 resolve;
@@ -38,7 +52,13 @@ server {
     add_header Strict-Transport-Security "max-age=86400" always;
     add_header X-Content-Type-Options nosniff always;
     add_header Referrer-Policy same-origin always;
+    add_header Cache-Control $release_cache_control always;
+    add_header Retry-After $release_retry_after always;
     location / {
+        default_type application/json;
+        if ($release_write_blocked) {
+            return 503 '{"statusCode":503,"message":"Writes paused for controlled release"}';
+        }
         proxy_pass http://preproduction_web;
         proxy_http_version 1.1;
         proxy_set_header Connection "";

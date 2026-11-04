@@ -1,0 +1,43 @@
+{
+  "status": "pending-review",
+  "applicationCommit": "ca454e50e6a7800b60358fd483d6be2952f15985",
+  "project": "report-designer-production",
+  "server": null,
+  "publicHost": null,
+  "bindAddress": "127.0.0.1",
+  "httpsPort": 443,
+  "redirectPort": 80,
+  "images": { "web": null, "dotnet": null, "nestjs": null, "gateway": null },
+  "postgres": { "host": null, "port": 5432, "database": null, "majorVersion": null, "applicationRole": null, "caFile": null },
+  "secretsDirectory": null,
+  "tlsCertificateFile": null,
+  "tlsPrivateKeyFile": null,
+  "backup": {
+    "directory": null,
+    "recipient": null,
+    "passfile": null,
+    "role": null,
+    "offsiteDestination": null,
+    "retentionDays": null
+  },
+  "restoreValidation": {
+    "host": null,
+    "port": 5432,
+    "administrativeRole": null,
+    "caFile": null,
+    "passfile": null,
+    "ageIdentityFile": null,
+    "evidence": null
+  },
+  "initialUpstream": "api-nestjs:3000",
+  "targetUpstream": "api-dotnet:8080",
+  "rollbackUpstream": "api-nestjs:3000",
+  "maintenanceWindow": null,
+  "currentIngress": null,
+  "writerDrainProcedure": null,
+  "rollbackCriteria": null,
+  "operator": null,
+  "monitoringOwner": null,
+  "rpo": null,
+  "rto": null
+}

@@ -50,6 +50,14 @@ testem.log
 /deployment/secrets/
 /deployment/preproduction.env
 /deployment/preproduction-secrets/
+/deployment/production.review.local.json
+/deployment/release.env
+/deployment/backups/
+*.dump.age
+*.dump.age.partial
+*.dump.age.json
+*.agekey
+/deployment/operations.local.json
 
 # Test results
 /test-results

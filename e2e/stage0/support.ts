@@ -34,7 +34,7 @@ export const test = base.extend<{ api: APIRequestContext; otherApi: APIRequestCo
   },
   db: [async ({}, use: (client: any) => Promise<void>) => {
     const env = process.env;
-    if (!/^stage0_[a-f0-9]{32}$/.test(env['DB_NAME'] || '') || env['DB_HOST'] !== '127.0.0.1' || !env['STAGE0_RUN_ID']) {
+    if (!/^(stage0|restorecheck)_[a-f0-9]{32}$/.test(env['DB_NAME'] || '') || env['DB_HOST'] !== '127.0.0.1' || !env['STAGE0_RUN_ID']) {
       throw new Error('Refusing tests without the isolated runner configuration.');
     }
     const client = new Client({

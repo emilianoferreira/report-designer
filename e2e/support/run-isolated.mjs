@@ -11,9 +11,12 @@ import { fileURLToPath } from 'node:url';
 import { checkSecurity, seedIdentities, login as loginRequest, call as callRequest } from '../stage8/check-security.mjs';
 import { createTrustedFetch } from '../stage9/trusted-fetch.mjs';
 import { checkHttps } from '../stage9/check-https.mjs';
+import { checkRecovery } from '../stage10/check-recovery.mjs';
 
-export async function runIsolated({ withHttps = false } = {}) {
-const stage = withHttps ? 'stage9' : 'stage8';
+export async function runIsolated({ withHttps = false, withRecovery = false } = {}) {
+const stage = withRecovery ? 'stage10' : withHttps ? 'stage9' : 'stage8';
+assert.ok(!withRecovery||withHttps);
+let reusedImages;let recovery;let activeDatabase;
 let transport = globalThis.fetch;
 const fetch = (...args) => transport(...args);
 const login = (url,user) => loginRequest(url,user,fetch);
@@ -21,7 +24,7 @@ const call = (url,identity,method,route,body,expected=200,overrides={}) => callR
 let browserEnvironment = {};
 let browserAndContractCases = 0;
 let gatewayContainer;
-const root = fileURLToPath(new URL('../../', import.meta.url));
+const root = path.resolve(fileURLToPath(new URL('../../', import.meta.url)));
 const requireServer = createRequire(path.join(root, 'server/package.json'));
 const { Client } = requireServer('pg');
 if (process.argv.length > 2) throw new Error('This suite accepts no arguments. Original snapshots are frozen; recording is disabled.');
@@ -75,9 +78,10 @@ const composeEnv = { ...process.env, RELEASE_TAG: project, IMAGE_PREFIX: project
   HTTP_BIND: '127.0.0.1', HTTP_PORT: String(webPort), API_UPSTREAM: 'api-dotnet:8080',
   DB_HOST: 'pg-test', DB_PORT: '5432', DB_NAME: database, DB_USERNAME: 'stage0_app', SECRETS_DIR: secrets, COMPOSE_PROFILES: '', AUTH_SECURE_COOKIE: withHttps ? 'true' : 'false',
   HTTPS_PORT:String(httpsPort),REDIRECT_PORT:String(redirectPort),PREPRODUCTION_BIND:'127.0.0.1',
-  TLS_CERT_FILE:path.join(secrets,'https-fullchain.pem'),TLS_KEY_FILE:path.join(secrets,'https-private.key') };
+  TLS_CERT_FILE:path.join(secrets,'https-fullchain.pem'),TLS_KEY_FILE:path.join(secrets,'https-private.key'),PRODUCTION_BIND:'127.0.0.1',MAINTENANCE_MODE:'0',
+  WEB_IMAGE:`${project}/web:${project}`,DOTNET_IMAGE:`${project}/api-dotnet:${project}`,NESTJS_IMAGE:`${project}/api-nestjs:${project}`,GATEWAY_IMAGE:'nginxinc/nginx-unprivileged:1.30-alpine' };
 const composeArgs = ['compose', '--project-name', project, '--env-file', publicEnv,
-  '-f', path.join(root, 'deployment/compose.yaml'), ...(withHttps ? ['-f',path.join(root,'deployment/preproduction.compose.yaml')] : []), '-f', override];
+  '-f', path.join(root, 'deployment/compose.yaml'), ...(withHttps ? ['-f',path.join(root,withRecovery?'deployment/production.compose.yaml':'deployment/preproduction.compose.yaml')] : []), '-f', override];
 const compose = (name, args, options = {}) => execute(name, docker, [...composeArgs, ...args], { env: composeEnv, ...options });
 const webUrl = withHttps ? `https://127.0.0.1:${httpsPort}` : `http://127.0.0.1:${webPort}`;
 const httpUrl = `http://127.0.0.1:${redirectPort}`;
@@ -136,6 +140,31 @@ async function baseline(backend) {
   assert.equal(result.stats.unexpected,0);assert.equal(result.stats.skipped,0);
   browserAndContractCases+=result.stats.expected;
 }
+async function legacyRegression() {
+  await writeFile(path.join(secrets,'test-users.json'),JSON.stringify(users),{mode:0o600});
+  const testDb=client('stage0_app');
+  await testDb.connect();
+  try { await testDb.query('DELETE FROM auth_login_limits'); } finally { await testDb.end(); }
+  // Use Linux dependencies from the same build stage, never the host's Windows native modules.
+  const testsImage=`${project}/nestjs-tests:${project}`;
+  if(reusedImages) {
+    const original=reusedImages.project+'/nestjs-tests:'+reusedImages.project;
+    await execute('reuse-nestjs-tests',docker,['tag',original,testsImage]);
+  } else await compose('nestjs-test-image',['--profile','test-tools','build','nestjs-tests']);
+  const testEnvironment=path.join(secrets,'nestjs-test.env');
+  await writeFile(testEnvironment,Object.entries({DB_HOST:'pg-test',DB_PORT:'5432',DB_NAME:database,DB_USERNAME:'stage0_app',DB_PASSWORD:password,
+    NODE_ENV:'test',PGSSLMODE:'verify-full',NODE_EXTRA_CA_CERTS:'/run/tests/pg-ca.pem',STAGE0_RUN_ID:runId,STAGE8_TEST_USERS:'/run/tests/test-users.json'})
+    .map(([key,value])=>key+'='+value).join('\n')+'\n',{mode:0o600});
+  await execute('nestjs-regression',docker,['run','--rm','--name',project+'-nestjs-regression','--network',project+'_default',
+    '--label','com.docker.compose.project='+project,'--label','com.docker.compose.service=nestjs-regression',
+    '--env-file',testEnvironment,'--mount',`type=bind,src=${secrets},dst=/run/tests,readonly`,testsImage,
+    'node','node_modules/jest/bin/jest.js','--config','test/jest-e2e.json','--runInBand','--forceExit']);
+}
+async function setMaintenance(enabled) {
+  composeEnv.MAINTENANCE_MODE=enabled?'1':'0';
+  await compose('release-maintenance',['up','-d','--no-build','--no-deps','--force-recreate','--wait','gateway']);
+  await ready();gatewayContainer=await compose('gateway-id',['ps','-q','gateway'],{capture:true});
+}
 async function request(method,route,data,status=200) { return call(webUrl,currentIdentity,method,route,data,status); }
 async function cleanup() {
   if (cleanupPromise) return cleanupPromise;
@@ -178,7 +207,7 @@ try {
   await writeFile(publicEnv, '# All isolated settings are explicit in the runner environment.\n');
   await writeFile(override, JSON.stringify({ services: {
     'pg-test': { image: 'postgres:16-bookworm', environment: { POSTGRES_USER: 'stage8_admin', POSTGRES_DB: database, POSTGRES_PASSWORD_FILE: '/run/secrets/PG_ADMIN_PASSWORD' },
-      ports: [`127.0.0.1:${dbPort}:5432`], volumes: ['test_pgdata:/var/lib/postgresql/data', `${secrets}/server.crt:/run/tls/server.crt:ro`, `${secrets}/server.key:/run/tls/server.key:ro`],
+      ports: [`127.0.0.1:${dbPort}:5432`], volumes: [...(withRecovery?[`${secrets}:/run/operations:ro`]:[]),'test_pgdata:/var/lib/postgresql/data', `${secrets}/server.crt:/run/tls/server.crt:ro`, `${secrets}/server.key:/run/tls/server.key:ro`],
       secrets: [{ source: 'pg_admin_password', target: 'PG_ADMIN_PASSWORD' }],
       command: ['postgres', '-c', 'ssl=on', '-c', 'ssl_cert_file=/run/tls/server.crt', '-c', 'ssl_key_file=/run/tls/server.key', '-c', 'timezone=UTC'],
       // initdb briefly starts a socket-only server; wait for the final TCP/TLS server.
@@ -213,7 +242,7 @@ try {
     await mkdir(trustDb,{recursive:true});await mkdir(untrustedHome,{recursive:true});
     await execute('browser-trust-db','certutil',['-N','--empty-password','-d','sql:'+trustDb]);
     await execute('browser-trust-ca','certutil',['-A','-d','sql:'+trustDb,'-n',stage+'-isolated-ca','-t','C,,','-i',env.STAGE0_CA_FILE]);
-    browserEnvironment={NODE_EXTRA_CA_CERTS:env.STAGE0_CA_FILE,STAGE9_HTTPS:'1',STAGE9_BROWSER_HOME:browserHome,STAGE9_UNTRUSTED_HOME:untrustedHome,STAGE9_HTTP_URL:httpUrl};
+    browserEnvironment={NODE_EXTRA_CA_CERTS:env.STAGE0_CA_FILE,STAGE9_HTTPS:'1',STAGE9_CA_SUBJECT:stage+'-isolated-ca',STAGE9_BROWSER_HOME:browserHome,STAGE9_UNTRUSTED_HOME:untrustedHome,STAGE9_HTTP_URL:httpUrl};
   }
   console.log('[isolated] Building all three production Dockerfiles.');
   await compose('compose-config', ['config', '--quiet']);
@@ -223,7 +252,20 @@ try {
     assert.equal(String(configuration.services['api-dotnet'].environment.Auth__SecureCookie),'true');
     assert.equal(String(configuration.services['api-nestjs'].environment.AUTH_SECURE_COOKIE),'true');
   }
-  await compose('image-builds', ['build']);
+  if (withRecovery&&process.env.STAGE10_IMAGES_FILE) {
+    reusedImages=JSON.parse(await readFile(path.resolve(process.env.STAGE10_IMAGES_FILE),'utf8'));
+    assert.equal(reusedImages.passed,true);assert.equal(reusedImages.https,true);assert.equal(reusedImages.images.length,3);
+    const changes=await execute('application-source-diff','git',['-c','safe.directory='+root,'-c','core.autocrlf=true','-c','core.safecrlf=false','diff','--name-only','ca454e5','--','src','public','server/src','server/test','backend-dotnet/src','contracts','package-lock.json','server/package-lock.json','angular.json','deployment/web.Dockerfile','deployment/api-dotnet.Dockerfile','deployment/api-nestjs.Dockerfile','deployment/dotnet-entrypoint.sh','deployment/nestjs-entrypoint.sh','deployment/nginx/default.conf.template'],{capture:true});
+    assert.equal(changes,'','Do not reuse images after changing application inputs');
+    for(const [i,name] of ['web','api-dotnet','api-nestjs'].entries()) {
+      const image=reusedImages.images[i];assert.match(image.id,/^sha256:[a-f0-9]{64}$/);
+      assert.equal(await execute('verify-'+name,docker,['image','inspect','--format','{{.Id}}',image.id],{capture:true}),image.id);
+      await execute('tag-'+name,docker,['tag',image.id,project+'/'+name+':'+project]);
+    }
+  } else if (withRecovery) {
+    const buildArgs=['compose','--project-name',project,'--env-file',publicEnv,'-f',path.join(root,'deployment/compose.yaml'),'-f',path.join(root,'deployment/preproduction.compose.yaml'),'-f',override,'build'];
+    await execute('image-builds',docker,buildArgs,{env:composeEnv});
+  } else await compose('image-builds', ['build']);
   await execute('postgres-pull', docker, ['pull', 'postgres:16-bookworm']);
   await execute('postgres-key-permissions', docker, ['run', '--rm', '--label', `isolated.owner=${project}`,
     '--mount', `type=bind,src=${secrets},dst=/tls`, '--entrypoint', 'sh', 'postgres:16-bookworm', '-c', 'chown 999:999 /tls/server.key && chmod 600 /tls/server.key']);
@@ -283,6 +325,30 @@ try {
   try { securityChecks=await checkSecurity({urls:[dotnetUrl,nestjsUrl],db:securityDb,users,root,resultsDir}); }
   finally { await securityDb.end(); }
   currentIdentity=await login(webUrl,users.alice);
+  if(withRecovery) {
+    await legacyRegression();
+    const passfile=path.join(secrets,'operations.pgpass');
+    await writeFile(passfile,'127.0.0.1:'+dbPort+':*:stage8_admin:'+adminPassword+'\npg-test:5432:*:stage8_admin:'+adminPassword+'\n',{mode:0o600});
+    const source={host:'127.0.0.1',port:dbPort,database,user:'stage8_admin',caFile:env.STAGE0_CA_FILE,passfile};
+    const toolCommand=(name,args,config)=>({binary:docker,args:[...composeArgs,'exec','-T',
+      '-e','PGHOST=pg-test','-e','PGPORT=5432','-e','PGDATABASE='+config.database,'-e','PGUSER=stage8_admin',
+      '-e','PGSSLMODE=verify-full','-e','PGSSLROOTCERT=/run/operations/pg-ca.pem','-e','PGPASSFILE=/run/operations/operations.pgpass',
+      'pg-test',name,...args],env:composeEnv});
+    const activateRestore=async (targetDatabase,checkpoints)=>{
+      const old=currentIdentity;
+      composeEnv.DB_NAME=targetDatabase;
+      await writeFile(path.join(secrets,'ConnectionStrings__Postgres'),
+        'Host=pg-test;Port=5432;Database='+targetDatabase+';Username=stage0_app;Password='+password+';SSL Mode=VerifyFull;Root Certificate=/run/secrets/pg-ca.pem;Timeout=5;Command Timeout=30');
+      await compose('activate-isolated-restore',['up','-d','--no-build','--no-deps','--force-recreate','--wait','--wait-timeout','180','api-dotnet','api-nestjs','web']);
+      await ready();
+      await call(webUrl,old,'GET','/api/auth/session',undefined,401);
+      currentIdentity=await login(webUrl,users.alice);
+      for(const row of checkpoints){assert.deepEqual(await request('GET','/api/templates/'+row.id),row);await request('DELETE','/api/templates/'+row.id);}
+      Object.assign(env,{DB_NAME:targetDatabase,DB_USERNAME:'stage8_admin',DB_PASSWORD:adminPassword});
+      activeDatabase=targetDatabase;
+    };
+    recovery=await checkRecovery({root,secrets,resultsDir,source,toolCommand,execute,request,switchBackend,setMaintenance,activateRestore,users});
+  }
   await baseline('dotnet');
   await switchBackend('api-nestjs:3000');
   await baseline('nestjs');
@@ -307,25 +373,12 @@ try {
   }
   // The final editor run confirms switching back restores actual browser/save/render flows.
   await baseline('dotnet-return');
-  const testDb=client('stage0_app');
-  await testDb.connect();
-  try { await testDb.query('DELETE FROM auth_login_limits'); } finally { await testDb.end(); }
-  // Use Linux dependencies from the same build stage, never the host's Windows native modules.
-  const testsImage=`${project}/nestjs-tests:${project}`;
-  await compose('nestjs-test-image',['--profile','test-tools','build','nestjs-tests']);
-  const testEnvironment=path.join(secrets,'nestjs-test.env');
-  await writeFile(testEnvironment,Object.entries({DB_HOST:'pg-test',DB_PORT:'5432',DB_NAME:database,DB_USERNAME:'stage0_app',DB_PASSWORD:password,
-    NODE_ENV:'test',PGSSLMODE:'verify-full',NODE_EXTRA_CA_CERTS:'/run/tests/pg-ca.pem',STAGE0_RUN_ID:runId,STAGE8_TEST_USERS:'/run/tests/test-users.json'})
-    .map(([key,value])=>key+'='+value).join('\n')+'\n',{mode:0o600});
-  await execute('nestjs-regression',docker,['run','--rm','--name',project+'-nestjs-regression','--network',project+'_default',
-    '--label','com.docker.compose.project='+project,'--label','com.docker.compose.service=nestjs-regression',
-    '--env-file',testEnvironment,'--mount',`type=bind,src=${secrets},dst=/run/tests,readonly`,testsImage,
-    'node','node_modules/jest/bin/jest.js','--config','test/jest-e2e.json','--runInBand','--forceExit']);
+  if(!withRecovery) await legacyRegression();
   const images = await execute('image-identities', docker, ['image', 'inspect', ...['web', 'api-dotnet', 'api-nestjs'].map(name => `${project}/${name}:${project}`),
     '--format', '{{json .}}'], { capture: true });
   await writeFile(path.join(resultsDir, stage+'.json'), JSON.stringify({ passed: true, project, runId, dockerVersion: version,
     database, tls: true, hostNode: process.version, health: state.map(({ Service, State, Health }) => ({ Service, State, Health })),
-    browserAndContractCases, https:withHttps, gatewayPreserved:withHttps, legacyNestCases:18, securityChecks, largeDocumentBytes: 1024 * 1024,
+    browserAndContractCases, activeDatabase:activeDatabase||database, reusedImages:!!reusedImages, recovery, https:withHttps, gatewayPreserved:withHttps, legacyNestCases:18, securityChecks, largeDocumentBytes: 1024 * 1024,
     rollback: '.NET → NestJS → .NET on the same packaged proxy and TLS database',
     images: images.split('\n').map(line => { const image = JSON.parse(line); return { id: image.Id, tags: image.RepoTags, user: image.Config.User }; }),
   }, null, 2));

@@ -1,4 +1,6 @@
-# Backend ASP.NET Core — etapas 1 a 9
+# Backend ASP.NET Core — etapas 1 a 10
+
+**Etapa 10:** [preparación de producción, respaldo y restauración](../deployment/PRODUCTION.md), sin cambios de API/esquema ni despliegue real. El ensayo conecta las mismas imágenes a una copia restaurada, con grants mínimos y sesiones revocadas, y valida HTTPS/editor y retorno a NestJS.
 
 **Etapa 9:** [preproducción HTTPS y aceptación aislada](../deployment/PREPRODUCTION.md), con cookies Secure y retorno a NestJS conservando sesiones. No añade endpoints, dependencias o cambios al esquema/contratos de aplicación. `npm run test:preproduction` recorre el gateway real con PostgreSQL/TLS descartable.
 

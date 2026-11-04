@@ -1,0 +1,11 @@
+{
+  "reviewed": false,
+  "source": { "host": null, "port": 5432, "database": null, "user": null, "caFile": null, "passfile": null },
+  "backupDirectory": null,
+  "recipient": null,
+  "archive": null,
+  "manifestFile": null,
+  "restoreAdministration": { "host": null, "port": 5432, "database": "postgres", "user": null, "caFile": null, "passfile": null },
+  "restoreDatabase": null,
+  "identityFile": null
+}

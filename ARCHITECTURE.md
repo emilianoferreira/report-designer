@@ -8,6 +8,8 @@
 
 ## 1. Vision general
 
+La [etapa 10](deployment/PRODUCTION.md) prepara un overlay de release por imágenes revisadas y herramientas de backup/restore explícitas en `deployment/operations/`. El [ensayo](e2e/stage10/README.md) verifica recuperación cifrada, contenido/esquema y editor/retorno sobre una copia descartable; no modifica endpoints ni despliega producción.
+
 La [etapa 9](e2e/stage9/README.md) añade un [perfil de preproducción HTTPS](deployment/PREPRODUCTION.md): gateway privado, certificados montados, web sin puerto público y cookies Secure en ambas APIs. Las suites HTTP/HTTPS comparten `e2e/support/run-isolated.mjs`; no cambian los contratos de la aplicación.
 
 La [etapa 8](e2e/stage8/README.md) agrega sesiones compartidas en PostgreSQL y autorización por empresa en ambas APIs. Angular incorpora login, selector de empresa y CSRF; no usa fallback local. [Contrato actual](contracts/openapi.auth.json), [migración aditiva](database/004-auth.sql), [aprovisionamiento administrativo](scripts/provision-user.mjs). Los runners previos remiten a la aceptación autenticada de etapa 8.

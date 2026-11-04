@@ -6,7 +6,7 @@ test('HTTPS has valid browser trust, secure cookies and no cleartext API request
   const response = await page.goto('/templates');
   const details = await response!.securityDetails();
   expect(details?.protocol).toMatch(/^TLS 1\.[23]$/);
-  expect(details?.issuer).toContain('stage9-isolated-ca');
+  expect(details?.issuer).toContain(process.env['STAGE9_CA_SUBJECT'] || 'stage9-isolated-ca');
   expect(await page.evaluate(() => window.isSecureContext)).toBe(true);
   const cookie = (await context.cookies()).find(c => c.name === 'rd_session')!;
   expect(cookie.secure).toBe(true); expect(cookie.httpOnly).toBe(true); expect(cookie.sameSite).toBe('Strict');

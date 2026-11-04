@@ -24,7 +24,8 @@ services:
     environment:
       PUBLIC_HOST: ${PUBLIC_HOST:?Set the preproduction hostname}
       HTTPS_PORT: ${HTTPS_PORT:-8443}
-      NGINX_ENVSUBST_FILTER: ^(PUBLIC_HOST|HTTPS_PORT)$
+      MAINTENANCE_MODE: ${MAINTENANCE_MODE:-0}
+      NGINX_ENVSUBST_FILTER: ^(PUBLIC_HOST|HTTPS_PORT|MAINTENANCE_MODE)$
     volumes:
       - ./nginx/preproduction.conf.template:/etc/nginx/templates/default.conf.template:ro
     secrets:
