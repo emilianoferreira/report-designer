@@ -48,6 +48,8 @@ testem.log
 .env.*.local
 /deployment/production.env
 /deployment/secrets/
+/deployment/preproduction.env
+/deployment/preproduction-secrets/
 
 # Test results
 /test-results

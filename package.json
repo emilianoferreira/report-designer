@@ -24,6 +24,7 @@
     "test:production": "node e2e/stage8/run.mjs",
     "test:docker": "node e2e/stage8/run.mjs",
     "test:security": "node e2e/stage8/run.mjs",
+    "test:preproduction": "node e2e/stage9/run.mjs",
     "auth:provision": "node scripts/provision-user.mjs"
   },
   "private": true,

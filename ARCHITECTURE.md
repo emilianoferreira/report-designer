@@ -8,6 +8,8 @@
 
 ## 1. Vision general
 
+La [etapa 9](e2e/stage9/README.md) añade un [perfil de preproducción HTTPS](deployment/PREPRODUCTION.md): gateway privado, certificados montados, web sin puerto público y cookies Secure en ambas APIs. Las suites HTTP/HTTPS comparten `e2e/support/run-isolated.mjs`; no cambian los contratos de la aplicación.
+
 La [etapa 8](e2e/stage8/README.md) agrega sesiones compartidas en PostgreSQL y autorización por empresa en ambas APIs. Angular incorpora login, selector de empresa y CSRF; no usa fallback local. [Contrato actual](contracts/openapi.auth.json), [migración aditiva](database/004-auth.sql), [aprovisionamiento administrativo](scripts/provision-user.mjs). Los runners previos remiten a la aceptación autenticada de etapa 8.
 
 Desde etapa 5, Angular usa ASP.NET Core por defecto. `npm run start:nestjs` selecciona el backend anterior. Configuración y retorno: [guía de migración](backend-dotnet/README.md).

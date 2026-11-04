@@ -1,4 +1,6 @@
-# Preparación y validación Docker — etapas 6 a 8
+# Preparación y validación Docker — etapas 6 a 9
+
+**Etapa 9:** el [procedimiento de preproducción](PREPRODUCTION.md) configura un gateway HTTPS con `preproduction.compose.yaml`, una base separada y retorno a NestJS. `npm run test:preproduction` ejecuta [la aceptación HTTPS aislada](../e2e/stage9/README.md), con confianza real de certificados y cookies Secure. El workflow manual ahora ejecuta esa suite. No se ha desplegado en producción.
 
 **Etapa 8:** ambas APIs requieren las nuevas tablas de autenticación y aplican autorización por empresa. Consultar [migración, aprovisionamiento y aceptación aislada](../e2e/stage8/README.md). Aplicar únicamente `004-auth.sql` como cambio aditivo y aprovisionar usuarios antes de habilitar acceso; no ejecutar seed/reset sobre una base utilizada. Las instrucciones de versiones anteriores conservadas más abajo son evidencia histórica. Los alias de pruebas ejecutan ahora la suite Docker autenticada de etapa 8.
 

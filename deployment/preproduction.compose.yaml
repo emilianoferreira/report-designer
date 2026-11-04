@@ -1,0 +1,48 @@
+# Overlay for compose.yaml. PostgreSQL stays external; use a separate preproduction database.
+services:
+  web:
+    ports: !reset []
+  api-dotnet:
+    environment:
+      Auth__SecureCookie: "true"
+  api-nestjs:
+    environment:
+      AUTH_SECURE_COOKIE: "true"
+  gateway:
+    image: nginxinc/nginx-unprivileged:1.30-alpine
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:uid=101,gid=101,mode=1777
+      - /etc/nginx/conf.d:uid=101,gid=101,mode=0755
+    ports:
+      - "${PREPRODUCTION_BIND:-127.0.0.1}:${HTTPS_PORT:-8443}:8443"
+      - "${PREPRODUCTION_BIND:-127.0.0.1}:${REDIRECT_PORT:-8081}:8080"
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?Set the preproduction hostname}
+      HTTPS_PORT: ${HTTPS_PORT:-8443}
+      NGINX_ENVSUBST_FILTER: ^(PUBLIC_HOST|HTTPS_PORT)$
+    volumes:
+      - ./nginx/preproduction.conf.template:/etc/nginx/templates/default.conf.template:ro
+    secrets:
+      - { source: https_certificate, target: https-fullchain.pem }
+      - { source: https_private_key, target: https-private.key }
+    depends_on:
+      web: { condition: service_healthy }
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:8080/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+secrets:
+  https_certificate:
+    file: ${TLS_CERT_FILE:?Set the preproduction certificate chain file}
+  https_private_key:
+    file: ${TLS_KEY_FILE:?Set the preproduction private key file}

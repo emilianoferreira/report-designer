@@ -1,4 +1,6 @@
-# Backend ASP.NET Core — etapas 1 a 8
+# Backend ASP.NET Core — etapas 1 a 9
+
+**Etapa 9:** [preproducción HTTPS y aceptación aislada](../deployment/PREPRODUCTION.md), con cookies Secure y retorno a NestJS conservando sesiones. No añade endpoints, dependencias o cambios al esquema/contratos de aplicación. `npm run test:preproduction` recorre el gateway real con PostgreSQL/TLS descartable.
 
 **Estado actual, etapa 8:** la [guía de autenticación y aislamiento](../e2e/stage8/README.md) sustituye las decisiones de seguridad y ejecución de pruebas históricas descritas más abajo. Las nueve operaciones requieren sesión, la empresa activa proviene de la sesión y las escrituras no permiten reasignar empresa/identidad. NestJS aplica la misma política y comparte las sesiones. Aplicar `database/004-auth.sql` explícitamente y aprovisionar usuarios antes de usar una base existente. El contrato de éxito se conserva; 401/403 y el ocultamiento de documentos ajenos están en `contracts/openapi.auth.json`.
 

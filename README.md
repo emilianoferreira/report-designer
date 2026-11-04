@@ -6,6 +6,8 @@ Diseñador visual de plantillas de impresion para el ERP Zureo. Permite crear, e
 
 ## Arquitectura
 
+**Etapa 9:** [preproducción HTTPS](deployment/PREPRODUCTION.md) con gateway, cookies Secure y retorno a NestJS. Validar con `npm run test:preproduction` en Linux/WSL sobre PostgreSQL/TLS descartable; [alcance y evidencia](e2e/stage9/README.md). No se ha desplegado en producción.
+
 **Etapa 8:** ambas APIs requieren autenticación y aplican autorización por empresa. Antes de iniciar sesión sobre una base existente, aplicar únicamente [004-auth.sql](database/004-auth.sql) y aprovisionar un usuario explícitamente; no hay credenciales predeterminadas. [Configuración, contratos y pruebas de seguridad](e2e/stage8/README.md). `npm run test:security` valida Docker/TLS, aislamiento, editor y retorno .NET → NestJS → .NET sin acceder a producción.
 
 Pruebas de referencia para la migración del backend: [Etapa 0 — contratos, fixtures y PostgreSQL aislado](e2e/stage0/README.md). Ejecutar `npm run test:migration`.

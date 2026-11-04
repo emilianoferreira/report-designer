@@ -9,5 +9,5 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["playwright.stage0.config.ts", "playwright.stage8.config.ts", "stage0/**/*.ts", "stage8/**/*.ts"]
+  "include": ["playwright.stage0.config.ts", "playwright.stage8.config.ts", "playwright.stage9.config.ts", "stage0/**/*.ts", "stage8/**/*.ts", "stage9/**/*.ts"]
 }

@@ -11,6 +11,7 @@ playwright-report
 **/.env
 **/.env.*
 deployment/secrets
+deployment/preproduction-secrets
 deployment/*.env
 **/*.key
 **/*.pfx

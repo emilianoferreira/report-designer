@@ -31,6 +31,7 @@ test('anonymous navigation requires login and ignores legacy localStorage docume
     const cookies=await context.cookies();
     const session=cookies.find((c:any)=>c.name==='rd_session')!;
     expect(session.httpOnly).toBe(true); expect(session.sameSite).toBe('Strict');
+    if (process.env['STAGE9_HTTPS']) expect(session.secure).toBe(true);
     expect(await page.evaluate(()=>document.cookie)).not.toContain('rd_session');
   } finally { await context.close(); }
 });

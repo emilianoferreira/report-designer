@@ -22,8 +22,8 @@ export async function seedIdentities(db) {
   return users;
 }
 
-export async function login(url, user) {
-  const response = await fetch(url + '/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token':'login'}, body:JSON.stringify(user) });
+export async function login(url, user, fetcher = globalThis.fetch) {
+  const response = await fetcher(url + '/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token':'login'}, body:JSON.stringify(user) });
   assert.equal(response.status, 200, 'login');
   const header = response.headers.get('set-cookie');
   assert.match(header, /HttpOnly/i); assert.match(header, /SameSite=Strict/i);
@@ -31,8 +31,8 @@ export async function login(url, user) {
   assert.ok(validateSession(session),JSON.stringify(validateSession.errors));
   return { cookie: header.split(';')[0], session, header };
 }
-export async function call(url, identity, method, route, body, expected=200, overrides={}) {
-  const response = await fetch(url+route, { method, headers: {
+export async function call(url, identity, method, route, body, expected=200, overrides={}, fetcher=globalThis.fetch) {
+  const response = await fetcher(url+route, { method, headers: {
     ...(identity ? { cookie:identity.cookie, 'X-CSRF-Token':identity.session.csrf_token } : {}),
     ...(body === undefined ? {} : {'Content-Type':'application/json'}), ...overrides },
     ...(body === undefined ? {} : {body:JSON.stringify(body)}) });
