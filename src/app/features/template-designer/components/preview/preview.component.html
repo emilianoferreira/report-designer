@@ -21,7 +21,8 @@
       </div>
 
       <div class="toolbar-group">
-        <button class="toolbar-btn" (click)="printPreview()">Imprimir</button>
+        <button class="toolbar-btn" (click)="toggleFiscalSample()" [attr.aria-pressed]="fiscalSample">Ejemplo CFE</button>
+        <button class="toolbar-btn" (click)="printPreview()" [disabled]="printing">Imprimir</button>
       </div>
 
       <div class="toolbar-group">
@@ -58,6 +59,32 @@
   </div>
 
   <!-- Preview content — switches by viewMode -->
+  @if (printMessage) { <p class="renderer-context" role="alert">{{ printMessage }}</p> }
+  @if (fiscalSample && renderedReport; as report) {
+    <details class="renderer-context">
+      <summary>Validación de impresión · {{ report.status === 'violations' ? 'Hallazgos detectados' : 'Cobertura incompleta' }}</summary>
+      <p>Escenario ficticio. Se evalúa la salida de este ejemplo.</p>
+      @for (result of report.results; track $index) {
+        @if (result.status !== 'pending') {
+          <p><strong>{{ result.id }} · {{ result.title }} · {{ ruleLabels[result.status] }}</strong><br>
+            {{ result.message }} {{ result.action }}
+            @if (result.source) { <a [href]="result.source" target="_blank" rel="noopener noreferrer">{{ result.reference }}</a> }
+            @for (element of result.elements; track $index) {
+              <button type="button" (click)="locateFinding(element)">Ir al elemento</button>
+            }
+          </p>
+        }
+      }
+      <details>
+        <summary>Controles pendientes</summary>
+        @for (result of report.results; track $index) {
+          @if (result.status === 'pending') { <p>{{ result.id }} · {{ result.title }} · {{ result.message }}
+            @if (result.source) { <a [href]="result.source" target="_blank" rel="noopener noreferrer">{{ result.reference }}</a> }
+          </p> }
+        }
+      </details>
+    </details>
+  }
   @if (renderEvidence; as evidence) {
     <details class="renderer-context">
       <summary>Preparación de la vista previa · {{ previewReady ? 'carga finalizada' : 'carga pendiente' }}</summary>
@@ -97,7 +124,7 @@
             class="preview-frame"
             [style.width.px]="pageWidthPx"
             [style.height.px]="pageHeightPx"
-            sandbox="allow-same-origin allow-scripts"
+            sandbox="allow-same-origin allow-modals"
             title="Vista previa"
           ></iframe>
         </div>

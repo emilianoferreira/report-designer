@@ -39,6 +39,7 @@ import { RenderArtifact, RenderEvidence } from './render-evidence';
 export interface RenderOptions {
   /** Optional observation sink, scoped to a single synchronous render. */
   evidence?: RenderEvidence;
+  printSurface?: boolean;
   /** If true, resolve data bindings. If false, output z-code directives */
   resolveData: boolean;
   /** If true, include @media print styles */
@@ -60,7 +61,7 @@ const DEFAULT_RENDER_OPTIONS: RenderOptions = {
   providedIn: 'root'
 })
 export class HtmlRendererService {
-  renderWithEvidence(template: ReportTemplate, data: InvoiceData): RenderArtifact {
+  renderWithEvidence(template: ReportTemplate, data: InvoiceData, printSurface = false): RenderArtifact {
     const evidence: RenderEvidence = { version: '1.0', elements: [], diagnostics: [] };
     for (const key of ['header', 'detail', 'footer'] as const) {
       const section = template.sections[key];
@@ -83,7 +84,7 @@ export class HtmlRendererService {
     }
     if (template.page.dynamicHeight) evidence.diagnostics.push({ code: 'unsupported-feature',
       message: 'El navegador no permite declarar ancho fijo con longitud de papel automática; configurar el rollo en el controlador de impresión.' });
-    let html = this.renderToHtml(template, data, { evidence });
+    let html = this.renderToHtml(template, data, { evidence, printSurface });
     // Controlled renderer output: annotate generated blocks without a DOM round trip.
     html = html.replace(/<(div|table)( class="(detail-table|ticket-item|subtotals-block|ticket-subtotals-block)")/g,
       (match, tag: string, cls: string, kind: string) => {
@@ -340,6 +341,14 @@ ${footerHtml}
       border-top: 1px solid #333;
       padding-top: 3px;
     }`;
+
+    if (opts.printSurface) {
+      css += `
+    .page { margin: 0; min-height: 0; box-shadow: none; }
+    .element-screen-only { display: none !important; }
+    @page { size: ${page.dynamicHeight ? 'auto' : `${page.width}mm ${page.height}mm`}; margin: 0; }`;
+      return css;
+    }
 
     if (opts.includePrintStyles) {
       css += `
@@ -974,7 +983,14 @@ ${footerHtml}
       }
       const fgColor = el.foregroundColor || '#000000';
       const bgColor = el.backgroundColor || '#ffffff';
-      const svg = this.generateQRSvg(String(qrData), fgColor, bgColor, el.errorCorrection, opts);
+      const preset = opts.printSurface && el.size.width === el.size.height
+        ? el.size.width === 28 ? { symbol: 22, margin: 3 } : el.size.width === 40 ? { symbol: 30, margin: 5 } : undefined
+        : undefined;
+      const svg = this.generateQRSvg(String(qrData), fgColor, bgColor, el.errorCorrection, opts, preset);
+      if (svg.startsWith('<svg') && opts.evidence) {
+        opts.evidence.qrPayloads ??= [];
+        opts.evidence.qrPayloads.push({ elementId: el.id, payload: String(qrData) });
+      }
       return `      <div class="element element-qrcode" style="${pos} overflow: hidden;">${svg}</div>\n`;
     }
     // Zureo directive mode — server-side QR generation
@@ -1001,7 +1017,8 @@ ${footerHtml}
   /**
    * Generate an inline SVG for a QR code using qrcode library's sync API.
    */
-  private generateQRSvg(data: string, fgColor: string, bgColor: string, ecLevel: string, opts: RenderOptions): string {
+  private generateQRSvg(data: string, fgColor: string, bgColor: string, ecLevel: string, opts: RenderOptions,
+    preset?: { symbol: number; margin: number }): string {
     try {
       const qr = (QRCode as any).create(data, { errorCorrectionLevel: ecLevel || 'M' });
       const modules = qr.modules;
@@ -1024,7 +1041,9 @@ ${footerHtml}
           }
         }
       }
-      return `<svg xmlns="http://www.w3.org/2000/svg" data-qr-modules="${size}" data-qr-quiet-modules="4" viewBox="-4 -4 ${size + 8} ${size + 8}" style="width:100%;height:100%;"><rect x="-4" y="-4" width="${size + 8}" height="${size + 8}" fill="${bgColor}"/><path d="${path}" fill="${fgColor}"/></svg>`;
+      const quiet = preset ? size * preset.margin / preset.symbol : 4;
+      const outer = size + 2 * quiet;
+      return `<svg xmlns="http://www.w3.org/2000/svg" data-qr-modules="${size}" data-qr-quiet-modules="${quiet}" viewBox="${-quiet} ${-quiet} ${outer} ${outer}" style="width:100%;height:100%;"><rect x="${-quiet}" y="${-quiet}" width="${outer}" height="${outer}" fill="${bgColor}"/><path d="${path}" fill="${fgColor}"/></svg>`;
     } catch (e) {
       opts.evidence?.diagnostics.push({ code: 'generation-error', message: 'No se pudo generar el símbolo QR.' });
       return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#f5f5f5;font-size:10px;color:#999;">QR Error</div>`;

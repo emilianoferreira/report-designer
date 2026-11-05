@@ -123,7 +123,47 @@ const assert = require('node:assert/strict');
     await expect(frame.locator('[data-render-source="invoiceLines.0"]')).toBeAttached();
     await expect(frame.locator('.element-rectangle')).toHaveCSS('position', 'absolute');
     await expect(page.locator('.renderer-context summary')).toContainText('carga finalizada', { timeout: 10000 });
+    // Small single-sheet fixture isolates QR checks from pagination and unrelated artwork.
+    const qr = structuredClone(original.sections.header.elements.find(element => element.type === 'qrCode'));
+    qr.position = { x: 6, y: 6 };
+    qr.size = { width: 20, height: 20 };
+    qr.dataBinding = 'fiscal.qrPayload';
+    const check = structuredClone(persisted);
+    Object.assign(check.sections.header, { height: 55, elements: [qr] });
+    Object.assign(check.sections.detail, { height: 20, elements: [] });
+    Object.assign(check.sections.footer, { height: 0, elements: [] });
+    row.template_json.template = check;
+    const openFiscalPreview = async (expectQr = true) => {
+      await page.reload();
+      await page.getByRole('button', { name: 'Vista Previa', exact: true }).click();
+      await page.getByRole('button', { name: 'Ejemplo CFE', exact: true }).click();
+      await expect(frame.locator('svg[data-qr-modules]')).toHaveCount(expectQr ? 1 : 0);
+      await expect(page.getByText('Validación de impresión', { exact: false })).toBeVisible();
+      await page.evaluate(() => {
+        window.printCalls = 0;
+        document.querySelector('iframe').contentWindow.print = () => { window.printCalls++; };
+      });
+    };
+    await openFiscalPreview();
+    const print = page.getByRole('button', { name: 'Imprimir', exact: true });
+    await print.click();
+    await expect(page.getByRole('alert')).toContainText('QR-02');
+    assert.equal(await page.evaluate(() => window.printCalls), 0);
+    qr.size = { width: 28, height: 28 };
+    qr.visibility = { type: 'conditional', expression: 'invoiceLines.length === 1' };
+    await openFiscalPreview();
+    await print.click();
+    await expect.poll(() => page.evaluate(() => window.printCalls)).toBe(1);
+    // Change the input and click print before the next iframe injection finishes.
+    await page.evaluate(() => {
+      window.printCalls = 0;
+      const buttons = Array.from(document.querySelectorAll('app-preview button'));
+      buttons.find(button => button.textContent.trim() === '1 artículo').click();
+      buttons.find(button => button.textContent.trim() === 'Imprimir').click();
+    });
+    await expect(page.getByRole('alert')).toContainText('QR-01');
+    assert.equal(await page.evaluate(() => window.printCalls), 0);
     assert.deepEqual(errors, []);
-    console.log('Fiscal stage 1 browser regression passed: legacy load, profile, roles, undo/redo, save/reload, extensions and unchanged HTML.');
+    console.log('Fiscal browser regression passed: legacy round trip, evidence and print gate.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
