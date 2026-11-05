@@ -30,12 +30,15 @@ import {
   DetailSectionDefinition
 } from '../../../core/models/template.model';
 import { mmToPx } from '../utils/coordinate-utils';
-import { evaluateExpression, safeEval } from '../utils/expression-evaluator';
+import { evaluateExpression } from '../utils/expression-evaluator';
 import QRCode from 'qrcode';
 import JsBarcode from 'jsbarcode';
+import { RenderArtifact, RenderEvidence } from './render-evidence';
 
 /** Options for HTML generation */
 export interface RenderOptions {
+  /** Optional observation sink, scoped to a single synchronous render. */
+  evidence?: RenderEvidence;
   /** If true, resolve data bindings. If false, output z-code directives */
   resolveData: boolean;
   /** If true, include @media print styles */
@@ -57,6 +60,46 @@ const DEFAULT_RENDER_OPTIONS: RenderOptions = {
   providedIn: 'root'
 })
 export class HtmlRendererService {
+  renderWithEvidence(template: ReportTemplate, data: InvoiceData): RenderArtifact {
+    const evidence: RenderEvidence = { version: '1.0', elements: [], diagnostics: [] };
+    for (const key of ['header', 'detail', 'footer'] as const) {
+      const section = template.sections[key];
+      for (const element of section.elements) if (element.style.namedStyle) evidence.diagnostics.push({
+        code: 'unsupported-feature', elementId: element.id, section: key,
+        message: 'El renderer usa estilos directos; el estilo con nombre todavía no se aplica.' });
+      if (!section.printOnEveryPage || !section.printOnFirstPage || !section.printOnLastPage) evidence.diagnostics.push({
+        code: 'unsupported-feature', section: key, message: 'Las opciones de repetición de sección todavía no se aplican; salida sin paginación.' });
+    }
+    if (this.isTicketFormat(template)) for (const el of template.sections.detail.elements) {
+      evidence.elements.push({ id: el.id, section: 'detail', emitted: false, roles: [...(el.fiscalRoles ?? [])] });
+      evidence.diagnostics.push({ code: 'omitted-element', elementId: el.id, section: 'detail',
+        message: 'El formato ticket usa detalle generado y omite el elemento posicionado.' });
+    }
+    if (template.sections.footer.elements.length) evidence.diagnostics.push({ code: 'unsupported-feature', section: 'footer',
+      message: 'El pie personalizado sustituye los subtotales automáticos, incluso si sus elementos resultan ocultos.' });
+    for (const key of ['pageHeader', 'pageFooter'] as const) {
+      if (template.sections[key]) evidence.diagnostics.push({ code: 'unsupported-feature', section: key,
+        message: 'La sección repetida requiere paginación, todavía no implementada.' });
+    }
+    if (template.page.dynamicHeight) evidence.diagnostics.push({ code: 'unsupported-feature',
+      message: 'El navegador no permite declarar ancho fijo con longitud de papel automática; configurar el rollo en el controlador de impresión.' });
+    let html = this.renderToHtml(template, data, { evidence });
+    // Controlled renderer output: annotate generated blocks without a DOM round trip.
+    html = html.replace(/<(div|table)( class="(detail-table|ticket-item|subtotals-block|ticket-subtotals-block)")/g,
+      (match, tag: string, cls: string, kind: string) => {
+        const id = `generated-${evidence.generated?.length ?? 0}`;
+        (evidence.generated ??= []).push({ id, kind });
+        return `<${tag} data-render-generated="${id}"${cls}`;
+      });
+    html = html.replace(/class="section section-(header|detail|footer)"/g,
+      (match, section: string) => `${match} data-render-section="${section}"`);
+    html = html.replace(/<tr(?=[\s>])/g, () => {
+      const id = `generated-${evidence.generated?.length ?? 0}`;
+      (evidence.generated ??= []).push({ id, kind: 'generated-row' });
+      return `<tr data-render-generated="${id}"`;
+    });
+    return { html, evidence, inputSnapshot: JSON.stringify({ template, data }) };
+  }
 
   /**
    * Render a complete HTML document from template + data
@@ -310,12 +353,14 @@ ${footerHtml}
         box-shadow: none;
       }
       @page {
-        size: ${page.width}mm ${page.height}mm;
+        size: ${page.dynamicHeight ? 'auto' : `${page.width}mm ${page.height}mm`};
         margin: 0;
       }
     }`;
     }
 
+    css += `\n @media screen { .element-print-only { display: none !important; } }
+      @media print { .element-screen-only { display: none !important; } }`;
     return css;
   }
 
@@ -473,7 +518,7 @@ ${footerHtml}
     html += `      <table class="detail-table">
         <tbody>\n`;
 
-    for (const line of lines) {
+    for (const [rowIndex, line] of lines.entries()) {
       const art = line['Articulo'] || {};
       const codigo = art['Codigo'] || '';
       const nombre = art['Nombre'] || '';
@@ -484,7 +529,7 @@ ${footerHtml}
       const descuento = line['Descuento'] ?? 0;
       const subtotal = line['SubTotal'] ?? 0;
 
-      html += `          <tr>
+      html += `          <tr${opts.evidence ? ` data-render-source="invoiceLines.${rowIndex}"` : ''}>
             <td class="dc-cod">${this.escapeHtml(String(codigo))}</td>
             <td class="dc-nom">${this.escapeHtml(String(nombre))}</td>
             <td class="dc-qty">${cantidad}</td>
@@ -531,7 +576,7 @@ ${footerHtml}
         <span>SUBTOTAL</span>
       </div>\n`;
 
-    for (const line of lines) {
+    for (const [rowIndex, line] of lines.entries()) {
       const art = line['Articulo'] || {};
       const codigo = art['Codigo'] || '';
       const nombre = art['Nombre'] || '';
@@ -542,7 +587,7 @@ ${footerHtml}
       const subtotal = line['SubTotal'] ?? 0;
       const fechaArt = line['FechaArticulo'] || '';
 
-      html += `      <div class="ticket-item">\n`;
+      html += `      <div class="ticket-item"${opts.evidence ? ` data-render-source="invoiceLines.${rowIndex}"` : ''}>\n`;
       // Line 1: (Code) Name
       html += `        <div class="ticket-item-name">(${this.escapeHtml(String(codigo))}) ${this.escapeHtml(String(nombre))}</div>\n`;
       // Line 2: Date (if available)
@@ -762,16 +807,29 @@ ${footerHtml}
   // ─────────────────────────────────────────────────────────────────
 
   private renderElement(
+    element: TemplateElement, template: ReportTemplate, data: InvoiceData, opts: RenderOptions
+  ): string {
+    const section = (['header', 'detail', 'footer'] as const).find(key => template.sections[key].elements.includes(element)) ?? 'unknown';
+    const start = opts.evidence?.diagnostics.length ?? 0;
+    let html = this.renderElementContent(element, template, data, opts);
+    const classes = `${element.screenOnly ? ' element-screen-only' : ''}${element.printOnly ? ' element-print-only' : ''}`;
+    if (html && classes) html = html.replace('class="element', `class="element${classes}`);
+    if (opts.evidence) {
+      opts.evidence.elements.push({ id: element.id, section, emitted: !!html, roles: [...(element.fiscalRoles ?? [])] });
+      for (const diagnostic of opts.evidence.diagnostics.slice(start)) {
+        diagnostic.elementId = element.id; diagnostic.section = section;
+      }
+      if (html) html = html.replace('<div ', `<div data-render-element="${this.escapeHtml(element.id)}" data-render-section="${section}" `);
+    }
+    return html;
+  }
+
+  private renderElementContent(
     element: TemplateElement,
     template: ReportTemplate,
     data: InvoiceData,
     opts: RenderOptions
   ): string {
-    // Skip print-only elements in screen mode and vice versa
-    if (element.screenOnly && opts.includePrintStyles) {
-      // Include but mark as screen-only
-    }
-
     // Check visibility
     if (!this.evaluateVisibility(element, data, opts)) {
       return '';
@@ -812,6 +870,8 @@ ${footerHtml}
   ): string {
     if (opts.resolveData) {
       const value = this.resolveBinding(el.binding.source, data);
+      if (value == null && el.binding.defaultValue == null) opts.evidence?.diagnostics.push({
+        code: 'missing-value', message: `Campo sin valor: ${el.binding.source}` });
       const formatted = el.binding.format
         ? this.applyFormat(value, el.binding.format)
         : String(value ?? el.binding.defaultValue ?? '');
@@ -827,7 +887,7 @@ ${footerHtml}
     data: InvoiceData, opts: RenderOptions
   ): string {
     if (opts.resolveData) {
-      const value = this.evaluateExpr(el.expression, data);
+      const value = this.evaluateExpr(el.expression, data, opts);
       const formatted = el.format
         ? this.applyFormat(value, el.format)
         : String(value ?? '');
@@ -852,6 +912,7 @@ ${footerHtml}
     if (src) {
       return `      <div class="element element-image" style="${pos}"><img src="${this.escapeHtml(src)}" style="object-fit: ${el.fit};" /></div>\n`;
     }
+    if (opts.resolveData) opts.evidence?.diagnostics.push({ code: 'missing-value', message: 'La imagen no tiene un origen resuelto; se muestra un marcador.' });
     return `      <div class="element element-image" style="${pos} background: #f5f5f5; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">Imagen</div>\n`;
   }
 
@@ -898,7 +959,7 @@ ${footerHtml}
       inner = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"><path d="${path}" fill="none" stroke="${el.strokeColor}" stroke-width="${mmToPx(el.strokeWidth || 0.3)}" vector-effect="non-scaling-stroke"/></svg>`;
     }
 
-    return `      <div class="element element-rectangle" style="${style} position:relative;">${inner}</div>\n`;
+    return `      <div class="element element-rectangle" style="${style}">${inner}</div>\n`;
   }
 
   private renderQRElement(
@@ -906,10 +967,14 @@ ${footerHtml}
     data: InvoiceData, opts: RenderOptions
   ): string {
     if (opts.resolveData) {
-      const qrData = this.resolveBinding(el.dataBinding, data) || 'https://example.com';
+      const qrData = this.resolveBinding(el.dataBinding, data);
+      if (qrData == null || qrData === '') {
+        opts.evidence?.diagnostics.push({ code: 'missing-value', message: 'El QR no tiene contenido resuelto.' });
+        return `      <div class="element element-qrcode" style="${pos}" data-render-error="missing-value"></div>\n`;
+      }
       const fgColor = el.foregroundColor || '#000000';
       const bgColor = el.backgroundColor || '#ffffff';
-      const svg = this.generateQRSvg(qrData, fgColor, bgColor, el.errorCorrection);
+      const svg = this.generateQRSvg(String(qrData), fgColor, bgColor, el.errorCorrection, opts);
       return `      <div class="element element-qrcode" style="${pos} overflow: hidden;">${svg}</div>\n`;
     }
     // Zureo directive mode — server-side QR generation
@@ -921,8 +986,12 @@ ${footerHtml}
     data: InvoiceData, opts: RenderOptions
   ): string {
     if (opts.resolveData) {
-      const barcodeData = this.resolveBinding(el.dataBinding, data) || '123456789';
-      const svg = this.generateBarcodeSvg(barcodeData, el.barcodeType, el.showText, el.barWidth, el.barHeight);
+      const barcodeData = this.resolveBinding(el.dataBinding, data);
+      if (barcodeData == null || barcodeData === '') {
+        opts.evidence?.diagnostics.push({ code: 'missing-value', message: 'El código de barras no tiene contenido resuelto.' });
+        return `      <div class="element element-barcode" style="${pos}" data-render-error="missing-value"></div>\n`;
+      }
+      const svg = this.generateBarcodeSvg(String(barcodeData), el.barcodeType, el.showText, el.barWidth, el.barHeight, opts);
       return `      <div class="element element-barcode" style="${pos} overflow: hidden; background: #fff;">${svg}</div>\n`;
     }
     // Zureo directive mode
@@ -932,7 +1001,7 @@ ${footerHtml}
   /**
    * Generate an inline SVG for a QR code using qrcode library's sync API.
    */
-  private generateQRSvg(data: string, fgColor: string, bgColor: string, ecLevel: string): string {
+  private generateQRSvg(data: string, fgColor: string, bgColor: string, ecLevel: string, opts: RenderOptions): string {
     try {
       const qr = (QRCode as any).create(data, { errorCorrectionLevel: ecLevel || 'M' });
       const modules = qr.modules;
@@ -955,8 +1024,9 @@ ${footerHtml}
           }
         }
       }
-      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" style="width:100%;height:100%;"><rect width="${size}" height="${size}" fill="${bgColor}"/><path d="${path}" fill="${fgColor}"/></svg>`;
+      return `<svg xmlns="http://www.w3.org/2000/svg" data-qr-modules="${size}" data-qr-quiet-modules="4" viewBox="-4 -4 ${size + 8} ${size + 8}" style="width:100%;height:100%;"><rect x="-4" y="-4" width="${size + 8}" height="${size + 8}" fill="${bgColor}"/><path d="${path}" fill="${fgColor}"/></svg>`;
     } catch (e) {
+      opts.evidence?.diagnostics.push({ code: 'generation-error', message: 'No se pudo generar el símbolo QR.' });
       return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#f5f5f5;font-size:10px;color:#999;">QR Error</div>`;
     }
   }
@@ -964,7 +1034,7 @@ ${footerHtml}
   /**
    * Generate an inline SVG for a barcode using JsBarcode on an offscreen SVG element.
    */
-  private generateBarcodeSvg(data: string, format: string, showText: boolean, barWidth?: number, barHeight?: number): string {
+  private generateBarcodeSvg(data: string, format: string, showText: boolean, barWidth?: number, barHeight?: number, opts?: RenderOptions): string {
     try {
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       (JsBarcode as any)(svg, data, {
@@ -979,6 +1049,7 @@ ${footerHtml}
       });
       return svg.outerHTML;
     } catch (e) {
+      opts?.evidence?.diagnostics.push({ code: 'generation-error', message: 'No se pudo generar el código de barras.' });
       return `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#f5f5f5;font-size:10px;color:#999;">Barcode Error</div>`;
     }
   }
@@ -1075,7 +1146,7 @@ ${footerHtml}
    * Evaluate an expression against the data context using the safe evaluator.
    * Supports arithmetic, property access, ternary, and whitelisted functions.
    */
-  private evaluateExpr(expression: string, data: InvoiceData): any {
+  private evaluateExpr(expression: string, data: InvoiceData, opts?: RenderOptions): any {
     if (!expression) return '';
 
     // Build context with data + utility functions
@@ -1088,8 +1159,9 @@ ${footerHtml}
 
     const result = evaluateExpression(expression, context);
     if (result.error) {
+      opts?.evidence?.diagnostics.push({ code: 'expression-error', message: result.error });
       console.warn(`Expression evaluation failed: "${expression}" — ${result.error}`);
-      return `[Error: ${expression}]`;
+      return undefined;
     }
     return result.value;
   }
@@ -1106,10 +1178,11 @@ ${footerHtml}
     if (!opts.resolveData) return true; // In export mode, always include
 
     if (element.visibility.expression) {
-      const result = this.evaluateExpr(element.visibility.expression, data);
+      const result = this.evaluateExpr(element.visibility.expression, data, opts);
       return !!result;
     }
-    return true;
+    opts.evidence?.diagnostics.push({ code: 'expression-error', message: 'Condición de visibilidad vacía.' });
+    return false;
   }
 
   // ─────────────────────────────────────────────────────────────────

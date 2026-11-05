@@ -39,6 +39,7 @@
         <button class="toggle-btn" [class.active]="viewMode === 'fiscal'" (click)="setViewMode('fiscal')">
           Perfil fiscal
         </button>
+        <button class="toggle-btn" [class.active]="viewMode === 'results'" (click)="setViewMode('results')">Análisis fiscal</button>
       </div>
     </div>
 
@@ -322,6 +323,8 @@
       </aside>
     } @else if (viewMode === 'fiscal') {
       <main class="panel panel-full"><app-fiscal-profile /></main>
+    } @else if (viewMode === 'results') {
+      <main class="panel panel-full"><app-static-fiscal-results (showDesign)="setViewMode('design')" /></main>
     } @else {
       <!-- Preview mode: Full-width preview -->
       <main class="panel panel-full">

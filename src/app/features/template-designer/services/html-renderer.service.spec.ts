@@ -192,7 +192,7 @@ describe('HtmlRendererService', () => {
     });
 
     it('should render QR as SVG with viewBox when resolveData is true', () => {
-      const html = service.renderToHtml(qrTemplate, SAMPLE_INVOICE_DATA, { resolveData: true });
+      const html = service.renderToHtml(qrTemplate, { ...SAMPLE_INVOICE_DATA, QRBase64: 'contenido-de-prueba' }, { resolveData: true });
       expect(html).toContain('element-qrcode');
       expect(html).toContain('<svg');
       expect(html).toContain('viewBox');

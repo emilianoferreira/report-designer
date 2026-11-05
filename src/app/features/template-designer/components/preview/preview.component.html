@@ -58,6 +58,13 @@
   </div>
 
   <!-- Preview content — switches by viewMode -->
+  @if (renderEvidence; as evidence) {
+    <details class="renderer-context">
+      <summary>Preparación de la vista previa · {{ previewReady ? 'carga finalizada' : 'carga pendiente' }}</summary>
+      <p>Observaciones de generación y recursos. No constituyen una evaluación normativa.</p>
+      @for (diagnostic of evidence.diagnostics; track $index) { <p>{{ diagnostic.message }}</p> }
+    </details>
+  }
   @if (showFiscalContext && fiscalContext; as context) {
     <details class="fiscal-context">
       <summary>Contexto fiscal de los datos de ejemplo · sin evaluación normativa</summary>

@@ -18,8 +18,9 @@ import { TemplateMold } from '../../../../core/models/template.model';
 import { HasUnsavedChanges } from '../../guards/unsaved-changes.guard';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { FiscalProfileComponent } from '../fiscal-profile/fiscal-profile.component';
+import { StaticFiscalResultsComponent } from '../static-fiscal-results/static-fiscal-results.component';
 
-type ViewMode = 'design' | 'preview' | 'fiscal';
+type ViewMode = 'design' | 'preview' | 'fiscal' | 'results';
 
 @Component({
   selector: 'app-designer-page',
@@ -30,7 +31,8 @@ type ViewMode = 'design' | 'preview' | 'fiscal';
     ToolboxComponent,
     PropertiesPanelComponent,
     PreviewComponent,
-    FiscalProfileComponent
+    FiscalProfileComponent,
+    StaticFiscalResultsComponent
   ],
   templateUrl: './designer-page.component.html',
   styleUrl: './designer-page.component.scss',

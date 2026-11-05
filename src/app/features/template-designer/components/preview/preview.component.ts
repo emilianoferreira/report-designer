@@ -24,6 +24,7 @@ import { InvoiceData } from '../../../../core/models/template.model';
 import { mmToPx } from '../../utils/coordinate-utils';
 import { ValidationContext } from '../../../../core/models/fiscal.model';
 import { buildValidationContext } from '../../utils/fiscal-context';
+import { RenderEvidence } from '../../services/render-evidence';
 
 export type PreviewViewMode = 'render' | 'html' | 'json';
 
@@ -36,6 +37,10 @@ export type PreviewViewMode = 'render' | 'html' | 'json';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PreviewComponent implements OnInit, OnDestroy {
+  renderEvidence?: RenderEvidence;
+  renderInputSnapshot = '';
+  previewReady = false;
+  private injectionVersion = 0;
   @ViewChild('previewFrame') previewFrame!: ElementRef<HTMLIFrameElement>;
 
   // ─── Render outputs (recomputed on each renderPreview) ───
@@ -83,6 +88,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.injectionVersion++;
     this.destroy$.next();
     this.destroy$.complete();
     if (this.copyStatusTimeout) clearTimeout(this.copyStatusTimeout);
@@ -98,6 +104,8 @@ export class PreviewComponent implements OnInit, OnDestroy {
    * sample data toggle flips.
    */
   renderPreview(): void {
+    this.injectionVersion++;
+    this.previewReady = false;
     const template = this.templateState.getCurrentTemplate();
     const data = this.getActiveData();
     this.fiscalContext = buildValidationContext(template.compliance, data);
@@ -107,7 +115,10 @@ export class PreviewComponent implements OnInit, OnDestroy {
     this.pageHeightPx = mmToPx(template.page.height);
 
     // Precompute all formats — cheap and keeps view switching instant
-    this.previewHtml = this.renderer.renderPreview(template, data);
+    const artifact = this.renderer.renderWithEvidence(template, data);
+    this.previewHtml = artifact.html;
+    this.renderEvidence = artifact.evidence;
+    this.renderInputSnapshot = artifact.inputSnapshot;
     this.templateHtml = this.renderer.exportAsZureoTemplate(template);
     this.templateJson = JSON.stringify(template, null, 2);
 
@@ -120,13 +131,32 @@ export class PreviewComponent implements OnInit, OnDestroy {
   }
 
   private injectIframe(): void {
-    setTimeout(() => {
+    const version = ++this.injectionVersion;
+    const html = this.previewHtml;
+    const evidence = this.renderEvidence;
+    this.previewReady = false;
+    setTimeout(async () => {
+      if (version !== this.injectionVersion) return;
       if (this.previewFrame?.nativeElement) {
         const doc = this.previewFrame.nativeElement.contentDocument;
         if (doc) {
           doc.open();
-          doc.write(this.previewHtml);
+          doc.write(html);
           doc.close();
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          const resources = Promise.all([doc.fonts.ready, ...Array.from(doc.images).map(image => image.decode().catch(() => {
+            if (version === this.injectionVersion) evidence?.diagnostics.push({ code: 'resource-error',
+              elementId: image.closest('[data-render-element]')?.getAttribute('data-render-element') ?? undefined,
+              message: 'No se pudo cargar o decodificar una imagen.' });
+          }))]);
+          const loaded = await Promise.race([resources.then(() => true), new Promise<boolean>(resolve => {
+            timer = setTimeout(() => resolve(false), 5000);
+          })]);
+          if (timer) clearTimeout(timer);
+          if (version !== this.injectionVersion) return;
+          if (!loaded) evidence?.diagnostics.push({ code: 'resource-error', message: 'Fuentes o imágenes no finalizaron en el tiempo de espera.' });
+          this.previewReady = loaded;
+          this.cdr.markForCheck();
         }
       }
     }, 50);
@@ -137,6 +167,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
    * When returning to Render, re-inject the iframe (it was destroyed by *ngIf).
    */
   setViewMode(mode: PreviewViewMode): void {
+    if (mode !== 'render') this.injectionVersion++;
     this.viewMode = mode;
     if (mode === 'render') {
       this.injectIframe();
