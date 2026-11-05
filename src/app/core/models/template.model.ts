@@ -8,6 +8,8 @@
 // METADATA & SETTINGS
 // ============================================================================
 
+import type { FiscalData, FiscalProfile, FiscalRole } from './fiscal.model';
+
 export interface ReportTemplate {
   schemaVersion: '1.0';
   metadata: TemplateMetadata;
@@ -16,6 +18,8 @@ export interface ReportTemplate {
   dataSources: DataSourceConfig;
   styles: Record<string, StyleDefinition>;
   variables: TemplateVariable[];
+  /** Optional, opt-in fiscal expectations. Older molds remain schema 1.0. */
+  compliance?: FiscalProfile;
 }
 
 export interface TemplateMetadata {
@@ -117,6 +121,8 @@ export type ElementType =
   | 'barcode';
 
 export interface BaseElement {
+  /** Declared meaning only; does not prove presence, visibility or validity. */
+  fiscalRoles?: FiscalRole[];
   id: string;               // UUID
   type: ElementType;
   name: string;             // user-friendly name
@@ -300,6 +306,8 @@ export interface TemplateVariable {
 // ============================================================================
 
 export interface InvoiceData {
+  /** Runtime-only facts: never persist these in ReportTemplate. */
+  fiscal?: FiscalData;
   invoice: Record<string, any>;
   invoiceLines: Array<Record<string, any>>;
   company: Record<string, any>;

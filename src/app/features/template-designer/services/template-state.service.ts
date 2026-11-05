@@ -16,6 +16,7 @@ import {
 import { cloneElement, updateElement } from '../utils/element-factory';
 import { createDefaultTemplate } from '../data/default-template';
 import { PAPER_PRESETS, PaperPreset } from '../utils/coordinate-utils';
+import { FiscalProfile } from '../../../core/models/fiscal.model';
 
 /** Valid section keys for element operations */
 type SectionKey = 'header' | 'detail' | 'footer';
@@ -117,6 +118,14 @@ export class TemplateStateService {
       ...current,
       page: { ...current.page, ...settings }
     };
+    this.setTemplate(updated);
+  }
+
+  /** Explicit edits only: loading a legacy mold never adds a fiscal profile. */
+  updateFiscalProfile(profile: FiscalProfile | undefined): void {
+    const updated = { ...this.getCurrentTemplate() };
+    if (profile === undefined) delete updated.compliance;
+    else updated.compliance = structuredClone(profile);
     this.setTemplate(updated);
   }
 

@@ -1,0 +1,70 @@
+<section class="fiscal-profile" aria-labelledby="fiscal-profile-title">
+  <h2 id="fiscal-profile-title">Perfil fiscal del molde</h2>
+  <p>Definí para qué comprobantes se usará este molde. El perfil se guarda con el diseño;
+    los datos de cada comprobante se mantienen separados.</p>
+  <p class="notice">Esta etapa prepara el contexto fiscal. Todavía no evalúa el cumplimiento DGI.</p>
+  @if (template$ | async; as template) {
+    @if (template.compliance; as profile) {
+      @if (isSupportedProfile(profile)) {
+        <p>Uruguay · Representación impresa desde el navegador</p>
+        <div class="fields">
+          <label>Tipo CFE
+            <select aria-label="Tipo CFE" [ngModel]="profile.cfeType" (ngModelChange)="change('cfeType', $event)">
+              <option [ngValue]="undefined">Sin definir</option>
+              @if (profile.cfeType !== undefined && !isListedType(profile.cfeType)) {
+                <option [ngValue]="profile.cfeType">{{ profile.cfeType }} — fuera del MVP</option>
+              }
+              @for (type of cfeTypes; track type.value) {
+                <option [ngValue]="type.value">{{ type.value }} — {{ type.label }}</option>
+              }
+            </select>
+          </label>
+          <label>Régimen del emisor
+            <select aria-label="Régimen del emisor" [ngModel]="profile.issuerRegime" (ngModelChange)="change('issuerRegime', $event)">
+              <option [ngValue]="undefined">Sin definir</option>
+              @if (profile.issuerRegime && !isListedRegime(profile.issuerRegime)) {
+                <option [ngValue]="profile.issuerRegime">{{ profile.issuerRegime }} — no reconocido</option>
+              }
+              @for (regime of regimes; track regime.value) {
+                <option [ngValue]="regime.value">{{ regime.label }}</option>
+              }
+            </select>
+          </label>
+          <label>Operación
+            <select aria-label="Operación" [ngModel]="profile.operationType" (ngModelChange)="change('operationType', $event)">
+              <option [ngValue]="undefined">Sin definir</option>
+              <option value="goods">Bienes</option><option value="services">Servicios</option><option value="mixed">Mixta</option>
+            </select>
+          </label>
+          <label>Soporte de impresión
+            <select aria-label="Soporte de impresión" [ngModel]="profile.medium" (ngModelChange)="change('medium', $event)">
+              <option [ngValue]="undefined">Sin definir</option>
+              <option value="sheet">Hoja</option><option value="roll">Rollo</option>
+            </select>
+          </label>
+          <label>Papel utilizado
+            <select aria-label="Papel utilizado" [ngModel]="profile.printingMode" (ngModelChange)="change('printingMode', $event)">
+              <option [ngValue]="undefined">Sin definir</option>
+              <option value="blank-paper">Sin datos preimpresos</option><option value="preprinted">Con datos preimpresos</option>
+            </select>
+          </label>
+        </div>
+        <p>El tamaño del papel y el tipo comercial del molde no determinan su tipo CFE.
+          Dejá “Sin definir” cuando no cuentes con esa información.</p>
+        <button type="button" (click)="state.updateFiscalProfile(undefined)">Quitar perfil fiscal</button>
+      } @else {
+        <p class="notice">Este perfil tiene una versión, jurisdicción o salida no compatible con este editor.
+          Se conserva sin modificaciones al guardar el molde.</p>
+      }
+    } @else {
+      <p>Este molde no tiene un perfil fiscal declarado. Podés seguir editándolo e imprimiéndolo como hasta ahora.</p>
+      <button type="button" (click)="configure()">Configurar perfil fiscal</button>
+    }
+  }
+  <p>Para asignar roles fiscales, seleccioná un elemento en Diseño y abrí su pestaña Datos.
+    Un rol identifica la función prevista del elemento; su contenido y visibilidad se comprobarán en etapas posteriores.</p>
+  <div class="history">
+    <button type="button" [disabled]="!state.canUndo" (click)="state.undo()">Deshacer</button>
+    <button type="button" [disabled]="!state.canRedo" (click)="state.redo()">Rehacer</button>
+  </div>
+</section>

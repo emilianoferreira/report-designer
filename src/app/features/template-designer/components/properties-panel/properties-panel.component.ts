@@ -28,13 +28,15 @@ import {
 } from '../../../../core/models/template.model';
 import { TemplateStateService } from '../../services/template-state.service';
 import { SelectionService } from '../../services/selection.service';
+import { FiscalRolesComponent } from '../fiscal-roles/fiscal-roles.component';
+import { FISCAL_BINDING_FIELDS } from '../../utils/fiscal-roles';
 
 type TabKey = 'general' | 'style' | 'data';
 
 @Component({
   selector: 'app-properties-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FiscalRolesComponent],
   templateUrl: './properties-panel.component.html',
   styleUrl: './properties-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -113,6 +115,7 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
 
   // Available data binding sources grouped by category
   bindingCategories: Array<{ label: string; fields: Array<{ path: string; description: string }> }> = [
+    { label: 'Datos fiscales (si el comprobante los aporta)', fields: FISCAL_BINDING_FIELDS },
     {
       label: 'Empresa',
       fields: [

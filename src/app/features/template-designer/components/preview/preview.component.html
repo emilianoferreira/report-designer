@@ -58,6 +58,24 @@
   </div>
 
   <!-- Preview content — switches by viewMode -->
+  @if (showFiscalContext && fiscalContext; as context) {
+    <details class="fiscal-context">
+      <summary>Contexto fiscal de los datos de ejemplo · sin evaluación normativa</summary>
+      <p>El perfil del molde no completa los datos que faltan en el ejemplo. Estos datos no se guardan en el molde.</p>
+      <ul>
+        @for (field of fiscalContextFields; track field.key) {
+          <li>{{ field.label }}:
+            @switch (context.facts[field.key].state) {
+              @case ('known') { Informado }
+              @case ('unknown') { Desconocido }
+              @case ('conflict') { En conflicto }
+            }
+          </li>
+        }
+      </ul>
+      @for (diagnostic of context.diagnostics; track $index) { <p>{{ diagnostic.message }}</p> }
+    </details>
+  }
   <div class="preview-body">
     @switch (viewMode) {
       @case ('render') {

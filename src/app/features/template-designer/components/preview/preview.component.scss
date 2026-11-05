@@ -16,6 +16,16 @@
 }
 
 // ─── Toolbar ───
+.fiscal-context {
+  padding: 10px 16px;
+  background: #edf3fa;
+  font-size: 13px;
+  overflow: auto;
+  max-height: 220px;
+  flex-shrink: 0;
+  summary { cursor: pointer; }
+}
+
 .preview-toolbar {
   display: flex;
   padding: 6px 12px;

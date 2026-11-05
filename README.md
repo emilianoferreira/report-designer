@@ -36,6 +36,8 @@ Las vistas previas utilizan datos de ejemplo. La aplicación requiere una API co
 | Códigos gráficos | JsBarcode y QRCode |
 | Pruebas | Playwright, Karma/Jasmine y Jest/Supertest |
 
+El arrastre y el redimensionado utilizan eventos nativos del mouse (`mousedown`, `mousemove` y `mouseup`). RxJS se utiliza para distribuir los cambios de estado entre componentes y gestionar las respuestas HTTP.
+
 ## Requisitos de desarrollo
 
 - Node.js 22 y npm.

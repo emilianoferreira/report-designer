@@ -36,6 +36,9 @@
         >
           Vista Previa
         </button>
+        <button class="toggle-btn" [class.active]="viewMode === 'fiscal'" (click)="setViewMode('fiscal')">
+          Perfil fiscal
+        </button>
       </div>
     </div>
 
@@ -317,6 +320,8 @@
           </div>
         }
       </aside>
+    } @else if (viewMode === 'fiscal') {
+      <main class="panel panel-full"><app-fiscal-profile /></main>
     } @else {
       <!-- Preview mode: Full-width preview -->
       <main class="panel panel-full">

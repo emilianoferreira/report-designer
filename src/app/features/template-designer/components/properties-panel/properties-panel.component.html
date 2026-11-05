@@ -476,6 +476,7 @@
     <!-- ─── Data Tab ─── -->
     @if (activeTab === 'data') {
       <div class="tab-content">
+        <app-fiscal-roles [element]="selectedElement" [section]="activeSection" />
         @if (selectedElement.type === 'text') {
           <div class="field-group">
             <label class="field-label">Contenido</label>

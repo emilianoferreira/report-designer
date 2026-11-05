@@ -17,8 +17,9 @@ import { TemplateStorageService } from '../../services/template-storage.service'
 import { TemplateMold } from '../../../../core/models/template.model';
 import { HasUnsavedChanges } from '../../guards/unsaved-changes.guard';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { FiscalProfileComponent } from '../fiscal-profile/fiscal-profile.component';
 
-type ViewMode = 'design' | 'preview';
+type ViewMode = 'design' | 'preview' | 'fiscal';
 
 @Component({
   selector: 'app-designer-page',
@@ -28,7 +29,8 @@ type ViewMode = 'design' | 'preview';
     DesignCanvasComponent,
     ToolboxComponent,
     PropertiesPanelComponent,
-    PreviewComponent
+    PreviewComponent,
+    FiscalProfileComponent
   ],
   templateUrl: './designer-page.component.html',
   styleUrl: './designer-page.component.scss',

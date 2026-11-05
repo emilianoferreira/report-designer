@@ -22,6 +22,8 @@ import { HtmlRendererService } from '../../services/html-renderer.service';
 import { SAMPLE_INVOICE_DATA, SAMPLE_INVOICE_MULTILINE } from '../../data/sample-invoice';
 import { InvoiceData } from '../../../../core/models/template.model';
 import { mmToPx } from '../../utils/coordinate-utils';
+import { ValidationContext } from '../../../../core/models/fiscal.model';
+import { buildValidationContext } from '../../utils/fiscal-context';
 
 export type PreviewViewMode = 'render' | 'html' | 'json';
 
@@ -40,6 +42,13 @@ export class PreviewComponent implements OnInit, OnDestroy {
   previewHtml = '';      // HTML with data resolved
   templateHtml = '';     // HTML with z-code directives (no data)
   templateJson = '';     // JSON of the template definition
+  fiscalContext?: ValidationContext;
+  showFiscalContext = false;
+  readonly fiscalContextFields = [
+    { key: 'isCfe', label: 'Es CFE' }, { key: 'cfeType', label: 'Tipo CFE' },
+    { key: 'issuerRegime', label: 'Régimen del emisor' }, { key: 'signatureDate', label: 'Fecha de firma' },
+    { key: 'signatureHash', label: 'Hash de firma completo' }
+  ] as const;
 
   // ─── View state ───
   viewMode: PreviewViewMode = 'render';
@@ -91,6 +100,8 @@ export class PreviewComponent implements OnInit, OnDestroy {
   renderPreview(): void {
     const template = this.templateState.getCurrentTemplate();
     const data = this.getActiveData();
+    this.fiscalContext = buildValidationContext(template.compliance, data);
+    this.showFiscalContext = template.compliance !== undefined || data.fiscal !== undefined;
 
     this.pageWidthPx = mmToPx(template.page.width);
     this.pageHeightPx = mmToPx(template.page.height);
