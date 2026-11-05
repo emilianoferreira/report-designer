@@ -130,7 +130,7 @@
         </div>
       }
       @case ('html') {
-        <pre class="raw-block">{{ previewHtml }}</pre>
+        <pre class="raw-block">{{ paginatedHtml || previewHtml }}</pre>
       }
       @case ('json') {
         <pre class="raw-block">{{ templateJson }}</pre>

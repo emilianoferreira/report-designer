@@ -62,7 +62,7 @@ const deferred: Array<[string, string, string, string]> = [
   ['EXC-01', 'Secreto profesional', 'p. 82', 'Requiere declaración y tratamiento de la identificación en adenda.'],
   ['EXT-01', 'Papel, gramaje y resolución', 'p. 79', 'Verificación externa del papel e impresora.'],
   ['EXT-02', 'Papel térmico y disponibilidad web', 'p. 79', 'Verificación externa según tipo CFE y plazo aplicable.'],
-  ['EXT-03', 'Multipágina', 'p. 80', 'La cobertura multipágina queda fuera del MVP; requiere paginación efectiva.']
+  ['EXT-03', 'Multipágina', 'p. 80', 'Requiere comprobar los saltos, la numeración y los datos repetidos en la salida.']
 ];
 const adjustments = [
   'Descuento del ítem: B.13; porcentaje solo no sustituye importe',

@@ -24,12 +24,12 @@ describe('Fiscal profile editor', () => {
   it('keeps unknown extensions when editing a supported profile', () => {
     const fixture = TestBed.createComponent(FiscalProfileComponent);
     const state = TestBed.inject(TemplateStateService);
-    state.updateFiscalProfile({ schemaVersion: '1.0', jurisdiction: 'UY', output: 'browser', cfeType: 181 });
+    state.updateFiscalProfile({ schemaVersion: '1.0', jurisdiction: 'UY', output: 'browser', cfeType: 121 });
     Object.assign(state.getCurrentTemplate().compliance!, { futureSetting: true });
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('181 — fuera del MVP');
+    expect(fixture.nativeElement.textContent).toContain('121 — cobertura pendiente');
     fixture.componentInstance.change('issuerRegime', 'vat-minimum');
-    expect(state.getCurrentTemplate().compliance).toEqual(jasmine.objectContaining({ futureSetting: true, cfeType: 181 }));
+    expect(state.getCurrentTemplate().compliance).toEqual(jasmine.objectContaining({ futureSetting: true, cfeType: 121 }));
   });
   it('shows an unsupported profile without editing or replacing it', () => {
     const fixture = TestBed.createComponent(FiscalProfileComponent);

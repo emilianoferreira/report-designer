@@ -18,7 +18,7 @@ import {
   ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subject, takeUntil, debounceTime } from 'rxjs';
+import { Subject, takeUntil, debounceTime, skip } from 'rxjs';
 import { TemplateStateService } from '../../services/template-state.service';
 import { HtmlRendererService } from '../../services/html-renderer.service';
 import { SAMPLE_INVOICE_DATA, SAMPLE_INVOICE_MULTILINE } from '../../data/sample-invoice';
@@ -31,6 +31,7 @@ import { sampleFiscalInvoice } from '../../data/sample-fiscal-invoice';
 import { SelectionService } from '../../services/selection.service';
 import { RuleResult, RuleStatus } from '../../utils/static-fiscal-rules';
 import { confirmedPrintFailures, inspectFiscalPrint, RenderedFiscalReport } from '../../utils/rendered-fiscal-rules';
+import { paginateFiscalPrint } from '../../utils/paginate-fiscal-print';
 
 export type PreviewViewMode = 'render' | 'html' | 'json';
 
@@ -48,6 +49,8 @@ export class PreviewComponent implements OnInit, OnDestroy {
   previewReady = false;
   private injectionVersion = 0;
   private preparation?: Promise<Document | undefined>;
+  private paginationPending?: string;
+  paginatedHtml = '';
   @Output() readonly showDesign = new EventEmitter<void>();
   fiscalSample = false;
   renderedReport?: RenderedFiscalReport;
@@ -94,11 +97,13 @@ export class PreviewComponent implements OnInit, OnDestroy {
     this.templateState.template$
       .pipe(
         takeUntil(this.destroy$),
+        skip(1),
         debounceTime(300)
       )
       .subscribe(() => {
         this.renderPreview();
       });
+    this.renderPreview();
   }
 
   ngOnDestroy(): void {
@@ -121,6 +126,8 @@ export class PreviewComponent implements OnInit, OnDestroy {
     this.injectionVersion++;
     this.previewReady = false;
     this.renderedReport = undefined;
+    this.paginationPending = undefined;
+    this.paginatedHtml = '';
     this.printMessage = '';
     const template = this.templateState.getCurrentTemplate();
     const data = this.getActiveData();
@@ -175,6 +182,14 @@ export class PreviewComponent implements OnInit, OnDestroy {
     if (version !== this.injectionVersion) return undefined;
     if (!loaded) evidence?.diagnostics.push({ code: 'resource-error', message: 'Fuentes o imágenes no finalizaron en el tiempo de espera.' });
     this.previewReady = loaded;
+    if (this.fiscalSample && loaded && this.renderInputSnapshot === this.currentSnapshot() &&
+        !evidence?.diagnostics.some(diagnostic => diagnostic.code === 'resource-error')) {
+      const template = this.templateState.getCurrentTemplate();
+      const pagination = paginateFiscalPrint(doc, template);
+      this.paginationPending = pagination.pending;
+      this.pageHeightPx = mmToPx(template.page.height) * pagination.pages;
+      if (doc.querySelector('[data-render-page]')) this.paginatedHtml = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+    }
     this.refreshFiscalReport(doc);
     this.cdr.markForCheck();
     return doc;
@@ -224,7 +239,8 @@ export class PreviewComponent implements OnInit, OnDestroy {
 
   private refreshFiscalReport(doc: Document): RenderedFiscalReport | undefined {
     if (this.renderInputSnapshot !== this.currentSnapshot() || !this.renderEvidence || !this.fiscalContext) return undefined;
-    const report = inspectFiscalPrint(this.templateState.getCurrentTemplate(), this.fiscalContext, doc, this.renderEvidence, this.previewReady);
+    const report = inspectFiscalPrint(this.templateState.getCurrentTemplate(), this.fiscalContext, doc,
+      this.renderEvidence, this.previewReady, this.paginationPending);
     this.renderedReport = report;
     return report;
   }
@@ -269,7 +285,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   // ─────────────────────────────────────────────────────────────────
 
   exportHtmlRendered(): void {
-    this.downloadBlob(this.previewHtml, this.fileName('html'), 'text/html');
+    this.downloadBlob(this.paginatedHtml || this.previewHtml, this.fileName('html'), 'text/html');
   }
 
   exportHtmlTemplate(): void {
@@ -301,7 +317,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   // ─────────────────────────────────────────────────────────────────
 
   copyHtmlRendered(): Promise<void> {
-    return this.copyToClipboard(this.previewHtml);
+    return this.copyToClipboard(this.paginatedHtml || this.previewHtml);
   }
 
   copyHtmlTemplate(): Promise<void> {

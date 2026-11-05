@@ -5,7 +5,9 @@ export const CFE_TYPES = [
   { value: 103, label: 'Nota de débito de e-Ticket' },
   { value: 111, label: 'e-Factura' },
   { value: 112, label: 'Nota de crédito de e-Factura' },
-  { value: 113, label: 'Nota de débito de e-Factura' }
+  { value: 113, label: 'Nota de débito de e-Factura' },
+  { value: 181, label: 'e-Remito' },
+  { value: 182, label: 'e-Resguardo' }
 ] as const;
 
 export const FISCAL_REGIMES = [

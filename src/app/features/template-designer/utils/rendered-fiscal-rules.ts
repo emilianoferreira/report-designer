@@ -17,7 +17,8 @@ function expectedQr(context: ValidationContext): string | undefined {
   const rut = fiscalValue(facts.issuerRut)?.replace(/\D/g, '');
   const date = fiscalValue(facts.signatureDate)?.slice(0, 10).split('-').reverse().join('/');
   const hash = fiscalValue(facts.signatureHash);
-  const amount = fiscalValue(facts.totalPayable);
+  const type = fiscalValue(facts.cfeType);
+  const amount = type === 181 ? '0' : type === 182 ? fiscalValue(facts.retainedAmount) : fiscalValue(facts.totalPayable);
   const decimal = (value: string) => value.includes('.') ? value.replace(/0+$/, '').replace(/\.$/, '') : value;
   if (fields.length !== 7 || !rut || !date || !hash || amount === undefined ||
       fields[0] !== rut || fields[1] !== String(fiscalValue(facts.cfeType)) ||
@@ -29,7 +30,34 @@ function expectedQr(context: ValidationContext): string | undefined {
 
 export function inspectFiscalPrint(
   template: ReportTemplate, context: ValidationContext, doc: Document | undefined, evidence: RenderEvidence,
-  resourcesReady: boolean
+  resourcesReady: boolean, paginationPending?: string
+): RenderedFiscalReport {
+  const pages = Array.from(doc?.querySelectorAll('body > .page[data-render-page]') ?? []);
+  if (pages.length < 2) return inspectFiscalPage(template, context, doc, evidence, resourcesReady,
+    doc?.querySelector('.page') ?? undefined, paginationPending);
+  const reports = pages.map(page => inspectFiscalPage(template, context, doc, evidence, resourcesReady, page));
+  const report = reports[0];
+  report.results = report.results.map(result => {
+    const byPage = reports.map(r => r.results.find(candidate => candidate.id === result.id)!);
+    if (result.id === 'QR-04' || result.id.startsWith('CON-05.') || result.id.startsWith('REF-03.')) {
+      return byPage[byPage.length - 1];
+    }
+    if (!['EXT-03', 'QR-01', 'QR-02', 'QR-03', 'TEC-04'].includes(result.id)) return result;
+    const index = byPage.findIndex(candidate => candidate.status === 'fail');
+    if (index >= 0) return { ...byPage[index], message: `Página ${index + 1}: ${byPage[index].message}` };
+    if (byPage.every(candidate => candidate.status === 'pass')) return {
+      ...result, message: `${pages.length} páginas. ${result.message}`
+    };
+    const pending = byPage.findIndex(candidate => candidate.status === 'pending');
+    return { ...byPage[pending], message: `Página ${pending + 1}: ${byPage[pending].message}` };
+  });
+  report.status = report.results.some(result => result.status === 'fail') ? 'violations' : 'incomplete';
+  return report;
+}
+
+function inspectFiscalPage(
+  template: ReportTemplate, context: ValidationContext, doc: Document | undefined, evidence: RenderEvidence,
+  resourcesReady: boolean, page: Element | undefined, paginationPending?: string
 ): RenderedFiscalReport {
   const type = fiscalValue(context.facts.cfeType);
   const applicable = fiscalValue(context.facts.isCfe) === true && CFE_TYPES.some(t => t.value === type)
@@ -50,9 +78,14 @@ export function inspectFiscalPrint(
     status: results.some(r => r.status === 'fail') ? 'violations' : 'incomplete'
   });
   update('COB-01', 'pending', applicable
-    ? 'Se analiza la salida del navegador. Los controles manuales y externos conservan su estado pendiente.'
+    ? type === 181 || type === 182
+      ? 'Cobertura de papel, identificación, paginación y sello digital. Los requisitos propios de esta familia conservan su estado pendiente.'
+      : 'Se analiza la salida del navegador. Los controles manuales y externos conservan su estado pendiente.'
     : 'Seleccioná un escenario CFE compatible y resolvé las diferencias de contexto.');
-  const page = doc?.querySelector('.page');
+  if (paginationPending) {
+    update('EXT-03', 'pending', paginationPending);
+    return finish();
+  }
   const view = doc?.defaultView;
   if (!applicable || !doc || !page || !view) return finish();
   const rect = page.getBoundingClientRect();
@@ -104,6 +137,10 @@ export function inspectFiscalPrint(
   };
   const textNodes = nodes.filter(node => node.matches('.element-text,.element-datafield,.element-formula') && readable(node));
   const matchingText = (value: string | undefined) => value && textNodes.find(node => normalize(node.textContent ?? '') === normalize(value));
+  const label = page.querySelector('[data-render-page-label]');
+  if (label?.textContent?.trim()) {
+    update('EXT-03', 'pending', 'Se generó la hoja numerada. Falta confirmar la identificación repetida o el sello digital.');
+  }
   const issuer = [context.facts.issuerName, context.facts.issuerTradeName, context.facts.issuerAddress]
     .map(fact => matchingText(fiscalValue(fact)));
   if (issuer.every((node): node is Element => !!node)) update('ID-01', 'pass',
@@ -118,7 +155,7 @@ export function inspectFiscalPrint(
     { id: 'REG-03', regime: 'monotributo', text: 'MONOTRIBUTO' },
     { id: 'REG-04', regime: 'monotributo-mides', text: 'MONOTRIBUTO SOCIAL MIDES' }
   ];
-  for (const legend of legends) {
+  for (const legend of type === 181 || type === 182 ? [] : legends) {
     if (regime && regime !== legend.regime) {
       update(legend.id, 'not-applicable', 'El régimen del comprobante es otro.');
     } else if (regime === legend.regime) {
@@ -166,6 +203,20 @@ export function inspectFiscalPrint(
   }
   update('QR-01', 'pass', 'Hay un símbolo generado con el contenido de consulta del origen.', target);
   update('QR-03', 'pass', 'El contenido codificado coincide con el valor de consulta informado por el origen.', target);
+  if (label?.textContent?.trim() && visible(label) && readable(label)) {
+    const required = [
+      fiscalValue(context.facts.issuerName), fiscalValue(context.facts.issuerRut),
+      fiscalValue(context.facts.receiverName), fiscalValue(context.facts.receiverDocumentNumber),
+      CFE_TYPES.find(candidate => candidate.value === type)?.label,
+      fiscalValue(context.facts.series), fiscalValue(context.facts.number)
+    ].map(matchingText);
+    if (required.every((node): node is Element => !!node) &&
+        !evidence.diagnostics.some(d => d.code === 'unsupported-feature' && /repetición/i.test(d.message))) {
+      update('EXT-03', 'pass', 'Se verificaron la identificación repetida, la numeración y el sello digital.', [
+        ...required.flatMap(address), ...target
+      ]);
+    }
+  }
   const shortCode = fiscalValue(context.facts.signatureHash)?.slice(0, 6);
   const printedCode = shortCode?.length === 6 ? matchingText(shortCode) : undefined;
   if (printedCode && printedCode.getBoundingClientRect().top >= box.bottom - epsilon) {

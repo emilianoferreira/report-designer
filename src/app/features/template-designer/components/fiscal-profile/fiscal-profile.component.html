@@ -12,7 +12,7 @@
             <select aria-label="Tipo CFE" [ngModel]="profile.cfeType" (ngModelChange)="change('cfeType', $event)">
               <option [ngValue]="undefined">Sin definir</option>
               @if (profile.cfeType !== undefined && !isListedType(profile.cfeType)) {
-                <option [ngValue]="profile.cfeType">{{ profile.cfeType }} — fuera del MVP</option>
+                <option [ngValue]="profile.cfeType">{{ profile.cfeType }} — cobertura pendiente</option>
               }
               @for (type of cfeTypes; track type.value) {
                 <option [ngValue]="type.value">{{ type.value }} — {{ type.label }}</option>

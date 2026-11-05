@@ -69,7 +69,7 @@ export class HtmlRendererService {
         code: 'unsupported-feature', elementId: element.id, section: key,
         message: 'El renderer usa estilos directos; el estilo con nombre todavía no se aplica.' });
       if (!section.printOnEveryPage || !section.printOnFirstPage || !section.printOnLastPage) evidence.diagnostics.push({
-        code: 'unsupported-feature', section: key, message: 'Las opciones de repetición de sección todavía no se aplican; salida sin paginación.' });
+        code: 'unsupported-feature', section: key, message: 'Las opciones de repetición de sección requieren revisión manual.' });
     }
     if (this.isTicketFormat(template)) for (const el of template.sections.detail.elements) {
       evidence.elements.push({ id: el.id, section: 'detail', emitted: false, roles: [...(el.fiscalRoles ?? [])] });
@@ -80,7 +80,7 @@ export class HtmlRendererService {
       message: 'El pie personalizado sustituye los subtotales automáticos, incluso si sus elementos resultan ocultos.' });
     for (const key of ['pageHeader', 'pageFooter'] as const) {
       if (template.sections[key]) evidence.diagnostics.push({ code: 'unsupported-feature', section: key,
-        message: 'La sección repetida requiere paginación, todavía no implementada.' });
+        message: 'La sección repetida personalizada requiere revisión manual.' });
     }
     if (template.page.dynamicHeight) evidence.diagnostics.push({ code: 'unsupported-feature',
       message: 'El navegador no permite declarar ancho fijo con longitud de papel automática; configurar el rollo en el controlador de impresión.' });
@@ -407,7 +407,8 @@ ${footerHtml}
     // Check if the footer section has elements — if so, the user controls
     // subtotals/totals via footer elements and we should NOT auto-render them
     // inside the detail table to avoid duplication.
-    const footerHasElements = (template.sections.footer?.elements?.length ?? 0) > 0;
+    const footerHasElements = (template.sections.footer?.elements?.length ?? 0) > 0 ||
+      (opts.resolveData && (data.fiscal?.cfeType === 181 || data.fiscal?.cfeType === 182));
     let html = '';
 
     // Render any positioned elements in the detail section (column headers, etc.)

@@ -9,11 +9,13 @@ export function sampleFiscalInvoice(profile: FiscalProfile | undefined, multilin
   const finalConsumer = kind.value < 110;
   const number = base.invoice['Numero'];
   const total = (base.Total ?? 0).toFixed(2);
+  const retained = '22.00';
+  const qrAmount = kind.value === 181 ? '0' : kind.value === 182 ? retained : total;
   const hash = 'A'.repeat(64);
   const issuerRut = base.company['RUT'];
   const signatureDate = '2026-02-25';
   const qrPayload = 'https://www.efactura.dgi.gub.uy/consultaQR/cfe?' +
-    [issuerRut.replace(/\D/g, ''), kind.value, number.Serie, number.Numero, total, '25/02/2026', hash].join(',');
+    [issuerRut.replace(/\D/g, ''), kind.value, number.Serie, number.Numero, qrAmount, '25/02/2026', hash].join(',');
   return {
     ...base, isCFE: true, isConsumoFinal: finalConsumer,
     CFE: { ...base.CFE, TipoComprobanteFiscal: { Nombre: kind.label }, CodSeguridad: hash.slice(0, 6) },
@@ -21,10 +23,16 @@ export function sampleFiscalInvoice(profile: FiscalProfile | undefined, multilin
       schemaVersion: '1.0', isCfe: true, cfeType: kind.value, finalConsumer,
       issuerRegime: profile?.issuerRegime ?? 'general',
       operationType: profile?.operationType ?? 'goods',
-      signatureDate, signatureHash: hash, qrPayload, totalAmount: total, totalPayable: total,
-      series: number.Serie, number: String(number.Numero), hasWithholdingsOrPerceptions: false,
+      ...(!finalConsumer ? {
+        receiverName: 'Receptor de ejemplo S.A.', receiverDocumentType: 'RUT', receiverDocumentNumber: '219876540012'
+      } : {}),
+      signatureDate, signatureHash: hash, qrPayload,
+      ...(kind.value === 182 ? { retainedAmount: retained } : {}),
+      ...(kind.value < 181 ? { totalAmount: total, totalPayable: total } : {}),
+      series: number.Serie, number: String(number.Numero), hasWithholdingsOrPerceptions: kind.value === 182,
       ownCollection: false, thirdPartyCollection: false,
-      references: kind.value % 10 === 1 ? [] : [{ cfeType: finalConsumer ? 101 : 111, series: 'A', number: '15', reason: 'Ajuste de ejemplo' }]
+      references: [102, 103, 112, 113].includes(kind.value)
+        ? [{ cfeType: finalConsumer ? 101 : 111, series: 'A', number: '15', reason: 'Ajuste de ejemplo' }] : []
     }
   };
 }

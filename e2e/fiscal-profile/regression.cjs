@@ -154,6 +154,7 @@ const assert = require('node:assert/strict');
     await openFiscalPreview();
     await print.click();
     await expect.poll(() => page.evaluate(() => window.printCalls)).toBe(1);
+    await expect(print).toBeEnabled();
     // Change the input and click print before the next iframe injection finishes.
     await page.evaluate(() => {
       window.printCalls = 0;
@@ -163,7 +164,48 @@ const assert = require('node:assert/strict');
     });
     await expect(page.getByRole('alert')).toContainText('QR-01');
     assert.equal(await page.evaluate(() => window.printCalls), 0);
+
+    qr.visibility = { type: 'always' };
+    check.sections.header.elements = [];
+    const footerText = structuredClone(original.sections.header.elements.find(element => element.type === 'text'));
+    footerText.content = 'Cierre exclusivo';
+    footerText.position = { x: 50, y: 6 };
+    Object.assign(check.sections.footer, { height: 40, elements: [qr, footerText] });
+    check.sections.detail.maxRowsPerPage = 2;
+    await openFiscalPreview();
+    await page.getByRole('button', { name: '1 artículo', exact: true }).click();
+    const sheets = frame.locator('[data-render-page]');
+    await expect(sheets).toHaveCount(3);
+    await expect(frame.locator('[data-render-page-label]')).toHaveText(['Página 1 de 3', 'Página 2 de 3', 'Página 3 de 3']);
+    await expect(frame.locator('svg[data-qr-modules]')).toHaveCount(3);
+    await expect(frame.locator('[data-render-source]')).toHaveCount(5);
+    await expect(sheets.nth(2)).toContainText('Cierre exclusivo');
+    await expect(frame.getByText('Cierre exclusivo')).toHaveCount(1);
+    const printedHtml = await page.evaluate(() => document.querySelector('iframe').contentDocument.documentElement.outerHTML);
+    const pdfPage = await browser.newPage();
+    await pdfPage.setContent(printedHtml);
+    const pdf = await pdfPage.pdf({ preferCSSPageSize: true });
+    assert.equal((pdf.toString('latin1').match(/\/Type \/Page\b/g) ?? []).length, 3);
+    await pdfPage.close();
+
+    // With no row limit, sheet height alone determines the split.
+    delete check.sections.detail.maxRowsPerPage;
+    check.page.height = 100;
+    check.page.margins = { top: 5, bottom: 5, left: 5, right: 5 };
+    check.sections.header.height = 30;
+    await openFiscalPreview();
+    await page.getByRole('button', { name: '1 artículo', exact: true }).click();
+    await expect(sheets).toHaveCount(2);
+    await expect(frame.locator('[data-render-source]')).toHaveCount(5);
+
+    check.page.height = 297;
+    for (const code of [181, 182]) {
+      check.compliance.cfeType = code;
+      await openFiscalPreview();
+      await page.getByText('Validación de impresión', { exact: false }).click();
+      await expect(page.getByText('QR-03 · Contenido del QR · Cumple', { exact: true })).toBeVisible();
+    }
     assert.deepEqual(errors, []);
-    console.log('Fiscal browser regression passed: legacy round trip, evidence and print gate.');
+    console.log('Fiscal browser regression passed: round trip, print gate, multipage PDF, remito and resguardo.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

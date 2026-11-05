@@ -32,7 +32,7 @@ describe('Static fiscal catalogue', () => {
     expect(run(t).results.find(r => r.id === 'PAP-02')!.status).toBe('fail');
   });
   it('abstains for absent or unsupported context and invalid dimensions', () => {
-    const t = template(); t.compliance!.cfeType = 181;
+    const t = template(); t.compliance!.cfeType = 121;
     expect(run(t).results.find(r => r.id === 'PAP-01')!.status).toBe('pending');
     delete t.compliance;
     expect(run(t).status).toBe('incomplete');
