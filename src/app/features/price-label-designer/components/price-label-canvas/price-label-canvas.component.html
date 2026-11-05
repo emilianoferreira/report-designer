@@ -1,24 +1,55 @@
 <div class="canvas-shell">
   <div class="canvas-toolbar">
     <div class="toolbar-group">
+      <button class="toolbar-btn" [disabled]="!history.canUndo" (click)="history.undo()" title="Deshacer (Ctrl+Z)" aria-label="Deshacer">↩</button>
+      <button class="toolbar-btn" [disabled]="!history.canRedo" (click)="history.redo()" title="Rehacer (Ctrl+Y / Ctrl+Shift+Z)" aria-label="Rehacer">↪</button>
+    </div>
+    <div class="toolbar-group">
       <button class="toolbar-btn" (click)="zoomOut()" title="Alejar">-</button>
       <span class="zoom-label">{{ (zoom * 100) | number:'1.0-0' }}%</span>
       <button class="toolbar-btn" (click)="zoomIn()" title="Acercar">+</button>
+    </div>
+    <div class="toolbar-group precision-controls">
+      <button class="toolbar-btn" (click)="resetZoom()" title="Restaurar zoom al 100%">1:1</button>
+      <button class="toolbar-btn" [class.active]="showRulers" [attr.aria-pressed]="showRulers" (click)="showRulers = !showRulers">Reglas</button>
+      <button class="toolbar-btn" [class.active]="showGrid" [attr.aria-pressed]="showGrid" (click)="showGrid = !showGrid" title="Mostrar grilla de 5 mm">Grilla</button>
+      <button class="toolbar-btn" [class.active]="snapSettings.snapToGrid" [attr.aria-pressed]="snapSettings.snapToGrid" (click)="snapSettings.snapToGrid = !snapSettings.snapToGrid" title="Ajustar a la grilla de 5 mm">Snap</button>
+      <button class="toolbar-btn" [class.active]="snapSettings.snapToElement" [attr.aria-pressed]="snapSettings.snapToElement" (click)="snapSettings.snapToElement = !snapSettings.snapToElement" title="Ajustar a bordes y centros de otros elementos">Elem</button>
     </div>
     <div class="toolbar-readout">
       Etiqueta {{ template.label.width }} x {{ template.label.height }} mm
     </div>
   </div>
 
-  <div class="canvas-scroll">
+  <div class="canvas-scroll" (wheel)="onWheel($event)">
+    <div class="measurement-frame" [class.with-rulers]="showRulers">
+      @if (showRulers) {
+        <div class="ruler-corner" aria-hidden="true">mm</div>
+        <div class="ruler horizontal-ruler" aria-label="Regla horizontal en milímetros">
+          @for (mark of horizontalMarks; track mark) {
+            <span class="ruler-mark" [class.major]="mark % 10 === 0" [style.left.px]="mmToScreenPx(mark)">@if (mark % 10 === 0) { <span>{{ mark }}</span> }</span>
+          }
+        </div>
+        <div class="ruler vertical-ruler" aria-label="Regla vertical en milímetros">
+          @for (mark of verticalMarks; track mark) {
+            <span class="ruler-mark" [class.major]="mark % 10 === 0" [style.top.px]="mmToScreenPx(mark)">@if (mark % 10 === 0) { <span>{{ mark }}</span> }</span>
+          }
+        </div>
+      }
     <div
-      class="label-surface"
+      class="label-surface" tabindex="0" aria-label="Lienzo de etiqueta"
       [style.width.px]="labelWidthPx"
       [style.height.px]="labelHeightPx"
       (mousedown)="onCanvasMouseDown($event)"
       (dragover)="onDragOver($event)"
       (drop)="onDrop($event)"
     >
+      @if (showGrid) { <div class="grid-overlay" [style.background-size]="gridPixels + 'px ' + gridPixels + 'px'"></div> }
+      @for (line of activeSnapLines; track $index) {
+        <div class="alignment-guide" [class.vertical]="line.orientation === 'vertical'" [class.horizontal]="line.orientation === 'horizontal'"
+          [style.left.px]="line.orientation === 'vertical' ? mmToScreenPx(line.position) : null"
+          [style.top.px]="line.orientation === 'horizontal' ? mmToScreenPx(line.position) : null"></div>
+      }
       <div class="padding-guide" [ngStyle]="paddingStyles"></div>
 
       @for (element of template.elements; track trackElement($index, element)) {
@@ -52,10 +83,7 @@
               </div>
             }
             @case ('barcode') {
-              <div class="element-content barcode-content">
-                <div class="barcode-bars"></div>
-                <span class="barcode-text">{{ displayValue(element) }}</span>
-              </div>
+              <div class="element-content barcode-content" [labelBarcode]="element" [barcodeValue]="displayValue(element)"></div>
             }
             @case ('image') {
               <div class="element-content image-content">
@@ -70,5 +98,7 @@
         </div>
       }
     </div>
+    </div>
   </div>
+  <details class="shortcut-help"><summary>Atajos de teclado</summary><p>Ctrl/Cmd + Z: deshacer · Ctrl/Cmd + Y o Shift + Z: rehacer · Ctrl/Cmd + S: guardar · Ctrl/Cmd + D: duplicar · Supr: eliminar · Flechas: mover 0,1 mm (Shift: 1 mm) · Esc: cancelar arrastre o deseleccionar · Ctrl + rueda: zoom. Al escribir, se conservan los atajos del campo.</p></details>
 </div>

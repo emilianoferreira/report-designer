@@ -24,6 +24,7 @@ export const routes: Routes = [
   },
   {
     path: 'price-labels',
+    canDeactivate: [unsavedChangesGuard],
     canActivate: [authenticated],
     loadComponent: () =>
       import('./features/price-label-designer/components/price-label-designer/price-label-designer.component')

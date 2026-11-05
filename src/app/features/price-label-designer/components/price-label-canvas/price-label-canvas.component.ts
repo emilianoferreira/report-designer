@@ -1,10 +1,12 @@
 import { CommonModule } from '@angular/common';
 import {
   Component,
+  ChangeDetectorRef,
   EventEmitter,
   HostListener,
   Input,
-  Output
+  Output,
+  OnDestroy
 } from '@angular/core';
 import {
   LabelElement,
@@ -14,8 +16,11 @@ import {
   PriceLabelCompany,
   PriceLabelRenderContext
 } from '../../../../core/models/price-label-template.model';
-import { mmToPx, pxToMm } from '../../../template-designer/utils/coordinate-utils';
+import { mmToPx, pxToMm, collectSnapCandidates, computeSnap, SnapLine, SnapSettings } from '../../../template-designer/utils/coordinate-utils';
 import { PriceLabelRendererService } from '../../services/price-label-renderer.service';
+
+import { PriceLabelStateService } from '../../services/price-label-state.service';
+import { LabelBarcodeDirective } from '../../directives/label-barcode.directive';
 
 type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
@@ -34,11 +39,11 @@ interface DragState {
 @Component({
   selector: 'app-price-label-canvas',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LabelBarcodeDirective],
   templateUrl: './price-label-canvas.component.html',
   styleUrl: './price-label-canvas.component.scss'
 })
-export class PriceLabelCanvasComponent {
+export class PriceLabelCanvasComponent implements OnDestroy {
   @Input({ required: true }) template!: LabelTemplate;
   @Input() selectedElementId: string | null = null;
   @Input({ required: true }) sampleArticle!: PriceLabelArticle;
@@ -49,9 +54,46 @@ export class PriceLabelCanvasComponent {
   @Output() elementChanged = new EventEmitter<{ id: string; changes: Partial<LabelElement> }>();
 
   zoom = 3;
+  showGrid = true;
+  showRulers = true;
+  readonly gridSizeMm = 5;
+  snapSettings: SnapSettings = { snapToGrid: true, snapToElement: true, thresholdMm: 2 };
+  activeSnapLines: SnapLine[] = [];
+  get gridPixels(): number { return this.mmToScreenPx(this.gridSizeMm); }
+  get horizontalMarks(): number[] { return this.marks(this.template.label.width); }
+  get verticalMarks(): number[] { return this.marks(this.template.label.height); }
+  private marks(length: number): number[] {
+    return Array.from({ length: Math.floor(length / 5) + 1 }, (_, i) => i * 5);
+  }
+  ngOnDestroy(): void { this.onDocumentMouseUp(); }
+  cancelInteraction(): void {
+    this.dragState = null; this.activeSnapLines = []; this.history.cancelTransaction();
+  }
+  resetZoom(): void { this.zoom = 1; }
+  onWheel(event: WheelEvent): void {
+    if (!event.ctrlKey && !event.metaKey) return;
+    event.preventDefault();
+    if (this.dragState) return;
+    const area = event.currentTarget as HTMLElement;
+    const surface = area.querySelector<HTMLElement>('.label-surface')!;
+    const rect = surface.getBoundingClientRect();
+    const offsetX = event.clientX - rect.left;
+    const offsetY = event.clientY - rect.top;
+    const previous = this.zoom;
+    event.deltaY < 0 ? this.zoomIn() : this.zoomOut();
+    const ratio = this.zoom / previous;
+    this.cdr.detectChanges();
+    const resized = surface.getBoundingClientRect();
+    area.scrollLeft += resized.left + offsetX * ratio - event.clientX;
+    area.scrollTop += resized.top + offsetY * ratio - event.clientY;
+  }
   private dragState: DragState | null = null;
 
-  constructor(private renderer: PriceLabelRendererService) {}
+  constructor(
+    private renderer: PriceLabelRendererService,
+    public history: PriceLabelStateService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   get labelWidthPx(): number {
     return this.mmToScreenPx(this.template.label.width);
@@ -76,7 +118,7 @@ export class PriceLabelCanvasComponent {
   }
 
   zoomOut(): void {
-    this.zoom = Math.max(1, Math.round((this.zoom - 0.25) * 100) / 100);
+    this.zoom = Math.max(0.25, Math.round((this.zoom - 0.25) * 100) / 100);
   }
 
   onCanvasMouseDown(event: MouseEvent): void {
@@ -102,22 +144,32 @@ export class PriceLabelCanvasComponent {
       x: roundMm(pxToMm((event.clientX - rect.left) / this.zoom)),
       y: roundMm(pxToMm((event.clientY - rect.top) / this.zoom))
     };
+    if (this.snapSettings.snapToGrid) {
+      position.x = Math.round(position.x / this.gridSizeMm) * this.gridSizeMm;
+      position.y = Math.round(position.y / this.gridSizeMm) * this.gridSizeMm;
+    }
     this.elementDropped.emit({ type, position });
   }
 
   onElementMouseDown(event: MouseEvent, element: LabelElement): void {
     event.stopPropagation();
     event.preventDefault();
+    (event.currentTarget as HTMLElement).closest<HTMLElement>('.label-surface')?.focus({ preventScroll: true });
+    element = this.history.getElement(element.id) || element;
     this.elementSelected.emit(element.id);
-    if (element.locked) return;
+    if (element.locked || event.button !== 0) return;
+    this.history.beginTransaction();
     this.dragState = this.createDragState('move', event, element);
   }
 
   onResizeMouseDown(event: MouseEvent, element: LabelElement, handle: ResizeHandle): void {
     event.stopPropagation();
     event.preventDefault();
+    (event.currentTarget as HTMLElement).closest<HTMLElement>('.label-surface')?.focus({ preventScroll: true });
+    element = this.history.getElement(element.id) || element;
     this.elementSelected.emit(element.id);
-    if (element.locked) return;
+    if (element.locked || event.button !== 0) return;
+    this.history.beginTransaction();
     this.dragState = this.createDragState('resize', event, element, handle);
   }
 
@@ -133,9 +185,12 @@ export class PriceLabelCanvasComponent {
     }
   }
 
+  @HostListener('window:blur')
   @HostListener('document:mouseup')
   onDocumentMouseUp(): void {
     this.dragState = null;
+    this.activeSnapLines = [];
+    this.history.endTransaction();
   }
 
   getElementStyles(element: LabelElement): Record<string, string> {
@@ -165,7 +220,7 @@ export class PriceLabelCanvasComponent {
     const font = element.style.font;
     if (font) {
       style['font-family'] = font.family;
-      style['font-size'] = `${font.size * this.zoom / 2.4}px`;
+      style['font-size'] = `${font.size * (96 / 72) * this.zoom}px`;
       style['font-weight'] = font.weight;
       style['font-style'] = font.style;
       style['color'] = font.color;
@@ -258,12 +313,17 @@ export class PriceLabelCanvasComponent {
     const maxX = Math.max(0, this.template.label.width - state.startWidth);
     const maxY = Math.max(0, this.template.label.height - state.startHeight);
 
+    const snap = computeSnap({ x: state.startX + dx, y: state.startY + dy },
+      { width: state.startWidth, height: state.startHeight }, this.candidates(state.element.id),
+      this.snapSettings.thresholdMm, this.gridSizeMm, this.snapSettings.snapToGrid);
+    const x = clamp(snap.x, 0, maxX), y = clamp(snap.y, 0, maxY);
+    this.activeSnapLines = snap.snapLines.filter(line => line.orientation === 'vertical' ? x === snap.x : y === snap.y);
     this.elementChanged.emit({
       id: state.element.id,
       changes: {
         position: {
-          x: roundMm(clamp(state.startX + dx, 0, maxX)),
-          y: roundMm(clamp(state.startY + dy, 0, maxY))
+          x: roundMm(x),
+          y: roundMm(y)
         }
       } as Partial<LabelElement>
     });
@@ -274,28 +334,22 @@ export class PriceLabelCanvasComponent {
     const dx = pxToMm((event.clientX - state.startMouseX) / this.zoom);
     const dy = pxToMm((event.clientY - state.startMouseY) / this.zoom);
     const handle = state.handle || 'se';
-    const min = 2;
-
-    let x = state.startX;
-    let y = state.startY;
-    let width = state.startWidth;
-    let height = state.startHeight;
-
-    if (handle.includes('e')) width = state.startWidth + dx;
-    if (handle.includes('s')) height = state.startHeight + dy;
-    if (handle.includes('w')) {
-      width = state.startWidth - dx;
-      x = state.startX + dx;
-    }
-    if (handle.includes('n')) {
-      height = state.startHeight - dy;
-      y = state.startY + dy;
-    }
-
-    width = clamp(width, min, this.template.label.width - x);
-    height = clamp(height, min, this.template.label.height - y);
-    x = clamp(x, 0, this.template.label.width - width);
-    y = clamp(y, 0, this.template.label.height - height);
+    const right = state.startX + state.startWidth;
+    const bottom = state.startY + state.startHeight;
+    let x = state.startX, y = state.startY, endX = right, endY = bottom;
+    const proposedX = handle.includes('w') ? state.startX + dx : right + dx;
+    const proposedY = handle.includes('n') ? state.startY + dy : bottom + dy;
+    // Snap the moving edge only. Opposite edges stay fixed during resize.
+    const snap = computeSnap({ x: proposedX, y: proposedY }, { width: 0, height: 0 },
+      this.candidates(state.element.id), this.snapSettings.thresholdMm, this.gridSizeMm, this.snapSettings.snapToGrid);
+    if (handle.includes('w')) x = clamp(snap.x, 0, right - 2);
+    if (handle.includes('e')) endX = clamp(snap.x, state.startX + 2, this.template.label.width);
+    if (handle.includes('n')) y = clamp(snap.y, 0, bottom - 2);
+    if (handle.includes('s')) endY = clamp(snap.y, state.startY + 2, this.template.label.height);
+    const width = endX - x, height = endY - y;
+    this.activeSnapLines = snap.snapLines.filter(line => line.orientation === 'vertical'
+      ? (handle.includes('w') && x === snap.x) || (handle.includes('e') && endX === snap.x)
+      : (handle.includes('n') && y === snap.y) || (handle.includes('s') && endY === snap.y));
 
     this.elementChanged.emit({
       id: state.element.id,
@@ -306,7 +360,11 @@ export class PriceLabelCanvasComponent {
     });
   }
 
-  private mmToScreenPx(mm: number): number {
+  private candidates(excludeId: string) {
+    return collectSnapCandidates(this.template.elements, new Set([excludeId]), this.snapSettings);
+  }
+
+  mmToScreenPx(mm: number): number {
     return mmToPx(mm) * this.zoom;
   }
 }

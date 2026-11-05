@@ -24,7 +24,7 @@ export function createDefaultPriceLabelTemplate(): LabelTemplate {
       height: 30,
       columns: 4,
       rows: 8,
-      gapX: 2,
+      gapX: 0,
       gapY: 2,
       paddingTop: 2,
       paddingRight: 2,

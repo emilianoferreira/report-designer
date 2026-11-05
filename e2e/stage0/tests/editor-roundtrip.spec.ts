@@ -98,8 +98,10 @@ test('price labels: UI save → PostgreSQL → fresh browser → render copies a
   try {
     await loadFromApi(page, '/price-labels');
     await expect(page.locator(`.template-select option[value="${created.id}"]`)).toHaveCount(1);
+    await page.locator('.template-menu summary').click();
     await page.locator('.template-select').selectOption(created.id);
     await page.locator('app-price-label-canvas .text-content').filter({ hasText: 'Texto inicial etiqueta' }).click();
+    await page.locator('app-price-label-properties').getByRole('button', { name: 'Datos', exact: true }).click();
     const text = page.getByRole('textbox', { name: 'Texto fijo', exact: true });
     await text.fill('Etiqueta guardada ñ 1,25');
     await text.press('Tab');
@@ -118,6 +120,7 @@ test('price labels: UI save → PostgreSQL → fresh browser → render copies a
     const reloaded = await fresh.newPage();
     await loadFromApi(reloaded, '/price-labels');
     await expect(reloaded.locator(`.template-select option[value="${created.id}"]`)).toHaveCount(1);
+    await reloaded.locator('.template-menu summary').click();
     await reloaded.locator('.template-select').selectOption(created.id);
     await reloaded.getByRole('button', { name: 'Vista previa', exact: true }).click();
     const preview = reloaded.frameLocator('iframe[title="Vista previa de etiquetas"]');

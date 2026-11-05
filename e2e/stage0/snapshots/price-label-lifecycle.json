@@ -114,7 +114,7 @@
       "id": "e0000000-0000-4000-8000-000000000012",
       "label": {
         "columns": 4,
-        "gapX": 2,
+        "gapX": 0,
         "gapY": 2,
         "height": 30,
         "paddingBottom": 2,
@@ -264,7 +264,7 @@
       "id": "e0000000-0000-4000-8000-000000000012",
       "label": {
         "columns": 4,
-        "gapX": 2,
+        "gapX": 0,
         "gapY": 2,
         "height": 30,
         "paddingBottom": 2,
@@ -414,7 +414,7 @@
       "id": "e0000000-0000-4000-8000-000000000012",
       "label": {
         "columns": 4,
-        "gapX": 2,
+        "gapX": 0,
         "gapY": 2,
         "height": 30,
         "paddingBottom": 2,
@@ -558,7 +558,7 @@
       "id": "e0000000-0000-4000-8000-000000000012",
       "label": {
         "columns": 4,
-        "gapX": 2,
+        "gapX": 0,
         "gapY": 2,
         "height": 30,
         "paddingBottom": 2,
@@ -702,7 +702,7 @@
       "id": "e0000000-0000-4000-8000-000000000012",
       "label": {
         "columns": 4,
-        "gapX": 2,
+        "gapX": 0,
         "gapY": 2,
         "height": 30,
         "paddingBottom": 2,

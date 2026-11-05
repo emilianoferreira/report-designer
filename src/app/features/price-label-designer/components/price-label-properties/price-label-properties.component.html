@@ -6,12 +6,17 @@
         <h2>{{ name }}</h2>
       </div>
       <div class="panel-actions">
-        <button class="icon-btn" (click)="duplicateElement()" title="Duplicar">Dup</button>
-        <button class="icon-btn danger" (click)="deleteElement()" title="Eliminar">X</button>
+        <button class="icon-btn" (click)="duplicateElement()" title="Duplicar" aria-label="Duplicar elemento">⧉</button>
+        <button class="icon-btn danger" (click)="deleteElement()" title="Eliminar" aria-label="Eliminar elemento">×</button>
       </div>
     </div>
 
-    <section class="panel-section">
+    <nav class="tabs" aria-label="Propiedades del elemento">
+      <button [class.active]="activeTab === 'general'" [attr.aria-pressed]="activeTab === 'general'" (click)="activeTab = 'general'">General</button>
+      <button [class.active]="activeTab === 'style'" [attr.aria-pressed]="activeTab === 'style'" (click)="activeTab = 'style'">Estilo</button>
+      <button [class.active]="activeTab === 'data'" [attr.aria-pressed]="activeTab === 'data'" (click)="activeTab = 'data'">Datos</button>
+    </nav>
+    <section class="panel-section" [hidden]="activeTab !== 'general'">
       <h3>General</h3>
       <label>
         Nombre
@@ -49,7 +54,7 @@
       </div>
     </section>
 
-    @if (hasFont) {
+    @if (hasFont && activeTab === 'style') {
       <section class="panel-section">
         <h3>Texto</h3>
         <label>
@@ -63,7 +68,7 @@
 
         <div class="field-grid">
           <label>
-            Tamano
+            Tamaño
             <input type="number" [(ngModel)]="fontSize" (change)="applyChanges()" min="4" max="72" step="1" />
           </label>
           <label>
@@ -79,7 +84,7 @@
 
         <div class="field-grid">
           <label>
-            Alineacion
+            Alineación
             <select [(ngModel)]="textAlign" (change)="applyChanges()">
               <option value="left">Izquierda</option>
               <option value="center">Centro</option>
@@ -98,12 +103,12 @@
       </section>
     }
 
-    <section class="panel-section">
+    <section class="panel-section" [hidden]="activeTab !== 'data'">
       <h3>Datos</h3>
 
       @if (element.type === 'text') {
         <label>
-          Binding
+          Campo de datos
           <select [(ngModel)]="textBinding" (change)="applyChanges()">
             <option value="">Texto fijo</option>
             @for (field of dataPaths; track field.path) {
@@ -161,7 +166,7 @@
         <label>
           Origen
           <select [(ngModel)]="imageSourceType" (change)="applyChanges()">
-            <option value="binding">Binding</option>
+            <option value="binding">Campo de datos</option>
             <option value="url">URL</option>
           </select>
         </label>
@@ -187,7 +192,7 @@
       }
     </section>
 
-    <section class="panel-section">
+    <section class="panel-section" [hidden]="activeTab !== 'style'">
       <h3>Apariencia</h3>
       <div class="field-grid">
         <label>
@@ -226,8 +231,8 @@
     </section>
   } @else {
     <div class="empty-state">
-      <h2>Sin seleccion</h2>
-      <p>Selecciona un elemento de la etiqueta o arrastra una herramienta al canvas.</p>
+      <h2>Sin selección</h2>
+      <p>Selecciona un elemento de la etiqueta o arrastra una herramienta al lienzo.</p>
     </div>
   }
 </div>

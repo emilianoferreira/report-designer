@@ -30,6 +30,7 @@ export class PriceLabelPropertiesComponent implements OnChanges {
   @Output() deleteRequested = new EventEmitter<string>();
   @Output() duplicateRequested = new EventEmitter<string>();
 
+  activeTab: 'general' | 'style' | 'data' = 'general';
   name = '';
   x = 0;
   y = 0;

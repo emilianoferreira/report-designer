@@ -1,9 +1,11 @@
+@use '../../../../shared/styles/designer-theme' as theme;
 /**
  * Designer Page Layout
  * Three-panel layout (Design) or full-width (Preview)
  */
 
 :host {
+  @include theme.tokens;
   display: block;
   width: 100vw;
   height: 100vh;
@@ -25,7 +27,7 @@
   height: 48px;
   min-height: 48px;
   padding: 0 16px;
-  background: #66164b;
+  background: var(--designer-brand);
   color: #fff;
   z-index: 100;
 }

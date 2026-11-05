@@ -6,16 +6,18 @@
     html, body { margin: 0; padding: 0; background: #f0f0f0; font-family: Arial, sans-serif; }
     .page {
       width: 210mm;
-      min-height: 297mm;
+      height: 297mm;
       margin: 0 auto;
       padding: 5mm 5mm 5mm 5mm;
       background: #fff;
     }
+    .page { break-after: page; }
+    .page:last-child { break-after: auto; }
     .labels-grid {
       display: grid;
       grid-template-columns: repeat(4, 50mm);
       grid-auto-rows: 30mm;
-      gap: 2mm 2mm;
+      gap: 2mm 0mm;
       align-content: start;
       justify-content: start;
     }
@@ -107,7 +109,6 @@
         <div class="label-element label-barcode" style="left:7mm;top:20mm;width:36mm;height:8mm;z-index:2;opacity:1"><svg width="142px" height="44px" x="0px" y="0px" viewBox="0 0 142 44" xmlns="http://www.w3.org/2000/svg" version="1.1"><rect x="0" y="0" width="142" height="44" fill="#ffffff"></rect><g transform="translate(0, 0)" fill="#111111"><rect x="0" y="0" width="2.8" height="34"></rect><rect x="4.199999999999999" y="0" width="1.4" height="34"></rect><rect x="8.4" y="0" width="4.199999999999999" height="34"></rect><rect x="15.4" y="0" width="5.6" height="34"></rect><rect x="22.4" y="0" width="4.199999999999999" height="34"></rect><rect x="28" y="0" width="1.4" height="34"></rect><rect x="30.799999999999994" y="0" width="2.8" height="34"></rect><rect x="34.99999999999999" y="0" width="5.6" height="34"></rect><rect x="42" y="0" width="2.8" height="34"></rect><rect x="46.2" y="0" width="2.8" height="34"></rect><rect x="50.4" y="0" width="2.8" height="34"></rect><rect x="56" y="0" width="2.8" height="34"></rect><rect x="61.599999999999994" y="0" width="2.8" height="34"></rect><rect x="67.19999999999999" y="0" width="1.4" height="34"></rect><rect x="72.79999999999998" y="0" width="1.4" height="34"></rect><rect x="77" y="0" width="2.8" height="34"></rect><rect x="81.2" y="0" width="2.8" height="34"></rect><rect x="86.8" y="0" width="2.8" height="34"></rect><rect x="92.39999999999999" y="0" width="1.4" height="34"></rect><rect x="96.6" y="0" width="1.4" height="34"></rect><rect x="102.2" y="0" width="2.8" height="34"></rect><rect x="107.79999999999998" y="0" width="1.4" height="34"></rect><rect x="112" y="0" width="2.8" height="34"></rect><rect x="117.6" y="0" width="4.199999999999999" height="34"></rect><rect x="123.19999999999999" y="0" width="2.8" height="34"></rect><rect x="130.2" y="0" width="4.199999999999999" height="34"></rect><rect x="135.79999999999998" y="0" width="1.4" height="34"></rect><rect x="138.6" y="0" width="2.8" height="34"></rect><text font-family="monospace" font-size="8" text-anchor="middle" x="71" y="44">779000100004</text></g></svg></div>
         <div class="label-element label-price" style="left:2mm;top:11mm;width:46mm;height:8mm;z-index:3;opacity:1;font-family:Arial, sans-serif;font-size:17pt;font-weight:bold;font-style:normal;color:#111111;text-align:center;display:flex;align-items:center;justify-content:center">$ 2.800,00</div>
       </div>
-
     </section>
   </main>
 

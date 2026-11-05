@@ -105,7 +105,7 @@
   "id": "<row-uuid>",
   "label": {
     "columns": 4,
-    "gapX": 2,
+    "gapX": 0,
     "gapY": 2,
     "height": 30,
     "paddingBottom": 2,

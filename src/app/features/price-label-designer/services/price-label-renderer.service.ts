@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import JsBarcode from 'jsbarcode';
+import { labelLayoutError } from '../utils/label-layout';
 import {
   LabelBarcodeElement,
   LabelElement,
@@ -22,11 +23,18 @@ export class PriceLabelRendererService {
     copies: number,
     company: PriceLabelCompany = { name: '', logo: '', currencySymbol: '$' }
   ): string {
+    if (labelLayoutError(template)) return '';
     const page = template.page;
     const label = template.label;
     const safeCopies = Math.max(1, Math.round(copies || 1));
     const contexts = this.expandContexts(articles, safeCopies, company);
 
+    const capacity = label.columns * label.rows;
+    const pages: string[] = [];
+    for (let start = 0; start < contexts.length; start += capacity) {
+      const labels = contexts.slice(start, start + capacity).map(context => this.renderLabel(template, context)).join('');
+      pages.push('  <main class="page">\n    <section class="labels-grid">\n' + labels + '    </section>\n  </main>');
+    }
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -37,11 +45,13 @@ export class PriceLabelRendererService {
     html, body { margin: 0; padding: 0; background: #f0f0f0; font-family: Arial, sans-serif; }
     .page {
       width: ${page.width}mm;
-      min-height: ${page.height}mm;
+      height: ${page.height}mm;
       margin: 0 auto;
       padding: ${page.marginTop}mm ${page.marginRight}mm ${page.marginBottom}mm ${page.marginLeft}mm;
       background: #fff;
     }
+    .page { break-after: page; }
+    .page:last-child { break-after: auto; }
     .labels-grid {
       display: grid;
       grid-template-columns: repeat(${label.columns}, ${label.width}mm);
@@ -88,11 +98,7 @@ export class PriceLabelRendererService {
   </style>
 </head>
 <body>
-  <main class="page">
-    <section class="labels-grid">
-${contexts.map(context => this.renderLabel(template, context)).join('')}
-    </section>
-  </main>
+${pages.join('\n')}
 </body>
 </html>`;
   }
@@ -235,6 +241,11 @@ ${elements.map(element => this.renderElement(element, context)).join('')}      <
 
   private generateBarcodeSvg(value: string, element: LabelBarcodeElement): string {
     if (!value) return '';
+    return this.createBarcodeSvg(value, element)?.outerHTML ?? `<div style="font-size:8px;text-align:center;color:#999;">${this.escapeHtml(value)}</div>`;
+  }
+
+  createBarcodeSvg(value: string, element: LabelBarcodeElement): SVGSVGElement | null {
+    if (!value) return null;
     try {
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       (JsBarcode as any)(svg, value, {
@@ -247,9 +258,9 @@ ${elements.map(element => this.renderElement(element, context)).join('')}      <
         background: '#ffffff',
         lineColor: '#111111'
       });
-      return svg.outerHTML;
+      return svg;
     } catch {
-      return `<div style="font-size:8px;text-align:center;color:#999;">${this.escapeHtml(value)}</div>`;
+      return null;
     }
   }
 

@@ -1,0 +1,19 @@
+// Visual language shared by the report and label editors.
+@mixin tokens {
+  --designer-brand: #66164b;
+  --designer-brand-dark: #4b0534;
+  --designer-tint: #f3e5f5;
+  --designer-workspace: #e8e8e8;
+  --designer-border: #e0e0e0;
+  --designer-text: #424242;
+  --designer-muted: #757575;
+}
+@mixin controls {
+  button, input, select, textarea, summary { font: inherit; }
+  button, summary { cursor: pointer; }
+  button:disabled, select:disabled { opacity: .55; cursor: not-allowed; }
+  button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--designer-brand); outline-offset: 2px;
+  }
+  [hidden] { display: none !important; }
+}

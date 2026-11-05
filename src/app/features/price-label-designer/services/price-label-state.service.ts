@@ -22,18 +22,82 @@ export class PriceLabelStateService {
     return this.templateSubject.getValue();
   }
 
+  private undoStack: LabelTemplate[] = [];
+  private redoStack: LabelTemplate[] = [];
+  private transaction: LabelTemplate | null = null;
+  get interacting(): boolean { return this.transaction !== null; }
+  get canUndo(): boolean { return !this.interacting && this.undoStack.length > 0; }
+  get canRedo(): boolean { return !this.interacting && this.redoStack.length > 0; }
+
+  // Loading another document is a history boundary; saving is not.
   setTemplate(template: LabelTemplate): void {
+    this.undoStack = []; this.redoStack = []; this.transaction = null;
+    this.publish(template);
+  }
+
+  acceptSaved(template: LabelTemplate): void {
+    for (const entry of [...this.undoStack, ...this.redoStack]) entry.id = template.id;
+    if (this.transaction) this.transaction.id = template.id;
+    this.publish(template);
+  }
+
+  private publish(template: LabelTemplate): void {
     this.templateSubject.next(JSON.parse(JSON.stringify(template)));
+  }
+
+  private equivalent(a: LabelTemplate, b: LabelTemplate): boolean {
+    return JSON.stringify({ ...a, version: 0 }) === JSON.stringify({ ...b, version: 0 });
+  }
+
+  private remember(template: LabelTemplate): void {
+    this.undoStack.push(template);
+    if (this.undoStack.length > 100) this.undoStack.shift();
+    this.redoStack = [];
+  }
+
+  private commitTemplate(template: LabelTemplate): void {
+    const current = this.getCurrentTemplate();
+    if (this.equivalent(current, template)) return;
+    if (!this.interacting) this.remember(current);
+    this.publish(template);
+  }
+
+  beginTransaction(): void {
+    if (!this.transaction) this.transaction = this.getCurrentTemplate();
+  }
+
+  endTransaction(): void {
+    const original = this.transaction;
+    this.transaction = null;
+    if (original && !this.equivalent(original, this.getCurrentTemplate())) this.remember(original);
+  }
+
+  cancelTransaction(): void {
+    const original = this.transaction;
+    this.transaction = null;
+    if (original) this.publish(original);
+  }
+
+  undo(): void {
+    if (!this.canUndo) return;
+    this.redoStack.push(this.getCurrentTemplate());
+    this.publish({ ...this.undoStack.pop()!, version: this.getCurrentTemplate().version + 1 });
+  }
+
+  redo(): void {
+    if (!this.canRedo) return;
+    this.undoStack.push(this.getCurrentTemplate());
+    this.publish({ ...this.redoStack.pop()!, version: this.getCurrentTemplate().version + 1 });
   }
 
   updateName(name: string): void {
     const current = this.getCurrentTemplate();
-    this.setTemplate({ ...current, name, version: current.version + 1 });
+    this.commitTemplate({ ...current, name, version: current.version + 1 });
   }
 
   updatePage(changes: Partial<LabelPageConfig>): void {
     const current = this.getCurrentTemplate();
-    this.setTemplate({
+    this.commitTemplate({
       ...current,
       version: current.version + 1,
       page: { ...current.page, ...changes }
@@ -43,7 +107,7 @@ export class PriceLabelStateService {
   updateLabel(changes: Partial<LabelConfig>): void {
     const current = this.getCurrentTemplate();
     const label = this.normalizeLabel({ ...current.label, ...changes });
-    this.setTemplate({
+    this.commitTemplate({
       ...current,
       version: current.version + 1,
       label,
@@ -54,7 +118,7 @@ export class PriceLabelStateService {
   addElement(type: LabelElementType, position: LabelPoint): LabelElement {
     const current = this.getCurrentTemplate();
     const element = this.clampElement(createLabelElement(type, position), current.label);
-    this.setTemplate({
+    this.commitTemplate({
       ...current,
       version: current.version + 1,
       elements: [...current.elements, element]
@@ -64,7 +128,7 @@ export class PriceLabelStateService {
 
   updateElement(elementId: string, changes: Partial<LabelElement>): void {
     const current = this.getCurrentTemplate();
-    this.setTemplate({
+    this.commitTemplate({
       ...current,
       version: current.version + 1,
       elements: current.elements.map(el => {
@@ -76,7 +140,7 @@ export class PriceLabelStateService {
 
   removeElement(elementId: string): void {
     const current = this.getCurrentTemplate();
-    this.setTemplate({
+    this.commitTemplate({
       ...current,
       version: current.version + 1,
       elements: current.elements.filter(el => el.id !== elementId)
@@ -89,7 +153,7 @@ export class PriceLabelStateService {
     if (!original) return null;
 
     const cloned = this.clampElement(cloneLabelElement(original), current.label);
-    this.setTemplate({
+    this.commitTemplate({
       ...current,
       version: current.version + 1,
       elements: [...current.elements, cloned]

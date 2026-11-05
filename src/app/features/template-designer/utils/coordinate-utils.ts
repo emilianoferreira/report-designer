@@ -273,7 +273,7 @@ export interface SnapSettings {
  * Horizontal candidates = Y-axis snap targets, Vertical candidates = X-axis snap targets.
  */
 export function collectSnapCandidates(
-  elements: TemplateElement[],
+  elements: Pick<TemplateElement, 'id' | 'position' | 'size'>[],
   excludeIds: Set<string>,
   settings: SnapSettings
 ): { horizontal: SnapCandidate[]; vertical: SnapCandidate[] } {

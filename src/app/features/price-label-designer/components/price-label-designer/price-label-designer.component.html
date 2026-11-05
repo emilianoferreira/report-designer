@@ -1,47 +1,47 @@
 <div class="label-designer-page">
   <header class="designer-header">
     <div class="header-left">
-      <button class="header-btn" (click)="goToDocuments()">Documentos</button>
-      <span class="header-separator"></span>
-      <input
-        class="template-name-input"
-        [ngModel]="template.name"
-        (blur)="updateName($any($event.target).value)"
-      />
+      <button class="back-btn" (click)="goToDocuments()" title="Volver a documentos" aria-label="Volver a documentos">←</button>
+      <span class="app-logo">Diseñador</span><span class="header-separator">|</span>
+      <input class="template-name-input" aria-label="Nombre de la plantilla" [ngModel]="template.name" (blur)="updateName($any($event.target).value)" />
+      @if (hasUnsavedChanges()) { <span class="dirty-indicator" title="Cambios sin guardar" aria-label="Cambios sin guardar">●</span> }
     </div>
-
-    <div class="header-center">
-      <button class="mode-btn" [class.active]="viewMode === 'design'" (click)="setViewMode('design')">
-        Diseno
-      </button>
-      <button class="mode-btn" [class.active]="viewMode === 'preview'" (click)="setViewMode('preview')">
-        Vista previa
-      </button>
+    <div class="view-toggle" aria-label="Modo del diseñador">
+      <button class="mode-btn" [class.active]="viewMode === 'design'" [attr.aria-pressed]="viewMode === 'design'" (click)="setViewMode('design')">Diseño</button>
+      <button class="mode-btn" [class.active]="viewMode === 'preview'" [attr.aria-pressed]="viewMode === 'preview'" (click)="setViewMode('preview')">Vista previa</button>
     </div>
-
     <div class="header-right">
-      <select class="template-select" [ngModel]="template.id" (ngModelChange)="openTemplate($event)">
-        <option [value]="template.id">Actual</option>
-        @for (saved of savedTemplates; track saved.id) {
-          <option [value]="saved.id">{{ saved.name }}</option>
-        }
-      </select>
-      <button class="header-btn" (click)="createNewTemplate()">Nuevo</button>
-      <button class="header-btn primary" (click)="saveTemplate()">Guardar</button>
-      <button class="header-btn danger" (click)="deleteTemplate()">Eliminar</button>
-      @if (saveStatus) {
-        <span class="save-status">{{ saveStatus }}</span>
-      }
+      <details class="template-menu" #templateMenu (keydown.escape)="templateMenu.open = false; templateSummary.focus()">
+        <summary #templateSummary>Plantilla <span aria-hidden="true">▾</span></summary>
+        <div class="menu-content">
+          <label>Abrir plantilla
+            <select class="template-select" [disabled]="saving" [ngModel]="template.id" (change)="openTemplate($any($event.target).value, $any($event.target)); templateMenu.open = false">
+              <option [value]="template.id">Actual</option>
+              @for (saved of savedTemplates; track saved.id) {
+                @if (saved.id !== template.id) { <option [value]="saved.id">{{ saved.name }}</option> }
+              }
+            </select>
+          </label>
+          <button [disabled]="saving" (click)="createNewTemplate(); templateMenu.open = false">Nueva plantilla</button>
+          <button class="danger" [disabled]="saving" (click)="deleteTemplate(); templateMenu.open = false">Eliminar plantilla</button>
+        </div>
+      </details>
+      <button class="header-btn primary" [class.has-changes]="hasUnsavedChanges()" [disabled]="saving || !!layoutError" (click)="saveTemplate()">{{ saving ? 'Guardando…' : 'Guardar' }}</button>
     </div>
   </header>
-
+  @if (layoutError) { <p class="layout-error" role="alert">{{ layoutError }}</p> }
   @if (viewMode === 'design') {
-    <div class="designer-body">
-      <aside class="left-panel">
+    <div class="document-toolbar">
+      <span class="document-kind">ETIQUETAS</span>
+      <span>{{ template.label.width }} × {{ template.label.height }} mm</span>
+      <span class="sheet-summary">{{ template.label.columns }} columnas · {{ template.label.rows }} filas · A4</span>
+      <button [class.active]="settingsOpen" [attr.aria-expanded]="settingsOpen" aria-controls="print-settings" (click)="settingsOpen = !settingsOpen">Configuración de impresión</button>
+    </div>
+    <div id="print-settings" class="print-settings" [hidden]="!settingsOpen">
         <section class="panel-section">
-          <h2>Etiqueta</h2>
+          <h2>Etiqueta y distribución (mm)</h2>
           <label>
-            Tamano
+            Tamaño
             <select [(ngModel)]="selectedPreset" (ngModelChange)="applyPreset($event)">
               @for (preset of labelPresets; track preset.id) {
                 <option [value]="preset.id">{{ preset.label }}</option>
@@ -51,97 +51,97 @@
           <div class="field-grid">
             <label>
               Ancho
-              <input type="number" [ngModel]="template.label.width" (ngModelChange)="updateLabelNumber('width', $event)" min="10" step="0.5" />
+              <input type="number" [ngModel]="template.label.width" (change)="updateLabelNumber('width', $any($event.target).value)" min="10" step="0.5" />
             </label>
             <label>
               Alto
-              <input type="number" [ngModel]="template.label.height" (ngModelChange)="updateLabelNumber('height', $event)" min="10" step="0.5" />
+              <input type="number" [ngModel]="template.label.height" (change)="updateLabelNumber('height', $any($event.target).value)" min="10" step="0.5" />
             </label>
           </div>
           <div class="field-grid">
             <label>
               Columnas
-              <input type="number" [ngModel]="template.label.columns" (ngModelChange)="updateLabelNumber('columns', $event)" min="1" step="1" />
+              <input type="number" [ngModel]="template.label.columns" (change)="updateLabelNumber('columns', $any($event.target).value)" min="1" step="1" />
             </label>
             <label>
               Filas
-              <input type="number" [ngModel]="template.label.rows" (ngModelChange)="updateLabelNumber('rows', $event)" min="1" step="1" />
+              <input type="number" [ngModel]="template.label.rows" (change)="updateLabelNumber('rows', $any($event.target).value)" min="1" step="1" />
             </label>
           </div>
           <div class="field-grid">
             <label>
-              Gap X
-              <input type="number" [ngModel]="template.label.gapX" (ngModelChange)="updateLabelNumber('gapX', $event)" min="0" step="0.5" />
+              Separación horizontal
+              <input type="number" [ngModel]="template.label.gapX" (change)="updateLabelNumber('gapX', $any($event.target).value)" min="0" step="0.5" />
             </label>
             <label>
-              Gap Y
-              <input type="number" [ngModel]="template.label.gapY" (ngModelChange)="updateLabelNumber('gapY', $event)" min="0" step="0.5" />
+              Separación vertical
+              <input type="number" [ngModel]="template.label.gapY" (change)="updateLabelNumber('gapY', $any($event.target).value)" min="0" step="0.5" />
             </label>
           </div>
         </section>
 
         <section class="panel-section">
-          <h2>Padding</h2>
+          <h2>Guías interiores (mm)</h2>
           <div class="field-grid">
             <label>
               Sup.
-              <input type="number" [ngModel]="template.label.paddingTop" (ngModelChange)="updateLabelNumber('paddingTop', $event)" min="0" step="0.5" />
+              <input type="number" [ngModel]="template.label.paddingTop" (change)="updateLabelNumber('paddingTop', $any($event.target).value)" min="0" step="0.5" />
             </label>
             <label>
               Der.
-              <input type="number" [ngModel]="template.label.paddingRight" (ngModelChange)="updateLabelNumber('paddingRight', $event)" min="0" step="0.5" />
+              <input type="number" [ngModel]="template.label.paddingRight" (change)="updateLabelNumber('paddingRight', $any($event.target).value)" min="0" step="0.5" />
             </label>
             <label>
               Inf.
-              <input type="number" [ngModel]="template.label.paddingBottom" (ngModelChange)="updateLabelNumber('paddingBottom', $event)" min="0" step="0.5" />
+              <input type="number" [ngModel]="template.label.paddingBottom" (change)="updateLabelNumber('paddingBottom', $any($event.target).value)" min="0" step="0.5" />
             </label>
             <label>
               Izq.
-              <input type="number" [ngModel]="template.label.paddingLeft" (ngModelChange)="updateLabelNumber('paddingLeft', $event)" min="0" step="0.5" />
+              <input type="number" [ngModel]="template.label.paddingLeft" (change)="updateLabelNumber('paddingLeft', $any($event.target).value)" min="0" step="0.5" />
             </label>
           </div>
         </section>
 
         <section class="panel-section">
-          <h2>Hoja A4</h2>
+          <h2>Márgenes de hoja A4 (mm)</h2>
           <div class="field-grid">
             <label>
               Margen sup.
-              <input type="number" [ngModel]="template.page.marginTop" (ngModelChange)="updatePageNumber('marginTop', $event)" min="0" step="0.5" />
+              <input type="number" [ngModel]="template.page.marginTop" (change)="updatePageNumber('marginTop', $any($event.target).value)" min="0" step="0.5" />
             </label>
             <label>
               Margen der.
-              <input type="number" [ngModel]="template.page.marginRight" (ngModelChange)="updatePageNumber('marginRight', $event)" min="0" step="0.5" />
+              <input type="number" [ngModel]="template.page.marginRight" (change)="updatePageNumber('marginRight', $any($event.target).value)" min="0" step="0.5" />
             </label>
             <label>
               Margen inf.
-              <input type="number" [ngModel]="template.page.marginBottom" (ngModelChange)="updatePageNumber('marginBottom', $event)" min="0" step="0.5" />
+              <input type="number" [ngModel]="template.page.marginBottom" (change)="updatePageNumber('marginBottom', $any($event.target).value)" min="0" step="0.5" />
             </label>
             <label>
               Margen izq.
-              <input type="number" [ngModel]="template.page.marginLeft" (ngModelChange)="updatePageNumber('marginLeft', $event)" min="0" step="0.5" />
+              <input type="number" [ngModel]="template.page.marginLeft" (change)="updatePageNumber('marginLeft', $any($event.target).value)" min="0" step="0.5" />
             </label>
           </div>
         </section>
 
-        <section class="panel-section">
-          <h2>Elementos</h2>
+
+    </div>
+    <div class="designer-body">
+      <aside class="left-panel" [class.collapsed]="leftPanelCollapsed" aria-label="Herramientas">
+        <div class="panel-content" [hidden]="leftPanelCollapsed">
+          <h2 class="panel-title">Herramientas</h2>
+          <p class="category-label">Elementos</p>
           <div class="tool-list">
             @for (tool of tools; track tool.type) {
-              <div
-                class="tool-item"
-                draggable="true"
-                (dragstart)="onToolDragStart($event, tool)"
-                [title]="tool.description"
-              >
-                <strong>{{ tool.label }}</strong>
-                <span>{{ tool.description }}</span>
-              </div>
+              <button class="tool-item" draggable="true" (dragstart)="onToolDragStart($event, tool)" (click)="addTool(tool.type)" [title]="tool.description">
+                <span class="tool-icon" aria-hidden="true">{{ tool.icon }}</span><span>{{ tool.label }}</span>
+              </button>
             }
           </div>
-        </section>
+          <p class="tool-hint">Arrastra al lienzo o haz clic para agregar.</p>
+        </div>
+        <button class="panel-toggle" (click)="leftPanelCollapsed = !leftPanelCollapsed" [attr.aria-expanded]="!leftPanelCollapsed" [attr.aria-label]="leftPanelCollapsed ? 'Mostrar herramientas' : 'Ocultar herramientas'">{{ leftPanelCollapsed ? '▸' : '◂' }}</button>
       </aside>
-
       <main class="canvas-panel">
         <app-price-label-canvas
           [template]="template"
@@ -153,23 +153,25 @@
           (elementChanged)="onElementChanged($event)"
         />
       </main>
-
-      <aside class="right-panel">
+      <aside class="right-panel" [class.collapsed]="rightPanelCollapsed" aria-label="Propiedades">
+        <button class="panel-toggle" (click)="rightPanelCollapsed = !rightPanelCollapsed" [attr.aria-expanded]="!rightPanelCollapsed" [attr.aria-label]="rightPanelCollapsed ? 'Mostrar propiedades' : 'Ocultar propiedades'">{{ rightPanelCollapsed ? '◂' : '▸' }}</button>
+        <div class="panel-content" [hidden]="rightPanelCollapsed">
         <app-price-label-properties
           [element]="selectedElement"
           (elementChanged)="onElementChanged($event)"
           (deleteRequested)="deleteElement($event)"
           (duplicateRequested)="duplicateElement($event)"
         />
+        </div>
       </aside>
     </div>
   } @else {
     <main class="preview-panel">
-      <app-price-label-preview
-        [template]="template"
-        [articles]="sampleArticles"
-        [company]="sampleCompany"
-      />
+      <app-price-label-preview [template]="template" [articles]="sampleArticles" [company]="sampleCompany" />
     </main>
   }
+  <footer class="designer-status" role="status">
+    <span>{{ selectedElement ? selectedElement.name : 'Selecciona un elemento para editar sus propiedades' }}</span>
+    <span class="save-status">{{ saveStatus || (saving ? 'Guardando…' : hasUnsavedChanges() ? 'Cambios sin guardar' : 'Sin cambios pendientes') }}</span>
+  </footer>
 </div>

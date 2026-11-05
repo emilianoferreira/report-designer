@@ -17,6 +17,8 @@ import {
 import { mmToPx } from '../../../template-designer/utils/coordinate-utils';
 import { PriceLabelRendererService } from '../../services/price-label-renderer.service';
 
+import { labelLayoutError } from '../../utils/label-layout';
+
 type PreviewMode = 'sheet' | 'html' | 'json';
 
 @Component({
@@ -69,11 +71,16 @@ export class PriceLabelPreviewComponent implements OnChanges, AfterViewInit {
     this.render();
   }
 
+  get layoutError(): string { return labelLayoutError(this.template); }
+
   print(): void {
-    this.previewFrame?.nativeElement.contentWindow?.print();
+    if (this.layoutError) return;
+    this.mode = 'sheet';
+    this.injectIframe(true);
   }
 
   exportHtml(): void {
+    if (this.layoutError) return;
     this.download(this.html, this.safeFileName('html'), 'text/html');
   }
 
@@ -90,13 +97,18 @@ export class PriceLabelPreviewComponent implements OnChanges, AfterViewInit {
     }
   }
 
-  private injectIframe(): void {
+  private injectIframe(print = false): void {
     setTimeout(() => {
       const doc = this.previewFrame?.nativeElement.contentDocument;
       if (!doc) return;
       doc.open();
       doc.write(this.html);
       doc.close();
+      if (print) {
+        const frame = this.previewFrame.nativeElement;
+        Promise.all(Array.from(doc.images).map(img => img.decode().catch(() => undefined)))
+          .then(() => { if (frame.isConnected) frame.contentWindow?.print(); });
+      }
     });
   }
 

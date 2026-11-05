@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -19,12 +19,16 @@ import { createDefaultPriceLabelTemplate } from '../../data/default-price-label-
 import { PriceLabelStateService } from '../../services/price-label-state.service';
 import { PriceLabelStorageService } from '../../services/price-label-storage.service';
 
+import { labelLayoutError } from '../../utils/label-layout';
+import { AuthService } from '../../../../core/auth/auth.service';
+
 type ViewMode = 'design' | 'preview';
 
 interface ToolItem {
   type: LabelElementType;
   label: string;
   description: string;
+  icon: string;
 }
 
 @Component({
@@ -41,20 +45,27 @@ interface ToolItem {
   styleUrl: './price-label-designer.component.scss'
 })
 export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
+  @ViewChild(PriceLabelCanvasComponent) canvas?: PriceLabelCanvasComponent;
   template = createDefaultPriceLabelTemplate();
   savedTemplates: LabelTemplate[] = [];
   selectedElementId: string | null = null;
   viewMode: ViewMode = 'design';
   saveStatus = '';
+  settingsOpen = false;
+  leftPanelCollapsed = false;
+  rightPanelCollapsed = false;
+  saving = false;
+  private baseline = '';
+  private destroyed = false;
 
   readonly sampleArticles = SAMPLE_PRICE_LABEL_ARTICLES;
   readonly sampleCompany = SAMPLE_PRICE_LABEL_COMPANY;
 
   readonly tools: ToolItem[] = [
-    { type: 'text', label: 'Nombre', description: 'Campo article.name' },
-    { type: 'price', label: 'Precio', description: 'Campo article.price' },
-    { type: 'barcode', label: 'Codigo', description: 'Campo article.barcode' },
-    { type: 'image', label: 'Logo', description: 'Campo company.logo' }
+    { type: 'text', label: 'Texto', description: 'Agregar nombre de artículo o texto fijo', icon: 'T' },
+    { type: 'price', label: 'Precio', description: 'Agregar precio del artículo', icon: '$' },
+    { type: 'barcode', label: 'Código', description: 'Agregar código de barras', icon: '▥' },
+    { type: 'image', label: 'Imagen', description: 'Agregar logo o imagen', icon: '▧' }
   ];
 
   readonly labelPresets = [
@@ -71,12 +82,15 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
   constructor(
     private state: PriceLabelStateService,
     private storage: PriceLabelStorageService,
-    private router: Router
+    private router: Router,
+    private auth: AuthService
   ) {}
 
   ngOnInit(): void {
+    this.baseline = this.fingerprint(this.state.getCurrentTemplate());
     this.sub.add(
       this.state.template$.subscribe(template => {
+        this.saveStatus = '';
         this.template = template;
         this.selectedPreset = this.detectPreset(template);
         if (this.selectedElementId && !template.elements.some(el => el.id === this.selectedElementId)) {
@@ -93,7 +107,10 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.sub.unsubscribe();
+    // A successful route departure has already confirmed discarding the draft.
+    this.state.setTemplate(createDefaultPriceLabelTemplate());
     if (this.saveStatusTimer) clearTimeout(this.saveStatusTimer);
   }
 
@@ -110,35 +127,122 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
     this.viewMode = mode;
   }
 
-  createNewTemplate(): void {
-    this.selectedElementId = null;
-    this.state.setTemplate(createDefaultPriceLabelTemplate());
+  get layoutError(): string { return labelLayoutError(this.template); }
+
+  private fingerprint(template: LabelTemplate): string {
+    const { version, ...content } = template;
+    return JSON.stringify(content);
   }
 
-  openTemplate(templateId: string): void {
-    const template = this.storage.getById(templateId);
-    if (!template) return;
+  hasUnsavedChanges(): boolean {
+    return !this.auth.leavingSession && (this.saving || this.fingerprint(this.template) !== this.baseline);
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  beforeUnload(event: BeforeUnloadEvent): void {
+    if (this.hasUnsavedChanges()) { event.preventDefault(); event.returnValue = ''; }
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent): void {
+    if (event.defaultPrevented || event.isComposing) return;
+    const target = event.target as HTMLElement;
+    const typing = !!target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]') || target.isContentEditable;
+    const modifier = event.ctrlKey || event.metaKey;
+    const key = event.key.toLowerCase();
+    if (modifier && key === 's') {
+      event.preventDefault();
+      if (typing) target.blur();
+      void this.saveTemplate();
+      return;
+    }
+    if (typing || this.viewMode !== 'design') return;
+    if (event.key === 'Escape') {
+      if (this.state.interacting) this.canvas?.cancelInteraction();
+      else this.selectedElementId = null;
+      event.preventDefault();
+      return;
+    }
+    if (this.state.interacting) return;
+    if (modifier && (key === 'z' || key === 'y')) {
+      event.preventDefault();
+      if (key === 'y' || event.shiftKey) this.state.redo(); else this.state.undo();
+      return;
+    }
+    const element = this.selectedElement;
+    if (!element || element.locked) return;
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+      event.preventDefault(); this.deleteElement(element.id);
+    } else if (modifier && key === 'd') {
+      event.preventDefault(); this.duplicateElement(element.id);
+    } else if (!modifier && !event.altKey && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+      event.preventDefault();
+      const step = event.shiftKey ? 1 : 0.1;
+      this.state.updateElement(element.id, { position: {
+        x: element.position.x + (event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0),
+        y: element.position.y + (event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0)
+      } });
+    }
+  }
+
+  private canDiscard(): boolean {
+    return !this.saving && (!this.hasUnsavedChanges() || confirm('Hay cambios sin guardar. ¿Desea descartarlos?'));
+  }
+
+  private loadTemplate(template: LabelTemplate): void {
     this.selectedElementId = null;
     this.state.setTemplate(template);
+    this.baseline = this.fingerprint(this.template);
+  }
+
+  createNewTemplate(): void {
+    if (this.canDiscard()) this.loadTemplate(createDefaultPriceLabelTemplate());
+  }
+
+  openTemplate(templateId: string, select?: HTMLSelectElement): void {
+    const template = this.storage.getById(templateId);
+    if (!template || !this.canDiscard()) {
+      if (select) select.value = this.template.id;
+      return;
+    }
+    this.loadTemplate(template);
   }
 
   async saveTemplate(): Promise<void> {
-    const saved = await this.storage.save(this.template).catch(() => undefined);
-    if (!saved) return;
-    this.state.setTemplate(saved);
-    this.showSaveStatus('Guardado');
+    if (this.saving || this.layoutError || this.state.interacting) return;
+    const sent = this.template;
+    this.saving = true;
+    try {
+      const saved = await this.storage.save(sent);
+      if (this.destroyed) return;
+      this.auth.error$.next('');
+      const unchanged = this.fingerprint(this.template) === this.fingerprint(sent);
+      this.baseline = this.fingerprint(saved);
+      this.state.acceptSaved(unchanged ? saved : { ...this.template, id: saved.id });
+      this.showSaveStatus(unchanged ? 'Guardado' : 'Guardado; hay cambios nuevos pendientes');
+    } catch {
+      this.showSaveStatus('No se pudo guardar. Los cambios se conservaron.');
+    } finally {
+      this.saving = false;
+    }
   }
 
   async deleteTemplate(): Promise<void> {
+    if (!this.canDiscard()) return;
     if (this.storage.getById(this.template.id)) {
       await this.storage.delete(this.template.id);
     }
-    this.createNewTemplate();
+    this.loadTemplate(createDefaultPriceLabelTemplate());
     this.showSaveStatus('Eliminado');
   }
 
   updateName(name: string): void {
     this.state.updateName(name.trim() || 'Etiqueta sin nombre');
+  }
+
+  addTool(type: LabelElementType): void {
+    this.onElementDropped({ type, position: { x: 2, y: 2 } });
+    this.rightPanelCollapsed = false;
   }
 
   onToolDragStart(event: DragEvent, tool: ToolItem): void {
@@ -178,7 +282,8 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
       width: preset.width,
       height: preset.height,
       columns: preset.columns,
-      rows: preset.rows
+      rows: preset.rows,
+      gapX: preset.id === '50x30' ? 0 : 2
     });
   }
 

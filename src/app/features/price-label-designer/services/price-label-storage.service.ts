@@ -18,8 +18,12 @@ export class PriceLabelStorageService {
   getAll(): LabelTemplate[] { return this.templatesSubject.value; }
   getById(id: string): LabelTemplate | undefined { return this.getAll().find(t => t.id === id); }
   async save(template: LabelTemplate): Promise<LabelTemplate> {
-    const row = await firstValueFrom(this.getById(template.id)
-      ? this.http.put<any>('/api/templates/' + template.id + '/design', { template_json: template })
+    await this.ready;
+    const existingTemplate = this.getById(template.id);
+    const row = await firstValueFrom(existingTemplate
+      ? existingTemplate.name === template.name
+        ? this.http.put<any>('/api/templates/' + template.id + '/design', { template_json: template })
+        : this.http.put<any>('/api/templates/' + template.id, { nombre: template.name, template_json: template })
       : this.http.post<any>('/api/templates', { nombre: template.name, template_json: template }));
     const saved = this.apiToTemplate(row);
     const existing = this.getById(saved.id);
