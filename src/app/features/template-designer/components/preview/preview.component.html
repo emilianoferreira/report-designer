@@ -73,6 +73,9 @@
               <button type="button" (click)="locateFinding(element)">Ir al elemento</button>
             }
           </p>
+          @if (result.category === 'normative') {
+            <app-fiscal-advice [ruleId]="result.id" [status]="result.status" />
+          }
         }
       }
       <details>
@@ -80,7 +83,11 @@
         @for (result of report.results; track $index) {
           @if (result.status === 'pending') { <p>{{ result.id }} · {{ result.title }} · {{ result.message }}
             @if (result.source) { <a [href]="result.source" target="_blank" rel="noopener noreferrer">{{ result.reference }}</a> }
-          </p> }
+          </p>
+            @if (result.category === 'normative') {
+              <app-fiscal-advice [ruleId]="result.id" [status]="result.status" />
+            }
+          }
         }
       </details>
     </details>

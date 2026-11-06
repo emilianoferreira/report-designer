@@ -32,13 +32,14 @@ import { SelectionService } from '../../services/selection.service';
 import { RuleResult, RuleStatus } from '../../utils/static-fiscal-rules';
 import { confirmedPrintFailures, inspectFiscalPrint, RenderedFiscalReport } from '../../utils/rendered-fiscal-rules';
 import { paginateFiscalPrint } from '../../utils/paginate-fiscal-print';
+import { FiscalAdviceComponent } from '../fiscal-advice/fiscal-advice.component';
 
 export type PreviewViewMode = 'render' | 'html' | 'json';
 
 @Component({
   selector: 'app-preview',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FiscalAdviceComponent],
   templateUrl: './preview.component.html',
   styleUrl: './preview.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush

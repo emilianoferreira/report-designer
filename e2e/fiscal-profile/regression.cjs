@@ -13,6 +13,7 @@ const assert = require('node:assert/strict');
     let row = { ...JSON.parse(fs.readFileSync('e2e/stage0/fixtures/report-a4.json', 'utf8')), id: 'fiscal-review' };
     const original = structuredClone(row.template_json.template);
     let saves = 0;
+    let adviceRequests = 0;
     await page.route('**/*', async route => {
       const url = new URL(route.request().url());
       if (url.hostname !== 'review.test') return route.abort();
@@ -29,6 +30,14 @@ const assert = require('node:assert/strict');
         companies: [{ id: row.company_id, name: 'Review', role: 'editor' }]
       } });
       if (path === '/api/templates' && route.request().method() === 'GET') return route.fulfill({ json: [row] });
+      if (path === '/api/fiscal/advice') {
+        if (route.request().method() === 'GET') return route.fulfill({ json: { ruleIds: ['QR-02'] } });
+        assert.deepEqual(route.request().postDataJSON(), { ruleId: 'QR-02', status: 'fail' });
+        assert.equal(route.request().headers()['x-csrf-token'], 'review-token');
+        adviceRequests++;
+        if (adviceRequests === 1) return route.fulfill({ status: 503, json: {} });
+        return route.fulfill({ json: { explanation: 'Revisá la medida del símbolo y su margen.' } });
+      }
       if (path === `/api/templates/${row.id}/design` && route.request().method() === 'PUT') {
         saves++;
         row = { ...row, ...route.request().postDataJSON() };
@@ -146,6 +155,16 @@ const assert = require('node:assert/strict');
     };
     await openFiscalPreview();
     const print = page.getByRole('button', { name: 'Imprimir', exact: true });
+    await print.click();
+    await expect(page.getByRole('alert')).toContainText('QR-02');
+    assert.equal(await page.evaluate(() => window.printCalls), 0);
+    assert.equal(adviceRequests, 0);
+    await page.getByText('Validación de impresión', { exact: false }).click();
+    const explain = page.getByRole('button', { name: 'Explicar con IA', exact: true });
+    await explain.click();
+    await expect(page.getByText('La explicación no está disponible ahora.', { exact: false })).toBeVisible();
+    await explain.click();
+    await expect(page.getByText('Revisá la medida del símbolo y su margen.')).toBeVisible();
     await print.click();
     await expect(page.getByRole('alert')).toContainText('QR-02');
     assert.equal(await page.evaluate(() => window.printCalls), 0);

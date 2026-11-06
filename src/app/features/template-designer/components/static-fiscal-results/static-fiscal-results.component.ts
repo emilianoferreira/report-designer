@@ -5,9 +5,10 @@ import { TemplateStateService } from '../../services/template-state.service';
 import { SelectionService } from '../../services/selection.service';
 import { buildValidationContext } from '../../utils/fiscal-context';
 import { evaluateStaticFiscalRules, RuleResult, RuleStatus } from '../../utils/static-fiscal-rules';
+import { FiscalAdviceComponent } from '../fiscal-advice/fiscal-advice.component';
 
 @Component({
-  selector: 'app-static-fiscal-results', standalone: true, imports: [AsyncPipe],
+  selector: 'app-static-fiscal-results', standalone: true, imports: [AsyncPipe, FiscalAdviceComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section aria-labelledby="results-title">
@@ -36,6 +37,9 @@ import { evaluateStaticFiscalRules, RuleResult, RuleStatus } from '../../utils/s
               @else { <small>{{ result.reference }}</small> }
               @for (element of result.elements; track $index) {
                 <button type="button" (click)="locate(element)">Localizar elemento</button>
+              }
+              @if (result.category === 'normative') {
+                <app-fiscal-advice [ruleId]="result.id" [status]="result.status" />
               }
             </article>
           }

@@ -45,6 +45,20 @@ Desde la raíz también se puede ejecutar `npm run server` o `npm run server:dot
 
 También puede usarse `dotnet user-secrets set 'ConnectionStrings:Postgres' '<cadena>' --project src/ReportDesigner.Api` en desarrollo. El archivo versionado contiene una cadena vacía. La API falla al arrancar si falta la cadena o no especifica host/base/usuario; no utiliza una base implícita ni lee `server/.env`. No guardar credenciales en archivos versionados ni usar cuentas administradoras para la aplicación.
 
+## Asistencia fiscal con IA
+
+Desde la raíz, configurá los secretos de desarrollo del backend .NET y reiniciá `npm run server`. Elegí un modelo de texto habilitado en tu cuenta de OpenAI.
+
+```powershell
+dotnet user-secrets set 'FiscalAdvice:OpenAI:ApiKey' '<clave del proyecto OpenAI>' --project backend-dotnet/src/ReportDesigner.Api
+dotnet user-secrets set 'FiscalAdvice:OpenAI:Model' '<modelo habilitado>' --project backend-dotnet/src/ReportDesigner.Api
+dotnet user-secrets set 'FiscalAdvice:Enabled' 'true' --project backend-dotnet/src/ReportDesigner.Api
+```
+
+En **Análisis fiscal** y **Vista Previa → Ejemplo CFE**, **Explicar con IA** aparece junto a los hallazgos admitidos. El backend autentica la sesión, verifica CSRF y limita las explicaciones a seis por minuto por usuario. Envía a OpenAI el ID de la regla, el estado y una ficha del catálogo mantenida en el servidor. Los datos del comprobante, el HTML y los mensajes particulares del hallazgo quedan en la aplicación.
+
+La explicación aparece como orientación. El estado de la regla y el permiso de imprimir provienen del motor fiscal. Con la función desactivada, o si falla el proveedor, los próximos pasos del informe siguen disponibles.
+
 ## Persistencia y contratos
 
 `ReportDesignerDbContext` se registra con vida scoped y proveedor PostgreSQL. El esquema sigue siendo responsabilidad de `database/001-schema.sql`, `002-seed.sql` y `003-view-invoice-data.sql`. El arranque no ejecuta `EnsureCreated`, `Migrate`, seeds ni ningún DDL. El contexto mapea explícitamente las doce columnas existentes de `report_templates`, incluidos uuid, JSONB, text[] y timestamps con zona horaria; los campos que admiten NULL conservan esa posibilidad.

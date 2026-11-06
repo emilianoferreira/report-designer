@@ -2,8 +2,13 @@ import { TestBed } from '@angular/core/testing';
 import { StaticFiscalResultsComponent } from './static-fiscal-results.component';
 import { TemplateStateService } from '../../services/template-state.service';
 import { SelectionService } from '../../services/selection.service';
+import { FiscalAdviceService } from '../../services/fiscal-advice.service';
+import { of } from 'rxjs';
 
 describe('Static fiscal results panel', () => {
+  beforeEach(() => TestBed.configureTestingModule({
+    providers: [{ provide: FiscalAdviceService, useValue: { ruleIds$: of([]) } }]
+  }));
   it('updates results when the mold changes and filters failures', () => {
     const fixture = TestBed.createComponent(StaticFiscalResultsComponent);
     const state = TestBed.inject(TemplateStateService);
