@@ -1,4 +1,5 @@
 <div class="properties-panel">
+@if (validationError) { <p role="alert">{{ validationError }}</p> }
   @if (element) {
     <div class="panel-header">
       <div>

@@ -1,6 +1,7 @@
+import { labelPresentation } from '../utils/label-presentation';
+import { templateErrors } from '../utils/label-validation';
 import { Injectable } from '@angular/core';
 import JsBarcode from 'jsbarcode';
-import { labelLayoutError } from '../utils/label-layout';
 import {
   LabelBarcodeElement,
   LabelElement,
@@ -17,13 +18,34 @@ import {
   providedIn: 'root'
 })
 export class PriceLabelRendererService {
+  validate(template: LabelTemplate, articles: PriceLabelArticle[], copies: number, company: PriceLabelCompany): string[] {
+    const structural = templateErrors(template);
+    if (structural.length) return structural;
+    const errors: string[] = [];
+    if (!Number.isInteger(copies) || copies < 1 || copies > 99) errors.push('Copias: entero entre 1 y 99.');
+    if (!articles.length) errors.push('No hay artículos para imprimir.');
+    for (const el of template.elements) {
+      if (!el?.position || !el?.size || !el?.style || !['text','price','barcode','image'].includes(el.type)) { errors.push('Objeto incompleto o incompatible.'); continue; }
+      if (![el.position.x,el.position.y,el.size.width,el.size.height].every(Number.isFinite) || el.position.x < 0 || el.position.y < 0 || el.size.width < 2 || el.size.height < 2 || el.position.x+el.size.width > template.label.width+0.001 || el.position.y+el.size.height > template.label.height+0.001) errors.push(el.name+': geometría inválida.');
+      if (el.type === 'price' && (!Number.isInteger(el.decimals) || el.decimals < 0 || el.decimals > 4)) errors.push(el.name+': decimales entre 0 y 4.');
+      for (const article of articles) {
+        const context = { article, company }, prefix = article.name+' · '+el.name+': ';
+        if (el.type === 'price') { const value=this.resolvePath(el.binding,context); if (value == null || String(value).trim()==='' || !Number.isFinite(Number(value))) errors.push(prefix+'precio ausente o inválido.'); }
+        if (el.type === 'barcode' && !this.createBarcodeSvg(String(this.resolvePath(el.binding,context) ?? ''),el)) errors.push(prefix+'código inválido para '+el.barcodeType+'.');
+        if (el.type === 'text' && el.binding && this.resolvePath(el.binding,context)==null) errors.push(prefix+'campo inexistente.');
+        if (el.type === 'image' && !(el.sourceType==='url' ? el.url : this.resolvePath(el.binding,context))) errors.push(prefix+'imagen ausente.');
+      }
+    }
+    return errors;
+  }
+
   renderToHtml(
     template: LabelTemplate,
     articles: PriceLabelArticle[],
     copies: number,
     company: PriceLabelCompany = { name: '', logo: '', currencySymbol: '$' }
   ): string {
-    if (labelLayoutError(template)) return '';
+    if (this.validate(template, articles, copies, company).length) return '';
     const page = template.page;
     const label = template.label;
     const safeCopies = Math.max(1, Math.round(copies || 1));
@@ -74,7 +96,7 @@ export class PriceLabelRendererService {
     }
     .label-text, .label-price {
       line-height: 1.15;
-      white-space: normal;
+      white-space: pre-wrap;
       word-break: break-word;
     }
     .label-image img {
@@ -122,8 +144,9 @@ ${elements.map(element => this.renderElement(element, context)).join('')}      <
   }
 
   formatPrice(value: any, decimals: number): string {
+    if (value == null || String(value).trim() === '' || !Number.isInteger(decimals) || decimals < 0 || decimals > 4) return '';
     const amount = Number(value);
-    if (Number.isNaN(amount)) return '';
+    if (!Number.isFinite(amount)) return '';
     return amount.toLocaleString('es-UY', {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals
@@ -200,43 +223,13 @@ ${elements.map(element => this.renderElement(element, context)).join('')}      <
   }
 
   private getElementStyle(element: LabelElement): string {
-    const style = element.style || {};
-    const font = style.font;
-    const css: string[] = [
-      `left:${element.position.x}mm`,
-      `top:${element.position.y}mm`,
-      `width:${element.size.width}mm`,
-      `height:${element.size.height}mm`,
-      `z-index:${element.zIndex}`,
-      `opacity:${style.opacity ?? 1}`
-    ];
-
-    if (font) {
-      css.push(`font-family:${font.family}, sans-serif`);
-      css.push(`font-size:${font.size}pt`);
-      css.push(`font-weight:${font.weight}`);
-      css.push(`font-style:${font.style}`);
-      css.push(`color:${font.color}`);
-    }
-    if (style.textAlign) css.push(`text-align:${style.textAlign}`);
-    if (style.backgroundColor) css.push(`background-color:${style.backgroundColor}`);
-    if (style.borderColor && style.borderWidth) {
-      css.push(`border:${style.borderWidth}mm ${style.borderStyle || 'solid'} ${style.borderColor}`);
-    }
-    if (style.borderRadius) css.push(`border-radius:${style.borderRadius}mm`);
-    if (style.verticalAlign) {
-      const align = style.verticalAlign === 'middle'
-        ? 'center'
-        : style.verticalAlign === 'bottom'
-          ? 'flex-end'
-          : 'flex-start';
-      css.push('display:flex');
-      css.push(`align-items:${align}`);
-      css.push(style.textAlign === 'center' ? 'justify-content:center' : '');
-      css.push(style.textAlign === 'right' ? 'justify-content:flex-end' : '');
-    }
-
-    return css.filter(Boolean).join(';');
+    const css = {
+      left: element.position.x + 'mm', top: element.position.y + 'mm',
+      width: element.size.width + 'mm', height: element.size.height + 'mm',
+      'z-index': String(element.zIndex), opacity: String(element.style.opacity ?? 1),
+      ...labelPresentation(element)
+    };
+    return Object.entries(css).map(([key, value]) => key + ':' + value).join(';');
   }
 
   private generateBarcodeSvg(value: string, element: LabelBarcodeElement): string {

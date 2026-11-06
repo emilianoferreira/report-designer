@@ -1,4 +1,7 @@
 <div class="preview-shell">
+@for (warning of warnings; track $index) { <p role="status">{{ warning }}</p> }
+@if (checking) { <p role="status">Validando imágenes…</p> }
+@for (error of errors; track $index) { <p role="alert">{{ error }}</p> }
   <div class="preview-toolbar">
     <div class="toolbar-group">
       <label>
@@ -14,8 +17,8 @@
     </div>
 
     <div class="toolbar-group">
-      <button [disabled]="!!layoutError" (click)="print()">Imprimir</button>
-      <button [disabled]="!!layoutError" (click)="exportHtml()">Exportar HTML</button>
+      <button [disabled]="!!layoutError || checking || errors.length > 0" (click)="print()">Imprimir</button>
+      <button [disabled]="!!layoutError || checking || errors.length > 0" (click)="exportHtml()">Exportar HTML</button>
       <button (click)="exportJson()">Exportar JSON</button>
     </div>
   </div>

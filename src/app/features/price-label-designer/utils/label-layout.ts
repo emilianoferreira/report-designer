@@ -1,6 +1,7 @@
 import { LabelTemplate } from '../../../core/models/price-label-template.model';
 
 export function labelLayoutError(template: LabelTemplate): string {
+  if (!template?.page || !template?.label || !Array.isArray(template.elements)) return 'Plantilla incompleta.';
   const { page, label } = template;
   if ([page.width, page.height, label.width, label.height].some(v => !Number.isFinite(v) || v <= 0) ||
       [page.marginLeft, page.marginRight, page.marginTop, page.marginBottom, label.gapX, label.gapY].some(v => !Number.isFinite(v) || v < 0) ||

@@ -4,6 +4,7 @@ import {
   ElementRef,
   Input,
   OnChanges,
+  OnDestroy,
   SimpleChanges,
   ViewChild
 } from '@angular/core';
@@ -28,13 +29,17 @@ type PreviewMode = 'sheet' | 'html' | 'json';
   templateUrl: './price-label-preview.component.html',
   styleUrl: './price-label-preview.component.scss'
 })
-export class PriceLabelPreviewComponent implements OnChanges, AfterViewInit {
+export class PriceLabelPreviewComponent implements OnChanges, AfterViewInit, OnDestroy {
   @ViewChild('previewFrame') previewFrame!: ElementRef<HTMLIFrameElement>;
 
   @Input({ required: true }) template!: LabelTemplate;
   @Input({ required: true }) articles!: PriceLabelArticle[];
   @Input({ required: true }) company!: PriceLabelCompany;
 
+  errors: string[] = [];
+  warnings: string[] = [];
+  checking = false;
+  private revision = 0;
   copies = 1;
   mode: PreviewMode = 'sheet';
   html = '';
@@ -42,6 +47,8 @@ export class PriceLabelPreviewComponent implements OnChanges, AfterViewInit {
   zoom = 0.72;
 
   constructor(private renderer: PriceLabelRendererService) {}
+
+  ngOnDestroy(): void { this.revision++; }
 
   ngAfterViewInit(): void {
     this.render();
@@ -67,20 +74,20 @@ export class PriceLabelPreviewComponent implements OnChanges, AfterViewInit {
   }
 
   onCopiesChange(): void {
-    this.copies = Math.max(1, Math.round(this.copies || 1));
+
     this.render();
   }
 
   get layoutError(): string { return labelLayoutError(this.template); }
 
   print(): void {
-    if (this.layoutError) return;
+    if (this.layoutError || this.checking || this.errors.length) return;
     this.mode = 'sheet';
     this.injectIframe(true);
   }
 
   exportHtml(): void {
-    if (this.layoutError) return;
+    if (this.layoutError || this.checking || this.errors.length) return;
     this.download(this.html, this.safeFileName('html'), 'text/html');
   }
 
@@ -90,6 +97,10 @@ export class PriceLabelPreviewComponent implements OnChanges, AfterViewInit {
 
   private render(): void {
     if (!this.template || !this.articles || !this.company) return;
+    this.warnings = [];
+    this.errors = this.renderer.validate(this.template, this.articles, this.copies, this.company);
+    this.checking = true;
+    void this.checkImages(++this.revision);
     this.html = this.renderer.renderToHtml(this.template, this.articles, this.copies, this.company);
     this.json = JSON.stringify(this.template, null, 2);
     if (this.mode === 'sheet') {
@@ -97,17 +108,48 @@ export class PriceLabelPreviewComponent implements OnChanges, AfterViewInit {
     }
   }
 
+  private async checkImages(revision: number): Promise<void> {
+    const errors: string[] = [];
+    if (!this.errors.length) await Promise.all(this.articles.flatMap(article => this.template.elements.map(async el => {
+      if (el.type !== 'image') return;
+      const src = el.sourceType === 'url' ? el.url : this.renderer.resolvePath(el.binding, { article, company: this.company });
+      const ok = await new Promise<boolean>(resolve => {
+        const img = new Image();
+        const finish = (value: boolean) => { clearTimeout(timer); img.onload = img.onerror = null; resolve(value); };
+        const timer = setTimeout(() => finish(false), 10000);
+        img.onload = () => finish(img.naturalWidth > 0); img.onerror = () => finish(false); img.src = String(src || '');
+      });
+      if (!ok) errors.push(article.name+' · '+el.name+': no se pudo cargar la imagen.');
+    })));
+    if (revision !== this.revision) return;
+    this.errors = [...this.errors, ...errors]; this.checking = false;
+  }
+
   private injectIframe(print = false): void {
+    const revision = this.revision;
     setTimeout(() => {
+      if (revision !== this.revision) return;
       const doc = this.previewFrame?.nativeElement.contentDocument;
       if (!doc) return;
       doc.open();
       doc.write(this.html);
       doc.close();
+      void doc.fonts.ready.then(() => {
+        if (revision !== this.revision || !this.previewFrame?.nativeElement.isConnected) return;
+        const warnings = new Set<string>();
+        for (const element of Array.from(doc.querySelectorAll<HTMLElement>('.label-text, .label-price'))) {
+          const range = doc.createRange(); range.selectNodeContents(element);
+          const text = range.getBoundingClientRect(), box = element.getBoundingClientRect();
+          if (text.width && (text.left < box.left - 0.5 || text.top < box.top - 0.5 || text.right > box.right + 0.5 || text.bottom > box.bottom + 0.5)) {
+            warnings.add('Texto recortado: ' + element.textContent?.slice(0, 80));
+          }
+        }
+        this.warnings = [...warnings];
+      });
       if (print) {
         const frame = this.previewFrame.nativeElement;
-        Promise.all(Array.from(doc.images).map(img => img.decode().catch(() => undefined)))
-          .then(() => { if (frame.isConnected) frame.contentWindow?.print(); });
+        Promise.all(Array.from(doc.images).map(img => img.decode()))
+          .then(() => { if (revision === this.revision && frame.isConnected && !this.errors.length && !this.checking) frame.contentWindow?.print(); }).catch(() => { this.errors = ['No se pudieron cargar las imágenes para imprimir.']; });
       }
     });
   }

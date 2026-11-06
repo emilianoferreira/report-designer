@@ -79,6 +79,7 @@ export class PriceLabelPropertiesComponent implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['element']) {
+      this.validationError = '';
       this.loadElement();
     }
   }
@@ -98,9 +99,13 @@ export class PriceLabelPropertiesComponent implements OnChanges {
     return this.element?.type === 'text' || this.element?.type === 'price';
   }
 
+  validationError = '';
   applyChanges(): void {
     if (!this.element) return;
 
+    const valid = (v: number, min: number, max = Infinity) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
+    if (!valid(this.x,0) || !valid(this.y,0) || !valid(this.width,2) || !valid(this.height,2) || !valid(this.zIndex,0) || !valid(this.opacity,0,1) || !valid(this.borderWidth,0,2) || !valid(this.borderRadius,0,10) || (this.hasFont && !valid(this.fontSize,4,72)) || (this.element.type==='price' && (!Number.isInteger(this.priceDecimals) || !valid(this.priceDecimals,0,4)))) { this.validationError='Revisa los valores numéricos. Decimales: entero entre 0 y 4.'; return; }
+    this.validationError='';
     const style: any = {
       ...this.element.style,
       textAlign: this.textAlign,

@@ -235,6 +235,19 @@ const assert = require('node:assert/strict');
     await page.screenshot({ path: 'tmp/labels-properties.png' });
     assert.deepEqual(consoleMessages.filter(m => m.type === 'pageerror'), []);
     await require('./precision.cjs')(page, newTemplate, openSettings);
+    acceptDialog = true;
+    await require('./validation.cjs')(page, newTemplate);
+    await require('./presentation.cjs')(page, newTemplate);
+    const validRow = JSON.parse(JSON.stringify(row));
+    for (const corrupt of [t => { t.page = null; }, t => { t.elements[0].binding = 42; }]) {
+      row = JSON.parse(JSON.stringify(validRow)); corrupt(row.template_json);
+      await page.reload(); await page.locator('.price-content').waitFor();
+      await name.fill('Borrador conservado'); await name.press('Tab');
+      await selectSavedTemplate();
+      await page.waitForFunction(() => document.querySelector('.save-status').textContent.includes('No se pudo abrir'));
+      assert.equal(await name.inputValue(), 'Borrador conservado');
+    }
+    console.log('PASS: malformed templates rejected without replacing the draft.');
     // The shared shell still leaves the report editor usable beneath the session bar.
     row = { ...JSON.parse(fs.readFileSync('e2e/stage0/fixtures/report-a4.json', 'utf8')), id: 'e0000000-0000-4000-8000-000000000030', version: 1 };
     await page.goto('http://review.test/designer/' + row.id);

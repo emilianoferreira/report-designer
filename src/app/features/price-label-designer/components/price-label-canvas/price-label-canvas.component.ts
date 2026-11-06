@@ -1,3 +1,4 @@
+import { labelPresentation } from '../../utils/label-presentation';
 import { CommonModule } from '@angular/common';
 import {
   Component,
@@ -204,39 +205,11 @@ export class PriceLabelCanvasComponent implements OnDestroy {
       cursor: element.locked ? 'default' : 'move'
     };
 
-    if (element.style.backgroundColor) style['background-color'] = element.style.backgroundColor;
-    if (element.style.borderColor && element.style.borderWidth) {
-      style['border'] = `${this.mmToScreenPx(element.style.borderWidth)}px ${element.style.borderStyle || 'solid'} ${element.style.borderColor}`;
-    }
-    if (element.style.borderRadius) {
-      style['border-radius'] = `${this.mmToScreenPx(element.style.borderRadius)}px`;
-    }
-
     return style;
   }
 
   getContentStyles(element: LabelElement): Record<string, string> {
-    const style: Record<string, string> = {};
-    const font = element.style.font;
-    if (font) {
-      style['font-family'] = font.family;
-      style['font-size'] = `${font.size * (96 / 72) * this.zoom}px`;
-      style['font-weight'] = font.weight;
-      style['font-style'] = font.style;
-      style['color'] = font.color;
-    }
-    if (element.style.textAlign) style['text-align'] = element.style.textAlign;
-    if (element.style.verticalAlign) {
-      style['display'] = 'flex';
-      style['align-items'] = element.style.verticalAlign === 'middle'
-        ? 'center'
-        : element.style.verticalAlign === 'bottom'
-          ? 'flex-end'
-          : 'flex-start';
-      if (element.style.textAlign === 'center') style['justify-content'] = 'center';
-      if (element.style.textAlign === 'right') style['justify-content'] = 'flex-end';
-    }
-    return style;
+    return labelPresentation(element, this.zoom);
   }
 
   isSelected(element: LabelElement): boolean {

@@ -1,3 +1,4 @@
+import { templateErrors } from '../../utils/label-validation';
 import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -190,6 +191,8 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
   }
 
   private loadTemplate(template: LabelTemplate): void {
+    const errors = templateErrors(template);
+    if (errors.length) { this.showSaveStatus('No se pudo abrir: ' + errors.join(' ')); return; }
     this.selectedElementId = null;
     this.state.setTemplate(template);
     this.baseline = this.fingerprint(this.template);

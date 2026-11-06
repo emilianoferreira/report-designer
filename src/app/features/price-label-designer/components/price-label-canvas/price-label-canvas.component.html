@@ -73,20 +73,16 @@
 
           @switch (element.type) {
             @case ('text') {
-              <div class="element-content text-content" [ngStyle]="getContentStyles(element)">
-                {{ displayValue(element) }}
-              </div>
+              <div class="element-content text-content" [ngStyle]="getContentStyles(element)" [textContent]="displayValue(element)"></div>
             }
             @case ('price') {
-              <div class="element-content price-content" [ngStyle]="getContentStyles(element)">
-                {{ displayValue(element) }}
-              </div>
+              <div class="element-content price-content" [ngStyle]="getContentStyles(element)" [textContent]="displayValue(element)"></div>
             }
             @case ('barcode') {
-              <div class="element-content barcode-content" [labelBarcode]="element" [barcodeValue]="displayValue(element)"></div>
+              <div class="element-content barcode-content" [ngStyle]="getContentStyles(element)" [labelBarcode]="element" [barcodeValue]="displayValue(element)"></div>
             }
             @case ('image') {
-              <div class="element-content image-content">
+              <div class="element-content image-content" [ngStyle]="getContentStyles(element)">
                 @if (imageSource(element)) {
                   <img [src]="imageSource(element)" [style.object-fit]="imageFit(element)" draggable="false" />
                 } @else {
