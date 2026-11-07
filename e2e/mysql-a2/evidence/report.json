@@ -1,0 +1,154 @@
+{
+  "passed": true,
+  "reference": "4561a5d1a3b9fdc9bffa27910062583ed6784053",
+  "main": "0c9e5d64cfe298fa6bd92ec31328a9d20d82a009",
+  "oracleSha256": "eef97e8cdd2cd332b46d104adb522378b95b0723f650cb1eaa1a086960e0cd58",
+  "renders": [
+    {
+      "case": "seed-2",
+      "fixture": "report-a4",
+      "html": "0f8f649d1205fa0e8c9da251d341ed469909d03ac161a4c6ca834007ba0543f0",
+      "preview": "0f8f649d1205fa0e8c9da251d341ed469909d03ac161a4c6ca834007ba0543f0",
+      "text": "db4e41de4a2c539a559ce25180f0631c27c37497b699cfe7be1bacd57ed9f5f9",
+      "png": "4b128f1412467223a3eb48c5a874e7698a70396989da8e8f86404a775c0ed7bf",
+      "pdfPages": 1
+    },
+    {
+      "case": "seed-2",
+      "fixture": "report-ticket-80",
+      "html": "c488c0bd683ee8f6e72ecf740f5b2cc29f3da6b13efd1cadb7bd4288a0cf3b4d",
+      "preview": "c488c0bd683ee8f6e72ecf740f5b2cc29f3da6b13efd1cadb7bd4288a0cf3b4d",
+      "text": "9eeee3b6be7173ec661c54e32adb1594e307989d6c4b265e9c0b9984973f899d",
+      "png": "6fcc46d6833250a37988e4b26c258e4c71de989ba9c35570a0efad40e496ab72",
+      "pdfPages": 1
+    },
+    {
+      "case": "nullable",
+      "fixture": "report-a4",
+      "html": "edfb7b89f07580a3c42a9b3330d0056788bde45fbabc76062e3b8da5c310136f",
+      "preview": "edfb7b89f07580a3c42a9b3330d0056788bde45fbabc76062e3b8da5c310136f",
+      "text": "83ec117dcfb426b7a152e2eada9f4d29769a6dc248f84222f090b2c9dcd69ae5",
+      "png": "b4502e751e0cdd771b71656042222d0bd9db5667288d53446b25e4a13ac0909d",
+      "pdfPages": 1
+    },
+    {
+      "case": "nullable",
+      "fixture": "report-ticket-80",
+      "html": "0b8ddc870a91d19455ae1f2573d799d2d34da6554d04e69c20a971c74c390d69",
+      "preview": "0b8ddc870a91d19455ae1f2573d799d2d34da6554d04e69c20a971c74c390d69",
+      "text": "44970a304c76e07dfa2ee822c95d66e92aef76cd90f5c11025f268edd3b37a36",
+      "png": "7a94aec2101cbe9b33ef97fc750145f3269cf8770e389ca6d4df49287992a46b",
+      "pdfPages": 1
+    },
+    {
+      "case": "precision-unicode",
+      "fixture": "report-a4",
+      "html": "254794b84d2b449baea1d2feb68dae85be525f9a0d01e71854790a76c0004fbb",
+      "preview": "254794b84d2b449baea1d2feb68dae85be525f9a0d01e71854790a76c0004fbb",
+      "text": "a59fa0b0e11f9c97a1312e4d11c72bcc4d1e72cf86d0a59ccde0f56557e0919b",
+      "png": "c4330b50e1ffd5ed38c87c16582f0586b78c9c0275f2b1404918f525a943015a",
+      "pdfPages": 1
+    },
+    {
+      "case": "precision-unicode",
+      "fixture": "report-ticket-80",
+      "html": "4265a197b8757265c8b4222f311158d287cee092da7122a9dba04fb531ab1f81",
+      "preview": "4265a197b8757265c8b4222f311158d287cee092da7122a9dba04fb531ab1f81",
+      "text": "80715c6837ccde43443c947938295524a8771d1b87dea4af238181c7195a8576",
+      "png": "2e62b3ff8f6c6cdc650e6a48e2eec1e057f3baa2dbc752c276a47ebda238c762",
+      "pdfPages": 1
+    }
+  ],
+  "securityEvidence": "C:\\Users\\emili\\AppData\\Local\\Temp\\labels-concurrency-cb7AKi",
+  "defaultTimeZone": "America/Montevideo",
+  "comparison": {
+    "passed": true,
+    "cases": [
+      {
+        "name": "seed-1",
+        "passed": true,
+        "differences": []
+      },
+      {
+        "name": "seed-2",
+        "passed": true,
+        "differences": []
+      },
+      {
+        "name": "seed-3",
+        "passed": true,
+        "differences": []
+      },
+      {
+        "name": "seed-4",
+        "passed": true,
+        "differences": []
+      },
+      {
+        "name": "seed-5",
+        "passed": true,
+        "differences": []
+      },
+      {
+        "name": "empty",
+        "passed": true,
+        "differences": []
+      },
+      {
+        "name": "nullable",
+        "passed": true,
+        "differences": []
+      },
+      {
+        "name": "precision-unicode",
+        "passed": true,
+        "differences": []
+      },
+      {
+        "name": "offset-utc",
+        "passed": true,
+        "differences": []
+      },
+      {
+        "name": "offset-montevideo",
+        "passed": true,
+        "differences": []
+      },
+      {
+        "name": "offset-kathmandu",
+        "passed": true,
+        "differences": []
+      },
+      {
+        "name": "zero-flags",
+        "passed": true,
+        "differences": []
+      },
+      {
+        "name": "foreign-company",
+        "passed": true,
+        "notFound": true
+      },
+      {
+        "name": "missing",
+        "passed": true,
+        "notFound": true
+      },
+      {
+        "name": "foreign-contacts",
+        "passed": true,
+        "notFound": true
+      },
+      {
+        "name": "foreign-branches",
+        "passed": true,
+        "notFound": true
+      },
+      {
+        "name": "foreign-invoice_types",
+        "passed": true,
+        "notFound": true
+      }
+    ]
+  }
+}

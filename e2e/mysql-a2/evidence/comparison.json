@@ -1,0 +1,90 @@
+{
+  "passed": true,
+  "cases": [
+    {
+      "name": "seed-1",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "seed-2",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "seed-3",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "seed-4",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "seed-5",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "empty",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "nullable",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "precision-unicode",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "offset-utc",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "offset-montevideo",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "offset-kathmandu",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "zero-flags",
+      "passed": true,
+      "differences": []
+    },
+    {
+      "name": "foreign-company",
+      "passed": true,
+      "notFound": true
+    },
+    {
+      "name": "missing",
+      "passed": true,
+      "notFound": true
+    },
+    {
+      "name": "foreign-contacts",
+      "passed": true,
+      "notFound": true
+    },
+    {
+      "name": "foreign-branches",
+      "passed": true,
+      "notFound": true
+    },
+    {
+      "name": "foreign-invoice_types",
+      "passed": true,
+      "notFound": true
+    }
+  ]
+}
