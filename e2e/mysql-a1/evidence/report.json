@@ -1,0 +1,101 @@
+{
+  "passed": true,
+  "reference": "0c9e5d64cfe298fa6bd92ec31328a9d20d82a009",
+  "main": "0c9e5d64cfe298fa6bd92ec31328a9d20d82a009",
+  "branch": "codex/mysql-migration",
+  "cases": [
+    {
+      "backend": "nestjs",
+      "fixture": "report-a4",
+      "route": "/api/invoices/f1000000-0000-0000-0000-000000000002/data",
+      "status": 200,
+      "input": "0-invoice.json",
+      "inputSha256": "fd6c1746931116e0b366381209ba8ba587a619d893594eb5771b2443473e93e5",
+      "htmlSha256": "0f8f649d1205fa0e8c9da251d341ed469909d03ac161a4c6ca834007ba0543f0",
+      "textSha256": "db4e41de4a2c539a559ce25180f0631c27c37497b699cfe7be1bacd57ed9f5f9",
+      "pdfBytes": 39973,
+      "pdfPages": 1,
+      "checks": [
+        "SQL function parity",
+        "unauthenticated 401",
+        "foreign company 404",
+        "API company rendered",
+        "API line rendered",
+        "API total rendered",
+        "no browser errors",
+        "PDF generated with pages"
+      ]
+    },
+    {
+      "backend": "nestjs",
+      "fixture": "report-ticket-80",
+      "route": "/api/invoices/f1000000-0000-0000-0000-000000000002/data",
+      "status": 200,
+      "input": "0-invoice.json",
+      "inputSha256": "fd6c1746931116e0b366381209ba8ba587a619d893594eb5771b2443473e93e5",
+      "htmlSha256": "c488c0bd683ee8f6e72ecf740f5b2cc29f3da6b13efd1cadb7bd4288a0cf3b4d",
+      "textSha256": "9eeee3b6be7173ec661c54e32adb1594e307989d6c4b265e9c0b9984973f899d",
+      "pdfBytes": 56310,
+      "pdfPages": 1,
+      "checks": [
+        "SQL function parity",
+        "unauthenticated 401",
+        "foreign company 404",
+        "API company rendered",
+        "API line rendered",
+        "API total rendered",
+        "no browser errors",
+        "PDF generated with pages"
+      ]
+    },
+    {
+      "backend": "dotnet",
+      "fixture": "report-a4",
+      "route": "/api/invoices/f1000000-0000-0000-0000-000000000002/data",
+      "status": 200,
+      "input": "1-invoice.json",
+      "inputSha256": "fd6c1746931116e0b366381209ba8ba587a619d893594eb5771b2443473e93e5",
+      "htmlSha256": "0f8f649d1205fa0e8c9da251d341ed469909d03ac161a4c6ca834007ba0543f0",
+      "textSha256": "db4e41de4a2c539a559ce25180f0631c27c37497b699cfe7be1bacd57ed9f5f9",
+      "pdfBytes": 39973,
+      "pdfPages": 1,
+      "checks": [
+        "SQL function parity",
+        "unauthenticated 401",
+        "foreign company 404",
+        "API company rendered",
+        "API line rendered",
+        "API total rendered",
+        "no browser errors",
+        "PDF generated with pages"
+      ]
+    },
+    {
+      "backend": "dotnet",
+      "fixture": "report-ticket-80",
+      "route": "/api/invoices/f1000000-0000-0000-0000-000000000002/data",
+      "status": 200,
+      "input": "1-invoice.json",
+      "inputSha256": "fd6c1746931116e0b366381209ba8ba587a619d893594eb5771b2443473e93e5",
+      "htmlSha256": "c488c0bd683ee8f6e72ecf740f5b2cc29f3da6b13efd1cadb7bd4288a0cf3b4d",
+      "textSha256": "9eeee3b6be7173ec661c54e32adb1594e307989d6c4b265e9c0b9984973f899d",
+      "pdfBytes": 56310,
+      "pdfPages": 1,
+      "checks": [
+        "SQL function parity",
+        "unauthenticated 401",
+        "foreign company 404",
+        "API company rendered",
+        "API line rendered",
+        "API total rendered",
+        "no browser errors",
+        "PDF generated with pages"
+      ]
+    }
+  ],
+  "securityEvidence": "C:\\Users\\emili\\AppData\\Local\\Temp\\labels-concurrency-aGjBPe",
+  "database": {
+    "name": "postgres",
+    "version": "PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit"
+  }
+}
