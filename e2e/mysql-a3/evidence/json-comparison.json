@@ -1,0 +1,242 @@
+[
+  {
+    "name": "report-a4",
+    "storage": "native",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": false
+  },
+  {
+    "name": "report-a4",
+    "storage": "text",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": true
+  },
+  {
+    "name": "report-ticket-80",
+    "storage": "native",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": false
+  },
+  {
+    "name": "report-ticket-80",
+    "storage": "text",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": true
+  },
+  {
+    "name": "price-label",
+    "storage": "native",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": false
+  },
+  {
+    "name": "price-label",
+    "storage": "text",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": true
+  },
+  {
+    "name": "open-document",
+    "storage": "native",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": false
+  },
+  {
+    "name": "open-document",
+    "storage": "text",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": true
+  },
+  {
+    "name": "exact-number",
+    "storage": "native",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": false,
+    "lexicalEqual": false
+  },
+  {
+    "name": "exact-number",
+    "storage": "text",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": true
+  },
+  {
+    "name": "duplicate-key",
+    "storage": "native",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": false
+  },
+  {
+    "name": "duplicate-key",
+    "storage": "text",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": true
+  },
+  {
+    "name": "numeric-notation",
+    "storage": "native",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": false
+  },
+  {
+    "name": "numeric-notation",
+    "storage": "text",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": true
+  },
+  {
+    "name": "json-null",
+    "storage": "native",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": true
+  },
+  {
+    "name": "json-null",
+    "storage": "text",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": true
+  },
+  {
+    "name": "large-1mb",
+    "storage": "native",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": false
+  },
+  {
+    "name": "large-1mb",
+    "storage": "text",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": true
+  },
+  {
+    "name": "near-http-limit",
+    "storage": "native",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": false
+  },
+  {
+    "name": "near-http-limit",
+    "storage": "text",
+    "required": true,
+    "accepted": true,
+    "error": null,
+    "postgresAccepted": true,
+    "semanticEqual": true,
+    "lexicalEqual": true
+  },
+  {
+    "name": "huge-exponent",
+    "storage": "native",
+    "required": false,
+    "accepted": false,
+    "error": 3140,
+    "postgresAccepted": true,
+    "semanticEqual": null,
+    "lexicalEqual": false
+  },
+  {
+    "name": "huge-exponent",
+    "storage": "text",
+    "required": false,
+    "accepted": false,
+    "error": 3819,
+    "postgresAccepted": true,
+    "semanticEqual": null,
+    "lexicalEqual": false
+  },
+  {
+    "name": "invalid-json",
+    "storage": "native",
+    "required": true,
+    "accepted": false,
+    "error": 3140,
+    "postgresAccepted": false,
+    "semanticEqual": null,
+    "lexicalEqual": false
+  },
+  {
+    "name": "invalid-json",
+    "storage": "text",
+    "required": true,
+    "accepted": false,
+    "error": 3819,
+    "postgresAccepted": false,
+    "semanticEqual": null,
+    "lexicalEqual": false
+  }
+]
