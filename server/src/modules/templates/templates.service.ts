@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Inject, ConflictException, BadRequestException } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { companyId } from '../../auth/auth.module';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -44,7 +44,7 @@ export class TemplatesService {
     if (data.based_on != null) await this.findOne(data.based_on);
     // Never pass relation objects, prototypes or arbitrary entity fields to TypeORM.
     for (const key of ['nombre', 'descripcion', 'version', 'autor', 'tags', 'estado', 'template_json', 'based_on'])
-      if (Object.prototype.hasOwnProperty.call(data, key)) (tpl as any)[key] = data[key];
+      if ((key !== 'version' || this.request.headers['if-match'] === undefined) && Object.prototype.hasOwnProperty.call(data, key)) (tpl as any)[key] = data[key];
     tpl.version = (tpl.version || 1) + 1;
     return repo.save(tpl);
     });
@@ -83,6 +83,11 @@ export class TemplatesService {
       const repo = manager.getRepository(ReportTemplate);
       const row = await repo.findOne({ where: { id, company_id: this.company }, lock: { mode: 'pessimistic_write' } });
       if (!row) throw new NotFoundException(`Template ${id} not found`);
+      const revision = this.request.headers['if-match'];
+      if (revision !== undefined) {
+        if (typeof revision !== 'string' || !/^"[0-9]+"$/.test(revision) || Number(revision.slice(1,-1)) > 2147483647) throw new BadRequestException('Invalid If-Match revision');
+        if (Number(revision.slice(1,-1)) !== (row.version ?? 0)) throw new ConflictException('Template revision conflict');
+      }
       return work(repo, row);
     });
   }

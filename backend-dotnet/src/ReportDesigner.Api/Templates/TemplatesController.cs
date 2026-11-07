@@ -54,13 +54,13 @@ public sealed class TemplatesController(ITemplateQueries queries, ITemplateComma
         var fields = body.ValueKind == JsonValueKind.Object
             ? body.EnumerateObject().ToDictionary(field => field.Name, field => field.Value)
             : new Dictionary<string, JsonElement>();
-        return Ok(TemplateResponse.From(await commands.UpdateAsync(Id, new TemplateChanges(fields), cancellationToken)));
+        return Ok(TemplateResponse.From(await commands.UpdateAsync(Id, new TemplateChanges(fields, ExpectedVersion()), cancellationToken)));
     }
 
     [HttpPut("{id}/design")]
     public async Task<IActionResult> SaveDesign([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] JsonElement body, CancellationToken cancellationToken)
     {
-        var result = await commands.SaveDesignAsync(Id, Property(body, "template_json"), cancellationToken);
+        var result = await commands.SaveDesignAsync(Id, Property(body, "template_json"), cancellationToken, ExpectedVersion());
         var response = TemplateResponse.From(result.Template);
         return Ok(result.OmitDesign ? response with { TemplateJson = null } : response);
     }
@@ -72,8 +72,17 @@ public sealed class TemplatesController(ITemplateQueries queries, ITemplateComma
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(CancellationToken cancellationToken)
     {
-        await commands.DeleteAsync(Id, cancellationToken);
+        await commands.DeleteAsync(Id, cancellationToken, ExpectedVersion());
         return new EmptyResult(); // NestJS returns 200 with an empty body.
+    }
+
+    private int? ExpectedVersion()
+    {
+        if (!Request.Headers.TryGetValue("If-Match", out var header)) return null;
+        var raw = header.ToString();
+        if (raw.Length < 3 || raw[0] != '"' || raw[^1] != '"' || !raw[1..^1].All(char.IsAsciiDigit)) throw new InvalidTemplateRevisionException();
+        if (!int.TryParse(raw.Trim('"'), out var version)) throw new InvalidTemplateRevisionException();
+        return version;
     }
 
     private string Id => (string)RouteData.Values["id"]!;

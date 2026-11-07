@@ -1,3 +1,4 @@
+using ReportDesigner.Application.Templates;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using ReportDesigner.Application.Common;
@@ -11,6 +12,13 @@ public sealed class LegacyApiExceptionFilter(ILogger<LegacyApiExceptionFilter> l
     {
         if (context.Exception is OperationCanceledException && context.HttpContext.RequestAborted.IsCancellationRequested)
             return;
+        if (context.Exception is TemplateConflictException or InvalidTemplateRevisionException)
+        {
+            var status = context.Exception is TemplateConflictException ? 409 : 400;
+            context.Result = new ObjectResult(new { statusCode = status, message = context.Exception.Message, error = status == 409 ? "Conflict" : "Bad Request" }) { StatusCode = status };
+            context.ExceptionHandled = true;
+            return;
+        }
         if (context.Exception is AccessDeniedException)
         {
             context.Result = new ObjectResult(new { statusCode = 403, message = "Forbidden", error = "Forbidden" }) { StatusCode = 403 };

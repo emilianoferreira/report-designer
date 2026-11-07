@@ -118,6 +118,21 @@ export async function checkSecurity({urls, db, users, root, resultsDir}) {
       assert.equal(copy.version,1); assert.deepEqual(copy.template_json,next); owned.push(copy.id);
       const updated = await check(url,alice,'PUT',`/api/templates/${a.id}`,{nombre:'Nombre autorizado',tags:['ñ'],estado:'borrador'});
       assert.equal(updated.nombre,'Nombre autorizado'); assert.equal(updated.version,3);
+      const revision = {'If-Match':'"3"'};
+      const race = await Promise.all(['A','B'].map(nombre => fetch(url+'/api/templates/'+a.id,{method:'PUT',headers:{cookie:alice.cookie,'X-CSRF-Token':alice.session.csrf_token,'Content-Type':'application/json',...revision},body:JSON.stringify({nombre,version:900})})));
+      assert.deepEqual(race.map(r=>r.status).sort(),[200,409]);
+      const current = await check(url,alice,'GET','/api/templates/'+a.id);
+      assert.equal(current.version,4);
+      await check(url,alice,'PUT','/api/templates/'+a.id+'/design',{template_json:{}},409,revision);
+      await check(url,alice,'DELETE','/api/templates/'+a.id,undefined,409,revision);
+      await check(url,alice,'PUT','/api/templates/'+a.id,{nombre:'invalid'},400,{'If-Match':'bad'});
+      await check(url,bob,'DELETE','/api/templates/'+a.id,undefined,404,{'If-Match':'"4"'});
+      const nextRevision = await check(url,alice,'PUT','/api/templates/'+a.id+'/design',{template_json:next},200,{'If-Match':'"4"'});
+      assert.equal(nextRevision.version,5);
+      const legacyVersion = await check(url,alice,'PUT','/api/templates/'+a.id,{version:10});
+      assert.equal(legacyVersion.version,11);
+      await check(url,alice,'DELETE','/api/templates/'+copy.id,undefined,200,{'If-Match':'"1"'});
+      owned.splice(owned.indexOf(copy.id),1);
     }
     await check(url,alice,'GET',`/api/templates?companyId=${B}`,undefined,403);
     await check(url,alice,'GET',`/api/invoices?companyId=${B}`,undefined,403);

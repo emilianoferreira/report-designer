@@ -56,6 +56,8 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
   leftPanelCollapsed = false;
   rightPanelCollapsed = false;
   saving = false;
+  conflict = false;
+  private serverVersion?: number;
   private baseline = '';
   private destroyed = false;
 
@@ -82,7 +84,7 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
 
   constructor(
     private state: PriceLabelStateService,
-    private storage: PriceLabelStorageService,
+    public storage: PriceLabelStorageService,
     private router: Router,
     private auth: AuthService
   ) {}
@@ -194,6 +196,8 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
     const errors = templateErrors(template);
     if (errors.length) { this.showSaveStatus('No se pudo abrir: ' + errors.join(' ')); return; }
     this.selectedElementId = null;
+    this.serverVersion = this.storage.revision(template.id);
+    this.conflict = false;
     this.state.setTemplate(template);
     this.baseline = this.fingerprint(this.template);
   }
@@ -211,32 +215,55 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
     this.loadTemplate(template);
   }
 
-  async saveTemplate(): Promise<void> {
+  async saveTemplate(asCopy = false): Promise<void> {
     if (this.saving || this.layoutError || this.state.interacting) return;
-    const sent = this.template;
+    const original = this.template;
+    const sent = asCopy ? { ...original, name: original.name + ' (copia)' } : original;
     this.saving = true;
     try {
-      const saved = await this.storage.save(sent);
+      const saved = await this.storage.save(sent, this.serverVersion, asCopy);
       if (this.destroyed) return;
       this.auth.error$.next('');
-      const unchanged = this.fingerprint(this.template) === this.fingerprint(sent);
+      this.serverVersion = this.storage.revision(saved.id);
+      this.conflict = false;
+      const unchanged = this.fingerprint(this.template) === this.fingerprint(original);
       this.baseline = this.fingerprint(saved);
-      this.state.acceptSaved(unchanged ? saved : { ...this.template, id: saved.id });
+      this.state.acceptSaved(unchanged ? saved : { ...this.template, id: saved.id, name: asCopy && this.template.name === original.name ? saved.name : this.template.name });
       this.showSaveStatus(unchanged ? 'Guardado' : 'Guardado; hay cambios nuevos pendientes');
-    } catch {
-      this.showSaveStatus('No se pudo guardar. Los cambios se conservaron.');
+    } catch (error: any) {
+      this.conflict = error.status === 409;
+      this.showSaveStatus(this.conflict ? 'La plantilla cambió en el servidor. Tu borrador se conservó.' : 'No se pudo guardar. Los cambios se conservaron.');
     } finally {
       this.saving = false;
     }
   }
 
-  async deleteTemplate(): Promise<void> {
+  async reloadTemplate(): Promise<void> {
     if (!this.canDiscard()) return;
-    if (this.storage.getById(this.template.id)) {
-      await this.storage.delete(this.template.id);
-    }
-    this.loadTemplate(createDefaultPriceLabelTemplate());
-    this.showSaveStatus('Eliminado');
+    const original = this.fingerprint(this.template);
+    this.saving = true;
+    try {
+      const latest = await this.storage.fetch(this.template.id);
+      if (!this.destroyed) {
+        if (this.fingerprint(this.template) === original) this.loadTemplate(latest);
+        else this.showSaveStatus('Hay cambios nuevos. Tu borrador se conservó; vuelve a recargar cuando termines.');
+      }
+    } catch { this.showSaveStatus('No se pudo recargar. Tu borrador se conservó.'); }
+    finally { this.saving = false; }
+  }
+
+  async deleteTemplate(): Promise<void> {
+    if (this.saving || !confirm('¿Eliminar la plantilla "' + this.template.name + '"? Esta acción no se puede deshacer y descarta los cambios locales.')) return;
+    this.saving = true;
+    try {
+      if (this.storage.getById(this.template.id)) await this.storage.delete(this.template.id, this.serverVersion);
+      if (this.destroyed) return;
+      this.loadTemplate(createDefaultPriceLabelTemplate());
+      this.showSaveStatus('Eliminado');
+    } catch (error: any) {
+      this.conflict = error.status === 409;
+      this.showSaveStatus(this.conflict ? 'La plantilla cambió en el servidor. No se eliminó.' : 'No se pudo eliminar. Tu borrador se conservó.');
+    } finally { this.saving = false; }
   }
 
   updateName(name: string): void {

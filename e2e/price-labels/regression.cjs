@@ -1,4 +1,4 @@
-const { chromium } = require('@playwright/test');
+const { chromium, expect } = require('@playwright/test');
 const fs = require('node:fs');
 const assert = require('node:assert/strict');
 
@@ -15,6 +15,8 @@ const assert = require('node:assert/strict');
     fixture.template_json.label.gapX = 0;
     let saveDelay = 0;
     let failSave = false;
+    let failList = false;
+    let deletions = 0;
     let creations = 0;
     let acceptDialog = false;
     let dialogs = 0;
@@ -34,12 +36,16 @@ const assert = require('node:assert/strict');
       if (path === '/api/auth/session') {
         return route.fulfill({ json: { user: { id: 'review-user', email: 'review@example.test' }, company_id: fixture.company_id, role: 'editor', csrf_token: 'review-token', expires_at: '2099-01-01T00:00:00Z', companies: [{ id: fixture.company_id, name: 'Review', role: 'editor' }] } });
       }
-      if (path === '/api/templates' && route.request().method() === 'GET') return route.fulfill({ json: [row] });
+      if (path === '/api/templates' && route.request().method() === 'GET') return route.fulfill(failList ? {status:500,json:{}} : { json: [row] });
+      if (path === '/api/templates/' + row.id && route.request().method() === 'GET') return route.fulfill({json:row});
+      const revision = route.request().headers()['if-match'];
+      if (revision && revision !== JSON.stringify(String(row.version))) return route.fulfill({status:409,json:{message:'Template revision conflict'}});
+      if (path === '/api/templates/' + row.id && route.request().method() === 'DELETE' && !failSave) { deletions++; return route.fulfill({status:200,body:''}); }
       if (route.request().method() !== 'GET' && failSave) return route.fulfill({ status: 500, json: { message: 'Test save failure' } });
       if (path === '/api/templates' && route.request().method() === 'POST') {
         creations++;
         const sent = route.request().postDataJSON();
-        row = { ...row, ...sent, id: 'e0000000-0000-4000-8000-000000000099', version: 1 };
+        row = { ...row, ...sent, id: 'e0000000-0000-4000-8000-' + String(98 + creations).padStart(12,'0'), version: 1 };
         if (saveDelay) await new Promise(resolve => setTimeout(resolve, saveDelay));
         return route.fulfill({ json: row });
       }
@@ -174,7 +180,7 @@ const assert = require('node:assert/strict');
     await openSettings();
     await page.getByLabel('Separación horizontal', { exact: true }).fill('2');
     await page.getByLabel('Separación horizontal', { exact: true }).press('Tab');
-    assert.equal(await page.getByRole('alert').count(), 1);
+    await expect(page.getByRole('alert')).toHaveCount(1);
     assert.equal(await page.getByRole('button', { name: 'Guardar', exact: true }).isDisabled(), true);
     await page.getByRole('button', { name: 'Vista previa', exact: true }).click();
     assert.equal(await page.getByRole('button', { name: 'Imprimir', exact: true }).isDisabled(), true);
@@ -238,6 +244,43 @@ const assert = require('node:assert/strict');
     acceptDialog = true;
     await require('./validation.cjs')(page, newTemplate);
     await require('./presentation.cjs')(page, newTemplate);
+    await newTemplate();
+    const beforeConflictCreations = creations;
+    await name.fill('Compartida'); await name.press('Tab');
+    await page.getByRole('button',{name:'Guardar',exact:true}).click();
+    await page.waitForFunction(() => !document.querySelector('button.primary').disabled);
+    row = {...row, version:row.version+1, nombre:'Cambio remoto'};
+    await name.fill('Mi borrador'); await name.press('Tab');
+    await page.getByRole('button',{name:'Guardar',exact:true}).click();
+    await page.getByRole('button',{name:'Guardar borrador como copia',exact:true}).waitFor();
+    assert.equal(await name.inputValue(),'Mi borrador');
+    await page.getByRole('button',{name:'Guardar borrador como copia',exact:true}).click();
+    await page.waitForFunction(() => !document.querySelector('button.primary').disabled);
+    assert.equal(await name.inputValue(),'Mi borrador (copia)');
+    assert.equal(creations,beforeConflictCreations+2);
+    row = {...row, version:row.version+1, nombre:'Versión remota'};
+    await page.getByRole('button',{name:'Guardar',exact:true}).click();
+    await page.getByRole('button',{name:'Recargar versión del servidor',exact:true}).click();
+    await page.waitForFunction(() => document.querySelector('.template-name-input').value==='Versión remota');
+    acceptDialog=false;
+    await openTemplateMenu(); await page.getByRole('button',{name:'Eliminar plantilla',exact:true}).click();
+    assert.equal(deletions,0); assert.equal(await name.inputValue(),'Versión remota');
+    acceptDialog=true; failSave=true;
+    await openTemplateMenu(); await page.getByRole('button',{name:'Eliminar plantilla',exact:true}).click();
+    await page.waitForFunction(() => document.querySelector('.save-status').textContent.includes('No se pudo eliminar'));
+    assert.equal(await name.inputValue(),'Versión remota'); assert.equal(deletions,0);
+    failSave=false;
+    row={...row,version:row.version+1};
+    await openTemplateMenu(); await page.getByRole('button',{name:'Eliminar plantilla',exact:true}).click();
+    await page.getByRole('button',{name:'Recargar versión del servidor',exact:true}).click();
+    await page.waitForFunction(() => !document.querySelector('button.primary').disabled);
+    await openTemplateMenu(); await page.getByRole('button',{name:'Eliminar plantilla',exact:true}).click();
+    await page.waitForFunction(() => document.querySelector('.save-status').textContent==='Eliminado');
+    assert.equal(deletions,1);
+    failList=true; await page.reload(); await page.getByRole('button',{name:'Reintentar carga',exact:true}).waitFor();
+    failList=false; await page.getByRole('button',{name:'Reintentar carga',exact:true}).click();
+    await page.getByRole('button',{name:'Reintentar carga',exact:true}).waitFor({state:'detached'});
+    console.log('PASS: conflict preserves draft, save copy, reload revision, protected delete, failure recovery and catalog retry.');
     const validRow = JSON.parse(JSON.stringify(row));
     for (const corrupt of [t => { t.page = null; }, t => { t.elements[0].binding = 42; }]) {
       row = JSON.parse(JSON.stringify(validRow)); corrupt(row.template_json);

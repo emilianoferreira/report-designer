@@ -1,4 +1,11 @@
 <div class="label-designer-page">
+  @if (storage.error$ | async; as error) { <div role="alert">{{ error }} <button (click)="storage.refresh()">Reintentar carga</button></div> }
+  @if (conflict) {
+    <div role="alert">La versión del servidor cambió. Tu borrador sigue disponible.
+      <button [disabled]="saving" (click)="reloadTemplate()">Recargar versión del servidor</button>
+      <button [disabled]="saving" (click)="saveTemplate(true)">Guardar borrador como copia</button>
+    </div>
+  }
   <header class="designer-header">
     <div class="header-left">
       <button class="back-btn" (click)="goToDocuments()" title="Volver a documentos" aria-label="Volver a documentos">←</button>

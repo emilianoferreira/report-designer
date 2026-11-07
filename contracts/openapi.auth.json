@@ -265,6 +265,9 @@
           "200": {
             "$ref": "#/components/responses/Template"
           },
+          "400": {
+            "description": "If-Match inválido."
+          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -322,6 +325,9 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
+          "409": {
+            "description": "La revisión cambió; no se modifica la plantilla."
+          },
           "500": {
             "$ref": "#/components/responses/DatabaseError"
           }
@@ -335,6 +341,16 @@
               "type": "string"
             },
             "description": "csrf_token de GET /api/auth/session. Para login usar el literal login."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "description": "Revisión de fila entre comillas. Opcional para clientes anteriores; el diseñador de etiquetas la envía al actualizar y eliminar.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\"[0-9]+\"$"
+            }
           }
         ]
       },
@@ -344,6 +360,9 @@
           "200": {
             "description": "Cuerpo vacío; no devuelve JSON ni 204"
           },
+          "400": {
+            "description": "If-Match inválido."
+          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -401,6 +420,9 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
+          "409": {
+            "description": "La revisión cambió; no se modifica la plantilla."
+          },
           "500": {
             "$ref": "#/components/responses/DatabaseError"
           }
@@ -414,6 +436,16 @@
               "type": "string"
             },
             "description": "csrf_token de GET /api/auth/session. Para login usar el literal login."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "description": "Revisión de fila entre comillas. Opcional para clientes anteriores; el diseñador de etiquetas la envía al actualizar y eliminar.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\"[0-9]+\"$"
+            }
           }
         ]
       }
@@ -448,6 +480,9 @@
           "200": {
             "$ref": "#/components/responses/Template"
           },
+          "400": {
+            "description": "If-Match inválido."
+          },
           "401": {
             "description": "Unauthorized",
             "content": {
@@ -505,6 +540,9 @@
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
+          "409": {
+            "description": "La revisión cambió; no se modifica la plantilla."
+          },
           "500": {
             "$ref": "#/components/responses/DatabaseError"
           }
@@ -518,6 +556,16 @@
               "type": "string"
             },
             "description": "csrf_token de GET /api/auth/session. Para login usar el literal login."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "description": "Revisión de fila entre comillas. Opcional para clientes anteriores; el diseñador de etiquetas la envía al actualizar y eliminar.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\"[0-9]+\"$"
+            }
           }
         ]
       }

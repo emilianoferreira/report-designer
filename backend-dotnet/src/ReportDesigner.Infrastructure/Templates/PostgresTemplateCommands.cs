@@ -32,14 +32,14 @@ internal sealed class PostgresTemplateCommands(ReportDesignerDbContext db, ITemp
     public async Task<TemplateReadModel> UpdateAsync(string id, TemplateChanges changes, CancellationToken cancellationToken)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        await Required(id, cancellationToken);
+        await LockRevision(id, changes.ExpectedVersion, cancellationToken);
         // Ownership and identity are immutable; cross-company references are never accepted.
         foreach (var key in new[] { "id", "company_id", "company", "created_at", "updated_at" })
             if (changes.Fields.ContainsKey(key)) throw new AccessDeniedException();
         if (changes.Fields.TryGetValue("based_on", out var reference) && reference.ValueKind != JsonValueKind.Null)
             await Required(reference.GetString()!, cancellationToken);
         // Fixed SQL column names; all client values remain parameters. Extra properties never become SQL.
-        var json = JsonSerializer.Serialize(changes.Fields);
+        var json = JsonSerializer.Serialize(changes.ExpectedVersion.HasValue ? changes.Fields.Where(f => f.Key != "version").ToDictionary(f => f.Key, f => f.Value) : changes.Fields);
         var explicitTimestamp = changes.Fields.ContainsKey("updated_at");
         await db.Database.ExecuteSqlAsync($"""
             UPDATE report_templates t SET nombre = p.nombre, descripcion = p.descripcion,
@@ -63,11 +63,11 @@ internal sealed class PostgresTemplateCommands(ReportDesignerDbContext db, ITemp
         return result;
     }
 
-    public async Task<TemplateWriteResult> SaveDesignAsync(string id, JsonElement design, CancellationToken cancellationToken)
+    public async Task<TemplateWriteResult> SaveDesignAsync(string id, JsonElement design, CancellationToken cancellationToken, int? expectedVersion = null)
     {
         var fields = new Dictionary<string, JsonElement>();
         if (design.ValueKind != JsonValueKind.Undefined) fields["template_json"] = design;
-        var result = await UpdateAsync(id, new TemplateChanges(fields), cancellationToken);
+        var result = await UpdateAsync(id, new TemplateChanges(fields, expectedVersion), cancellationToken);
         // TypeORM skips undefined in SQL and omits that property from the returned object.
         return new TemplateWriteResult(result, design.ValueKind == JsonValueKind.Undefined);
     }
@@ -89,12 +89,20 @@ internal sealed class PostgresTemplateCommands(ReportDesignerDbContext db, ITemp
         return result;
     }
 
-    public async Task DeleteAsync(string id, CancellationToken cancellationToken)
+    public async Task DeleteAsync(string id, CancellationToken cancellationToken, int? expectedVersion = null)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        await Required(id, cancellationToken);
+        await LockRevision(id, expectedVersion, cancellationToken);
         await db.Database.ExecuteSqlAsync($"DELETE FROM report_templates WHERE id = CAST({id} AS uuid) AND company_id = {company.CompanyId}", cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+    }
+
+    private async Task LockRevision(string id, int? expected, CancellationToken cancellationToken)
+    {
+        // Lock before reading the revision, including legacy writes, to avoid a stale UPDATE source row.
+        var versions = await db.Database.SqlQuery<int>($"SELECT COALESCE(version, 0) AS value FROM report_templates WHERE id = CAST({id} AS uuid) AND company_id = {company.CompanyId} FOR UPDATE").ToListAsync(cancellationToken);
+        if (versions.Count == 0) throw new TemplateNotFoundException(id);
+        if (expected.HasValue && versions[0] != expected.Value) throw new TemplateConflictException();
     }
 
     private async Task<TemplateReadModel> Required(string id, CancellationToken cancellationToken) =>
