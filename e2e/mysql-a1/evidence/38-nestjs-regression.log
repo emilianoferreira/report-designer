@@ -1,0 +1,9 @@
+PASS test/invoices.e2e-spec.ts
+PASS test/templates.e2e-spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       18 passed, 18 total
+Snapshots:   0 total
+Time:        4.495 s
+Ran all test suites.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

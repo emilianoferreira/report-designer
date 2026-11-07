@@ -1,0 +1,64 @@
+{
+  "passed": true,
+  "project": "stage8-c77c7728f5d04f43",
+  "runId": "c77c7728-f5d0-4f43-8d05-fb6470f719d9",
+  "dockerVersion": "29.1.3",
+  "database": "stage0_c77c7728f5d04f438d05fb6470f719d9",
+  "tls": true,
+  "hostNode": "v18.19.1",
+  "health": [
+    {
+      "Service": "api-dotnet",
+      "State": "running",
+      "Health": "healthy"
+    },
+    {
+      "Service": "api-nestjs",
+      "State": "running",
+      "Health": "healthy"
+    },
+    {
+      "Service": "pg-test",
+      "State": "running",
+      "Health": "healthy"
+    },
+    {
+      "Service": "web",
+      "State": "running",
+      "Health": "healthy"
+    }
+  ],
+  "browserAndContractCases": 84,
+  "activeDatabase": "stage0_c77c7728f5d04f438d05fb6470f719d9",
+  "reusedImages": false,
+  "https": false,
+  "gatewayPreserved": false,
+  "legacyNestCases": 18,
+  "securityChecks": 345,
+  "largeDocumentBytes": 1048576,
+  "rollback": ".NET → NestJS → .NET on the same packaged proxy and TLS database",
+  "images": [
+    {
+      "id": "sha256:e922a8c718ffe67902d5b9fb378389e77fa856fec18bb1d1150daeb3354fc5e5",
+      "tags": [
+        "stage8-c77c7728f5d04f43/web:stage8-c77c7728f5d04f43"
+      ],
+      "user": "101"
+    },
+    {
+      "id": "sha256:81bbb9dcfcf926e36af71e2bb9d0c92859e2689ab1233c62a2afdd8a87dde717",
+      "tags": [
+        "stage8-c77c7728f5d04f43/api-dotnet:stage8-c77c7728f5d04f43"
+      ],
+      "user": "1654"
+    },
+    {
+      "id": "sha256:1d929eb3dbe55db9c918f48b7664ef9ee65383c9da947d76bb08db183fbfc159",
+      "tags": [
+        "stage8-c77c7728f5d04f43/api-nestjs:stage8-c77c7728f5d04f43"
+      ],
+      "user": "node"
+    }
+  ],
+  "cleanup": "verified: project containers and database volume removed; temporary secrets deleted"
+}
