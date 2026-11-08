@@ -72,6 +72,18 @@ app.Use(async (context, next) =>
     await next();
 });
 app.UseAuthorization();
+// A4 intentionally exposes only MySQL authentication, not unfinished business persistence.
+if (builder.Configuration["Database:Provider"] == "MySql")
+    app.Use(async (context, next) =>
+    {
+        if (context.Request.Path.StartsWithSegments("/api/templates") || context.Request.Path.StartsWithSegments("/api/invoices"))
+        {
+            context.Response.StatusCode = 503;
+            await context.Response.WriteAsJsonAsync(new { statusCode = 503, message = "MySQL business persistence is not enabled in A4." });
+            return;
+        }
+        await next();
+    });
 app.UseRateLimiter();
 app.MapControllers();
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();

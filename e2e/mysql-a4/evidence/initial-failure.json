@@ -1,0 +1,10 @@
+{
+  "passed": false,
+  "reference": "1f43e9792928f9ff3a8c74aa17841cba3c309a01",
+  "main": "0c9e5d64cfe298fa6bd92ec31328a9d20d82a009",
+  "image": "mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902",
+  "database": "a4_cafbf9ac342d4126a1a8aba0aaac4156",
+  "checks": [],
+  "error": "ERROR 1064 (42000) at line 35: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHECK (es_principal IN (0,1)),\n    CHECK (activo IN (0,1)),\n    FOREIGN KEY (com' at line 11\n",
+  "cleanup": "owned container and volumes removed"
+}
