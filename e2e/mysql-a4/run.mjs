@@ -3,12 +3,13 @@ import {spawn,execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {randomBytes,randomUUID,pbkdf2Sync,createHash} from 'node:crypto';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath,pathToFileURL} from 'node:url';
 import path from 'node:path';
 import net from 'node:net';
 import {A,B,login,call} from '../stage8/check-security.mjs';
 import {checkBrowser} from './browser.mjs';
 
+export async function runMySql({verify}={}) {
 const root=fileURLToPath(new URL('../../',import.meta.url)),exec=promisify(execFile);
 const command=async(bin,args)=>(await exec(bin,args,{cwd:root,windowsHide:true,maxBuffer:8*1024*1024})).stdout.trim();
 assert.equal(await command('git',['branch','--show-current']),'codex/mysql-migration');
@@ -23,13 +24,14 @@ const sql=(text,user='root',db=database)=>new Promise((resolve,reject)=>{
     child.on('close',code=>code===0?resolve(stdout.trim()):reject(new Error(stderr.replaceAll(password,'[redacted]'))));child.stdin.end(text);
 });
 const report={passed:false,reference:await command('git',['rev-parse','HEAD']),main:await command('git',['rev-parse','main']),image,database,checks:[]};
-let created=false;const children=[];
+let created=false;const children=[];const logs=[];
 const check=(ok,label)=>{assert.ok(ok,label);report.checks.push(label);};
 const rejectSql=async(text,code)=>{await assert.rejects(sql(text),new RegExp('ERROR '+code));report.checks.push('constraint '+code+': '+text.split(' ')[0]);};
 const freePort=async()=>{const server=net.createServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));const port=server.address().port;await new Promise(r=>server.close(r));return port;};
 async function start(connection,extra={}) {
     const port=await freePort();let log='';
-    const child=spawn('dotnet',['backend-dotnet/src/ReportDesigner.Api/bin/Debug/net10.0/ReportDesigner.Api.dll'],{cwd:root,windowsHide:true,env:{...process.env,Database__Provider:'MySql',ConnectionStrings__MySql:connection,ASPNETCORE_URLS:'http://127.0.0.1:'+port,ASPNETCORE_ENVIRONMENT:'Development',Auth__SecureCookie:'false',...extra},stdio:['ignore','pipe','pipe']});children.push(child);
+    const child=spawn('dotnet',['backend-dotnet/src/ReportDesigner.Api/bin/Debug/net10.0/ReportDesigner.Api.dll'],{cwd:root,windowsHide:true,env:{...process.env,Database__Provider:'MySql',ConnectionStrings__MySql:connection,ASPNETCORE_URLS:'http://127.0.0.1:'+port,ASPNETCORE_ENVIRONMENT:'Development',Auth__SecureCookie:'false',InvoiceData__TimeZone:'America/Montevideo',...extra},stdio:['ignore','pipe','pipe']});children.push(child);
+    logs.push(()=>log.replaceAll(password,'[redacted]'));
     child.stdout.on('data',d=>log+=d);child.stderr.on('data',d=>log+=d);
     const url='http://127.0.0.1:'+port;
     for(let i=0;i<120;i++){try{const r=await fetch(url+'/health/live');if(r.ok)return url;}catch{}if(child.exitCode!==null)break;await new Promise(r=>setTimeout(r,250));}
@@ -59,6 +61,8 @@ try {
     await rejectSql(`UPDATE report_templates SET tags='{}' WHERE id='${template}'`,3819);
     await sql(`REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'probe'@'%'; GRANT SELECT ON ${database}.companies TO 'probe'@'%'; GRANT SELECT ON ${database}.auth_users TO 'probe'@'%'; GRANT SELECT ON ${database}.auth_memberships TO 'probe'@'%'; GRANT SELECT,INSERT,DELETE ON ${database}.auth_sessions TO 'probe'@'%'; GRANT SELECT,INSERT,UPDATE ON ${database}.auth_login_limits TO 'probe'@'%';`);
     await assert.rejects(sql('CREATE TABLE forbidden(id int)','probe'),/ERROR 1142/);check(true,'application user cannot create schema');
+    await sql(await readFile(path.join(root,'database/mysql/002-json-precision.sql'),'utf8'));
+    await sql(`GRANT SELECT ON ${database}.* TO 'probe'@'%'; GRANT INSERT,UPDATE,DELETE ON ${database}.report_templates TO 'probe'@'%';`);
     const inspect=JSON.parse(await docker('inspect',name))[0],port=inspect.NetworkSettings.Ports['3306/tcp'][0].HostPort;
     const ca=path.join(directory,'ca.pem');await writeFile(ca,await docker('exec',name,'cat','/var/lib/mysql/ca.pem'));
     const cs=`Server=127.0.0.1;Port=${port};Database=${database};User ID=probe;Password=${password};SslMode=VerifyCA;SslCa=${ca}`;
@@ -95,7 +99,7 @@ try {
     await call(urls[0],alice,'POST','/api/auth/company',{company_id:B},403);
     await call(urls[0],alice,'POST','/api/auth/logout',undefined,403,{'X-CSRF-Token':'invalid'});
     await call(urls[0],alice,'POST','/api/auth/logout',undefined,403,{'Sec-Fetch-Site':'cross-site'});
-    await call(urls[0],alice,'GET','/api/templates',undefined,503);await call(urls[0],alice,'GET','/api/invoices',undefined,503);check(true,'A4 business persistence explicitly unavailable');
+    await call(urls[0],alice,'GET','/api/templates',undefined,200);await call(urls[0],alice,'GET','/api/invoices',undefined,200);check(true,'business endpoints enabled with tenant-scoped persistence');
     const viewer=await login(urls[0],users.viewer);await call(urls[0],viewer,'POST','/api/templates',{},403);check(true,'viewer write remains forbidden before A4 gate');
     const multi=await login(urls[0],users.multi);
     const switched=await fetch(urls[1]+'/api/auth/company',{method:'POST',headers:{cookie:multi.cookie,'X-CSRF-Token':multi.session.csrf_token,'Content-Type':'application/json'},body:JSON.stringify({company_id:B})});assert.equal(switched.status,200);
@@ -118,6 +122,8 @@ try {
     const ipKey=createHash('sha256').update('ip:127.0.0.1').digest('hex');await sql(`UPDATE auth_login_limits SET attempts=99,window_start=UTC_TIMESTAMP(6) WHERE key_hash='${ipKey}'`);
     await call(urls[0],null,'POST','/api/auth/login',{email:'ip-one@a4.invalid',password:'wrong'},401,{'X-CSRF-Token':'login'});
     await call(urls[1],null,'POST','/api/auth/login',{email:'ip-two@a4.invalid',password:'wrong'},429,{'X-CSRF-Token':'login'});check(true,'IP limit is shared independently of email');
+    await sql('DELETE FROM auth_login_limits');
+    if(verify)await verify({urls,sql,users,directory,database,connection:cs});
     const before=await sql('SELECT COUNT(*) FROM auth_sessions');await sql(`DELETE FROM auth_users WHERE id='${users.alice.id}'`);
     check(await sql(`SELECT COUNT(*) FROM auth_sessions WHERE user_id='${users.alice.id}'`)==='0'&&Number(before)>0,'user deletion cascades sessions');
     // Basic backup stays local because it contains authentication material. Never version the dump.
@@ -129,8 +135,14 @@ try {
     report.passed=true;
 }catch(e){report.error=String(e.message).replaceAll(password,'[redacted]');console.error(report.error);process.exitCode=1;}
 finally {
+    for(const [index,log] of logs.entries())await writeFile(path.join(directory,'api-'+index+'.log'),log());
     for(const child of children){if(child.exitCode===null&&child.signalCode===null){const done=new Promise(r=>child.once('exit',r));child.kill();await done;}}
     if(created){try{assert.equal(await docker('inspect','--format','{{index .Config.Labels "a4.owner"}}',name),id);await docker('rm','--force','--volumes',name);report.cleanup='owned container and volumes removed';}catch{report.cleanup='failed';report.passed=false;process.exitCode=1;}}
+    for(const [index,log] of logs.entries())await writeFile(path.join(directory,'api-'+index+'.log'),log());
     await writeFile(path.join(directory,'report.json'),JSON.stringify(report,null,2));
 }
 if(!report.passed)process.exitCode=1;
+
+return report;
+}
+if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href)await runMySql();

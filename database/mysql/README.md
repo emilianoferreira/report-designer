@@ -1,6 +1,6 @@
-# MySQL — alcance A4
+# MySQL — alcance A5
 
-Esquema y autenticación experimental de la rama `codex/mysql-migration`.
+Esquema, autenticación y persistencia de negocio experimental de la rama `codex/mysql-migration`.
 La aplicación predeterminada continúa usando PostgreSQL. No ejecutar estos scripts
 sobre una base del usuario para probar la migración: usar el harness aislado.
 
@@ -18,14 +18,16 @@ Decisiones de representación:
 - Importes/cantidades: mismas precisiones `NUMERIC`; fechas: `DATETIME(6)` en UTC.
   La instancia de desarrollo debe usar UTC. Las sesiones usan `UTC_TIMESTAMP(6)`
   expresamente y conservan su vencimiento de ocho horas.
-- JSON: LONGTEXT con CHECK(JSON_VALID), siguiendo la precisión observada en A3.
-  Tags se almacenará como array JSON (NULL y [] distintos). La normalización de
-  claves duplicadas y la validación detallada de tags pertenecen a A5; estos campos
-  todavía no son accesibles por las rutas de negocio en MySQL.
+- JSON: LONGTEXT validado y normalizado por .NET. Aplicar explícitamente
+  `002-json-precision.sql` después de 001: elimina sólo los dos CHECK(JSON_VALID)
+  de template_json y parametros, porque MySQL rechaza números como 1e400 que
+  PostgreSQL admite. Se mantienen NOT NULL, FK y checks de tags. Las escrituras
+  directas y futuras importaciones deben validar JSON antes de persistirlo.
+  Tags usa array JSON (NULL y [] distintos). No usar JSON nativo para moldes.
 - `utf8mb4_0900_bin` evita comparar emails ignorando mayúsculas/acentos o espacios
   finales; los checks conservan email normalizado y roles editor/viewer.
 - No se traduce el índice GIN ni la función PL/pgSQL. El constructor .NET de A2
-  sigue disponible, pero no está conectado al endpoint.
+  alimenta el endpoint MySQL; PostgreSQL conserva build_invoice_data().
 
 ## Conexión opt-in
 
@@ -33,6 +35,7 @@ Sólo para una instancia separada de desarrollo:
 
 ```powershell
 $env:Database__Provider = 'MySql'
+$env:InvoiceData__TimeZone = 'America/Montevideo' # debe coincidir con SHOW TimeZone en PostgreSQL
 $env:ConnectionStrings__MySql = 'Server=127.0.0.1;Port=PUERTO_AISLADO;Database=BASE_AISLADA;User ID=rd_auth;Password=SECRETO;SslMode=VerifyCA;SslCa=RUTA_CA'
 dotnet run --project backend-dotnet/src/ReportDesigner.Api
 ```
@@ -43,18 +46,20 @@ equivale a `Postgres`; un valor desconocido falla al iniciar. MySQL requiere
 instalación real corresponde un certificado válido para el nombre y VerifyFull.
 Las cookies conservan la política existente: Secure por defecto fuera de Development.
 
-Permisos del usuario de aplicación A4, sobre **su propia base**:
+Permisos del usuario de aplicación A5, sobre **su propia base**:
 
 | Tablas | Permisos |
 |---|---|
-| companies, auth_users, auth_memberships | SELECT |
+| companies, auth_users, auth_memberships, invoices, invoice_types, invoice_lines, invoice_taxes, contacts, branches, currencies | SELECT |
 | auth_sessions | SELECT, INSERT, DELETE |
 | auth_login_limits | SELECT, INSERT, UPDATE |
+| report_templates | SELECT, INSERT, UPDATE, DELETE |
 
-No necesita CREATE, ALTER, DROP, GRANT ni permisos sobre moldes/comprobantes.
-`/health/ready` comprueba conexión y tablas de autenticación. No certifica que la
-aplicación de negocio esté migrada. `/api/templates` y `/api/invoices` quedan en
-503 después de las comprobaciones de autenticación/autorización existentes.
+No necesita CREATE, ALTER, DROP ni GRANT. `/health/ready` verifica conexión y
+acceso a tablas de autenticación y negocio; no sustituye la suite de aceptación
+ni certifica por sí solo que se aplicó 002. Las rutas de negocio están habilitadas
+sólo en esta configuración opt-in. El harness utiliza SELECT sobre su base aislada
+completa; para instalaciones limitarlo a las tablas listadas.
 
 ## Provisión administrativa explícita
 
@@ -76,4 +81,4 @@ Sólo se imprime el ID o un error genérico, nunca el secreto ni la conexión.
 El script PostgreSQL `scripts/provision-user.mjs` permanece intacto. Elegir el
 administrador correspondiente al motor: no existe escritura dual ni sincronización.
 
-Reproducción automática y pruebas: [harness A4](../../e2e/mysql-a4/README.md).
+Reproducción automática y pruebas: [harness A5](../../e2e/mysql-a5/README.md).

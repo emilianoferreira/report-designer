@@ -3,10 +3,10 @@ using System.Text.Json;
 
 namespace ReportDesigner.Application.Invoices;
 
-// Independent of persistence and HTTP. Not wired into IInvoiceQueries during A2.
+// Independent of persistence and HTTP; shared by the PostgreSQL comparison and MySQL adapter.
 public sealed class InvoiceDataBuilder
 {
-    public JsonElement Build(InvoiceDataSource source)
+    public JsonElement Build(InvoiceDataSource source, TimeZoneInfo? timeZone = null)
     {
         var h = source.Header;
         var lines = source.Lines.Select(l => new {
@@ -19,7 +19,7 @@ public sealed class InvoiceDataBuilder
                 Numero = new { h.Serie, Numero = h.Numero.ToString(CultureInfo.InvariantCulture),
                     CAEIdentificador = h.CaeIdentificador ?? "", CAEDesde = h.CaeDesde ?? "",
                     CAEHasta = h.CaeHasta ?? "", CAEFechaVto = h.CaeFechaVto?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "" },
-                Fecha = FormatTimestamp(h.Fecha, h.FechaOffsetSeconds),
+                Fecha = FormatTimestamp(h.Fecha, timeZone is null ? h.FechaOffsetSeconds : checked((int)timeZone.GetUtcOffset(DateTime.SpecifyKind(h.Fecha, DateTimeKind.Utc)).TotalSeconds)),
                 Comentario = h.Comentario ?? "", h.TipoCambio, h.PorcentajeDescGlobal,
                 DireccionFactura = new { Domicilio = h.DireccionFactura ?? h.ContactDireccion ?? "" },
                 Empresa = new { Parametros = h.Parametros is null ? (JsonElement?)null : Parse(h.Parametros) },

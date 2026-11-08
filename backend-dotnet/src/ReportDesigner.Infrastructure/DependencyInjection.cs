@@ -29,6 +29,14 @@ public static class DependencyInjection
                 throw new InvalidOperationException("MySQL requires TLS with VerifyCA or VerifyFull.");
             services.AddSingleton(new SessionDatabase(() => new MySqlConnection(mysql.ConnectionString), true));
             services.AddScoped<SessionStore>();
+            var zone = configuration["InvoiceData:TimeZone"];
+            if (string.IsNullOrWhiteSpace(zone)) throw new InvalidOperationException("Configure InvoiceData:TimeZone to match the PostgreSQL session timezone.");
+            services.AddSingleton(TimeZoneInfo.FindSystemTimeZoneById(zone));
+            services.AddDbContext<MySqlReportDesignerDbContext>(options => options.UseMySQL(mysql.ConnectionString));
+            services.AddScoped<ITemplateQueries, MySqlTemplateQueries>();
+            services.AddScoped<ITemplateCommands, MySqlTemplateCommands>();
+            services.AddScoped<MySqlInvoiceDataSource>();
+            services.AddScoped<IInvoiceQueries, MySqlInvoiceQueries>();
             services.AddHealthChecks().AddCheck<MySqlHealthCheck>("mysql", tags: ["ready"]);
             return services;
         }

@@ -11,7 +11,7 @@ export async function checkBrowser({root,url,user,company,directory}) {
             const upstream=http.request(new URL(req.url,url),{method:req.method,headers:{...req.headers,host:new URL(url).host}},response=>{
                 res.writeHead(response.statusCode,response.headers);response.pipe(res);
             });
-            upstream.on('error',()=>{res.writeHead(502);res.end();});req.pipe(upstream);return;
+            upstream.on('error',()=>{if(!res.headersSent)res.writeHead(502);res.end();});req.pipe(upstream);return;
         }
         const name=path.basename(new URL(req.url,'http://local').pathname);
         const asset=/^[a-zA-Z0-9._-]+\.(js|css|ico|png|svg)$/.test(name)?name:'index.html';
@@ -33,11 +33,11 @@ export async function checkBrowser({root,url,user,company,directory}) {
         await expect(page.getByLabel('Empresa activa')).toHaveValue(company);await expect(page.getByText('Solo lectura',{exact:true})).toBeVisible();
         const after=await page.evaluate(()=>fetch('/api/auth/session').then(r=>r.json()));
         assert.equal(after.company_id,company);assert.equal(after.role,'viewer');assert.notEqual(after.csrf_token,before.csrf_token);
-        const status=await page.evaluate(()=>fetch('/api/templates').then(r=>r.status));assert.equal(status,503);
+        const status=await page.evaluate(()=>fetch('/api/templates').then(r=>r.status));assert.equal(status,200);
         await page.screenshot({path:path.join(directory,'authenticated-company.png'),fullPage:true});
         await page.getByRole('button',{name:'Cerrar sesión',exact:true}).click();
         await expect(page.getByRole('heading',{name:'Iniciar sesión',exact:true})).toBeVisible();
         assert.equal(await page.evaluate(()=>fetch('/api/auth/session').then(r=>r.status)),401);
-        return {passed:true,checks:['Angular login via real API','company switch and viewer role','CSRF rotation','business persistence remains 503','logout invalidates browser session']};
+        return {passed:true,checks:['Angular login via real API','company switch and viewer role','CSRF rotation','tenant templates endpoint responds 200','logout invalidates browser session']};
     }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}
 }

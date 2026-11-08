@@ -21,7 +21,9 @@ verificar producción y fallos TLS. No usa conexiones del usuario.
 
 `browser.mjs` sirve el build Angular real en un origen local y reenvía `/api` hacia
 la API real: prueba login, cambio de empresa, rol viewer, rotación CSRF y logout.
-No simula respuestas de autenticación ni presenta como funcionales las rutas A5.
+No simula respuestas de autenticación. Desde A5, este runner compartido aplica
+002 y espera 200 en las rutas de negocio; la evidencia histórica A4 conserva
+sus resultados originales. La cobertura de persistencia se ejecuta desde A5.
 
 La prueba termina con un dump básico restaurado en otra base **del mismo contenedor
 aislado**; compara cantidades de seis tablas. No prueba recuperación operacional,
