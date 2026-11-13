@@ -1,0 +1,64 @@
+{
+  "passed": true,
+  "checks": [
+    "fixture transfer companies",
+    "fixture transfer branches",
+    "fixture transfer contacts",
+    "fixture transfer currencies",
+    "fixture transfer invoice_types",
+    "fixture transfer articles",
+    "fixture transfer invoices",
+    "fixture transfer invoice_lines",
+    "fixture transfer invoice_taxes",
+    "fixture transfer report_templates",
+    "seed lists match PostgreSQL including dates decimal strings and tags",
+    "InvoiceData parity f1000000-0000-0000-0000-000000000001",
+    "InvoiceData parity f1000000-0000-0000-0000-000000000002",
+    "InvoiceData parity f1000000-0000-0000-0000-000000000003",
+    "InvoiceData parity f1000000-0000-0000-0000-000000000004",
+    "InvoiceData parity f1000000-0000-0000-0000-000000000005",
+    "real save/reload price-label",
+    "real save/reload report-ticket-80",
+    "creation rejects zero characters consistently",
+    "updates preserve nullable fields tags unknown fields and legacy version rules",
+    "missing design is omitted in save response",
+    "legacy no-op retains timestamp and revision",
+    "historical invalid text and multidimensional tags stay rejected",
+    "invalid design rolls back",
+    "exact numeric value, huge exponent and last duplicate key preserved",
+    "cross-replica If-Match one winner stale saves and deletes rejected",
+    "legacy concurrent writes serialize and each advances revision",
+    "tenant and viewer denials leave row unchanged",
+    "duplicate preserves content and resets revision",
+    "referenced parent deletion remains protected by FK",
+    "save/delete race commits exactly one operation",
+    "foreign invoice relationships cannot leak data",
+    "invoice microseconds offset leap-day nullable amounts flags and relations match"
+  ],
+  "renders": [
+    {
+      "fixture": "report-a4",
+      "html": "0f8f649d1205fa0e8c9da251d341ed469909d03ac161a4c6ca834007ba0543f0",
+      "png": "4b128f1412467223a3eb48c5a874e7698a70396989da8e8f86404a775c0ed7bf",
+      "pages": 1
+    },
+    {
+      "fixture": "report-ticket-80",
+      "html": "c488c0bd683ee8f6e72ecf740f5b2cc29f3da6b13efd1cadb7bd4288a0cf3b4d",
+      "png": "6fcc46d6833250a37988e4b26c258e4c71de989ba9c35570a0efad40e496ab72",
+      "pages": 1
+    }
+  ],
+  "postgresSecurity": "C:\\Users\\emili\\AppData\\Local\\Temp\\labels-concurrency-VilqQ2",
+  "mysqlEvidence": "C:\\Users\\emili\\Documents\\GitHub\\report-designer\\e2e\\test-results\\a4-3c028dc397d34ba1a9166c1324b6ecd8",
+  "functional": {
+    "passed": true,
+    "checks": [
+      "Angular login via real API",
+      "company switch and viewer role",
+      "CSRF rotation",
+      "tenant templates endpoint responds 200",
+      "logout invalidates browser session"
+    ]
+  }
+}

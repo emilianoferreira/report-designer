@@ -5,7 +5,7 @@ import {readFile} from 'node:fs/promises';
 import {chromium,expect} from '@playwright/test';
 
 // Real compiled Angular and real API on one local origin. No mocked auth responses.
-export async function checkBrowser({root,url,user,company,directory}) {
+export async function checkBrowser({root,url,user,company,directory,exercise}) {
     const server=http.createServer(async(req,res)=>{
         if(req.url.startsWith('/api/')) {
             const upstream=http.request(new URL(req.url,url),{method:req.method,headers:{...req.headers,host:new URL(url).host}},response=>{
@@ -28,6 +28,7 @@ export async function checkBrowser({root,url,user,company,directory}) {
         await page.getByLabel('Correo electrónico').fill(user.email);await page.getByLabel('Contraseña').fill(user.password);
         await page.getByRole('button',{name:'Ingresar',exact:true}).click();
         await expect(page.getByRole('navigation',{name:'Sesión'})).toBeVisible();
+        if(exercise)await exercise({page,origin,browser});
         const before=await page.evaluate(()=>fetch('/api/auth/session').then(r=>r.json()));
         await page.getByLabel('Empresa activa').selectOption(company);
         await expect(page.getByLabel('Empresa activa')).toHaveValue(company);await expect(page.getByText('Solo lectura',{exact:true})).toBeVisible();

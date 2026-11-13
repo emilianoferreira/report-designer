@@ -1,0 +1,212 @@
+{
+  "postgres": {
+    "CFE": {
+      "Adenda": "",
+      "CodSeguridad": "",
+      "TipoComprobanteFiscal": {
+        "Nombre": ""
+      }
+    },
+    "Total": 1299.99,
+    "isCFE": false,
+    "Moneda": {
+      "ISO4217": "USD",
+      "Simbolo": "US$"
+    },
+    "company": {
+      "RUT": "21-654321-0001",
+      "Ciudad": "Montevideo",
+      "Nombre": "Soluciones Tech S.A.",
+      "logoUrl": "",
+      "Direccion": "Bulevar Artigas 1250",
+      "NombreComercial": "SolTech"
+    },
+    "invoice": {
+      "Tipo": {
+        "Nombre": "Venta Contado",
+        "Clasificacion": {
+          "OperaContado": true
+        }
+      },
+      "Fecha": "2026-03-25T11:20:00-03:00",
+      "Numero": {
+        "Serie": "B",
+        "Numero": "1",
+        "CAEDesde": "",
+        "CAEHasta": "",
+        "CAEFechaVto": "",
+        "CAEIdentificador": ""
+      },
+      "Empresa": {
+        "Parametros": {
+          "EFA_Emisor_RUT": "21-654321-0001",
+          "EFA_Resolucion": "Res. DGI 1234/2025",
+          "EFA_Emisor_Ciudad": "Montevideo",
+          "EFA_Emisor_Nombre": "Soluciones Tech S.A.",
+          "EFA_Emisor_Direccion": "Bulevar Artigas 1250",
+          "EFA_Emisor_NComercial": "SolTech"
+        }
+      },
+      "Sucursal": {
+        "Direccion": "Bulevar Artigas 1250"
+      },
+      "Comentario": "",
+      "TipoCambio": 42.5,
+      "DireccionFactura": {
+        "Domicilio": "Colonia 1234 Apto 5"
+      },
+      "PorcentajeDescGlobal": 0
+    },
+    "Contacto": {
+      "GuardarComo": "Juan Pérez"
+    },
+    "QRBase64": "",
+    "Redondeo": -0.01,
+    "Subtotal": 1065.57,
+    "Articulos": [
+      {
+        "Articulo": {
+          "Codigo": "NB-001",
+          "Nombre": "Notebook Lenovo ThinkPad"
+        },
+        "Cantidad": 1,
+        "SubTotal": 1299.99,
+        "Descuento": 0,
+        "PrecioUnitario": 1299.99,
+        "PrecioUnitarioNeto": 1065.57
+      }
+    ],
+    "Impuestos": [
+      {
+        "Valor": 234.43,
+        "Nombre": "IVA Tasa Básica"
+      }
+    ],
+    "logoBase64": "",
+    "hasContacto": true,
+    "hasRedondeo": true,
+    "hasDtoGlobal": false,
+    "invoiceLines": [
+      {
+        "Articulo": {
+          "Codigo": "NB-001",
+          "Nombre": "Notebook Lenovo ThinkPad"
+        },
+        "Cantidad": 1,
+        "SubTotal": 1299.99,
+        "Descuento": 0,
+        "PrecioUnitario": 1299.99,
+        "PrecioUnitarioNeto": 1065.57
+      }
+    ],
+    "MontoDtoGlobal": 0,
+    "isConsumoFinal": false,
+    "isImpIncluidos": true,
+    "SubtotalesDesglosados": []
+  },
+  "mysql": {
+    "invoice": {
+      "Tipo": {
+        "Nombre": "Venta Contado",
+        "Clasificacion": {
+          "OperaContado": true
+        }
+      },
+      "Numero": {
+        "Serie": "B",
+        "Numero": "1",
+        "CAEIdentificador": "",
+        "CAEDesde": "",
+        "CAEHasta": "",
+        "CAEFechaVto": ""
+      },
+      "Fecha": "2026-03-25T11:20:00-03:00",
+      "Comentario": "",
+      "TipoCambio": 42.5,
+      "PorcentajeDescGlobal": 0,
+      "DireccionFactura": {
+        "Domicilio": "Colonia 1234 Apto 5"
+      },
+      "Empresa": {
+        "Parametros": {
+          "EFA_Emisor_RUT": "21-654321-0001",
+          "EFA_Resolucion": "Res. DGI 1234/2025",
+          "EFA_Emisor_Ciudad": "Montevideo",
+          "EFA_Emisor_Nombre": "Soluciones Tech S.A.",
+          "EFA_Emisor_Direccion": "Bulevar Artigas 1250",
+          "EFA_Emisor_NComercial": "SolTech"
+        }
+      },
+      "Sucursal": {
+        "Direccion": "Bulevar Artigas 1250"
+      }
+    },
+    "invoiceLines": [
+      {
+        "Articulo": {
+          "Codigo": "NB-001",
+          "Nombre": "Notebook Lenovo ThinkPad"
+        },
+        "Cantidad": 1,
+        "PrecioUnitario": 1299.99,
+        "PrecioUnitarioNeto": 1065.57,
+        "Descuento": 0,
+        "SubTotal": 1299.99
+      }
+    ],
+    "company": {
+      "Nombre": "Soluciones Tech S.A.",
+      "NombreComercial": "SolTech",
+      "RUT": "21-654321-0001",
+      "Direccion": "Bulevar Artigas 1250",
+      "Ciudad": "Montevideo",
+      "logoUrl": ""
+    },
+    "Moneda": {
+      "ISO4217": "USD",
+      "Simbolo": "US$"
+    },
+    "Contacto": {
+      "GuardarComo": "Juan Pérez"
+    },
+    "CFE": {
+      "TipoComprobanteFiscal": {
+        "Nombre": ""
+      },
+      "CodSeguridad": "",
+      "Adenda": ""
+    },
+    "Articulos": [
+      {
+        "Articulo": {
+          "Codigo": "NB-001",
+          "Nombre": "Notebook Lenovo ThinkPad"
+        },
+        "Cantidad": 1,
+        "PrecioUnitario": 1299.99,
+        "PrecioUnitarioNeto": 1065.57,
+        "Descuento": 0,
+        "SubTotal": 1299.99
+      }
+    ],
+    "Impuestos": [
+      {
+        "Nombre": "IVA Tasa Básica",
+        "Valor": 234.43
+      }
+    ],
+    "SubtotalesDesglosados": [],
+    "Subtotal": 1065.57,
+    "Total": 1299.99,
+    "Redondeo": -0.01,
+    "MontoDtoGlobal": 0,
+    "isCFE": false,
+    "isConsumoFinal": false,
+    "isImpIncluidos": true,
+    "hasContacto": true,
+    "hasDtoGlobal": false,
+    "hasRedondeo": true,
+    "logoBase64": "",
+    "QRBase64": ""
+  }
+}

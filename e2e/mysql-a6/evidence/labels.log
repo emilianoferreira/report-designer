@@ -1,0 +1,6 @@
+PASS: grouped move/resize history, cancel, redo branching, keyboard editing isolation, grid/element snaps, guides, zoomed rulers, page history and history after save.
+PASS: numeric draft validation, missing prices, invalid barcode, copy bounds, broken images and recovery.
+PASS: shared image background/border/radius/opacity, selection handles, multiline text, physical zoom, image fits and exported HTML.
+PASS: conflict preserves draft, save copy, reload revision, protected delete, failure recovery and catalog retry.
+PASS: malformed templates rejected without replacing the draft.
+PASS: report editor shared shell, visual layout, collapsible panels, property tabs, shared real barcode SVG, barcode format updates, add/delete/drag, typography, page bounds, physical PDF pagination, print event, barcode text, rename, concurrent edits (create/update), save failure, draft confirmation and migration HTML snapshot.

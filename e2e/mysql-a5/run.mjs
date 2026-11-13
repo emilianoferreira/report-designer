@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {randomUUID,createHash} from 'node:crypto';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath,pathToFileURL} from 'node:url';
 import path from 'node:path';
 import {build} from 'esbuild';
 import {chromium} from '@playwright/test';
@@ -9,6 +9,7 @@ import {runIsolatedApi} from '../price-labels/concurrency-api.mjs';
 import {runMySql} from '../mysql-a4/run.mjs';
 import {A,B,login,call} from '../stage8/check-security.mjs';
 
+export async function runA5({verify}={}) {
 const root=fileURLToPath(new URL('../../',import.meta.url));
 const directory=path.join(root,'e2e/test-results/mysql-a5-'+randomUUID());await mkdir(directory,{recursive:true});console.log('A5 evidence: '+directory);
 const hash=x=>createHash('sha256').update(x).digest('hex');
@@ -107,6 +108,7 @@ await runIsolatedApi({verify:async pg=>{
         await my.sql(`UPDATE invoices SET fecha='2026-03-31 18:19:05.123987',cae_fecha_vto='2028-02-29',contact_id=NULL,branch_id=NULL,total=NULL,redondeo=NULL,porcentaje_desc_global=NULL,is_consumo_final=NULL,is_imp_incluidos=NULL WHERE id='${edge}'`);
         const referenceEdge=await call(pg.urls[1],p,'GET',`/api/invoices/${edge}/data`),mysqlEdge=await call(my.urls[0],m,'GET',`/api/invoices/${edge}/data`);assert.deepEqual(mysqlEdge,referenceEdge);
         await writeFile(path.join(directory,'invoice-edge.json'),JSON.stringify({postgres:referenceEdge,mysql:mysqlEdge},null,2));check(true,'invoice microseconds offset leap-day nullable amounts flags and relations match');
+        if(verify)report.functional=await verify({mysql:my,postgres:pg,directory});
     }});
     assert.equal(mysql.passed,true,'MySQL suite completed');
     report.passed=true;
@@ -114,3 +116,6 @@ await runIsolatedApi({verify:async pg=>{
 if(process.exitCode)report.passed=false;
 }finally{await writeFile(path.join(directory,'report.json'),JSON.stringify(report,null,2));}
 assert.equal(report.passed,true,'A5 completed');
+return {report,directory};
+}
+if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href)await runA5();

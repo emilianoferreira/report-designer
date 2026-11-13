@@ -1,0 +1,344 @@
+{
+  "postgres": {
+    "CFE": {
+      "Adenda": "",
+      "CodSeguridad": "",
+      "TipoComprobanteFiscal": {
+        "Nombre": ""
+      }
+    },
+    "Total": 68999,
+    "isCFE": false,
+    "Moneda": {
+      "ISO4217": "UYU",
+      "Simbolo": "$"
+    },
+    "company": {
+      "RUT": "21-654321-0001",
+      "Ciudad": "Montevideo",
+      "Nombre": "Soluciones Tech S.A.",
+      "logoUrl": "",
+      "Direccion": "Bulevar Artigas 1250",
+      "NombreComercial": "SolTech"
+    },
+    "invoice": {
+      "Tipo": {
+        "Nombre": "Venta Crédito",
+        "Clasificacion": {
+          "OperaContado": false
+        }
+      },
+      "Fecha": "2026-03-18T14:15:00-03:00",
+      "Numero": {
+        "Serie": "A",
+        "Numero": "2",
+        "CAEDesde": "",
+        "CAEHasta": "",
+        "CAEFechaVto": "",
+        "CAEIdentificador": ""
+      },
+      "Empresa": {
+        "Parametros": {
+          "EFA_Emisor_RUT": "21-654321-0001",
+          "EFA_Resolucion": "Res. DGI 1234/2025",
+          "EFA_Emisor_Ciudad": "Montevideo",
+          "EFA_Emisor_Nombre": "Soluciones Tech S.A.",
+          "EFA_Emisor_Direccion": "Bulevar Artigas 1250",
+          "EFA_Emisor_NComercial": "SolTech"
+        }
+      },
+      "Sucursal": {
+        "Direccion": "Bulevar Artigas 1250"
+      },
+      "Comentario": "Entrega en oficina central, horario de 9 a 17hs.",
+      "TipoCambio": 1,
+      "DireccionFactura": {
+        "Domicilio": "Rambla Wilson 800"
+      },
+      "PorcentajeDescGlobal": 0
+    },
+    "Contacto": {
+      "GuardarComo": "María García S.A."
+    },
+    "QRBase64": "",
+    "Redondeo": 0,
+    "Subtotal": 56557.38,
+    "Articulos": [
+      {
+        "Articulo": {
+          "Codigo": "NB-001",
+          "Nombre": "Notebook Lenovo ThinkPad"
+        },
+        "Cantidad": 1,
+        "SubTotal": 45000,
+        "Descuento": 0,
+        "PrecioUnitario": 45000,
+        "PrecioUnitarioNeto": 36885.25
+      },
+      {
+        "Articulo": {
+          "Codigo": "MO-001",
+          "Nombre": "Monitor 27\" Samsung 4K"
+        },
+        "Cantidad": 1,
+        "SubTotal": 18500,
+        "Descuento": 0,
+        "PrecioUnitario": 18500,
+        "PrecioUnitarioNeto": 15163.93
+      },
+      {
+        "Articulo": {
+          "Codigo": "MU-001",
+          "Nombre": "Mouse inalámbrico"
+        },
+        "Cantidad": 2,
+        "SubTotal": 3600,
+        "Descuento": 0,
+        "PrecioUnitario": 1800,
+        "PrecioUnitarioNeto": 1475.41
+      },
+      {
+        "Articulo": {
+          "Codigo": "WC-001",
+          "Nombre": "Webcam HD 1080p"
+        },
+        "Cantidad": 1,
+        "SubTotal": 1899,
+        "Descuento": 901,
+        "PrecioUnitario": 2800,
+        "PrecioUnitarioNeto": 2295.08
+      }
+    ],
+    "Impuestos": [
+      {
+        "Valor": 12441.62,
+        "Nombre": "IVA Tasa Básica"
+      }
+    ],
+    "logoBase64": "",
+    "hasContacto": true,
+    "hasRedondeo": false,
+    "hasDtoGlobal": false,
+    "invoiceLines": [
+      {
+        "Articulo": {
+          "Codigo": "NB-001",
+          "Nombre": "Notebook Lenovo ThinkPad"
+        },
+        "Cantidad": 1,
+        "SubTotal": 45000,
+        "Descuento": 0,
+        "PrecioUnitario": 45000,
+        "PrecioUnitarioNeto": 36885.25
+      },
+      {
+        "Articulo": {
+          "Codigo": "MO-001",
+          "Nombre": "Monitor 27\" Samsung 4K"
+        },
+        "Cantidad": 1,
+        "SubTotal": 18500,
+        "Descuento": 0,
+        "PrecioUnitario": 18500,
+        "PrecioUnitarioNeto": 15163.93
+      },
+      {
+        "Articulo": {
+          "Codigo": "MU-001",
+          "Nombre": "Mouse inalámbrico"
+        },
+        "Cantidad": 2,
+        "SubTotal": 3600,
+        "Descuento": 0,
+        "PrecioUnitario": 1800,
+        "PrecioUnitarioNeto": 1475.41
+      },
+      {
+        "Articulo": {
+          "Codigo": "WC-001",
+          "Nombre": "Webcam HD 1080p"
+        },
+        "Cantidad": 1,
+        "SubTotal": 1899,
+        "Descuento": 901,
+        "PrecioUnitario": 2800,
+        "PrecioUnitarioNeto": 2295.08
+      }
+    ],
+    "MontoDtoGlobal": 0,
+    "isConsumoFinal": false,
+    "isImpIncluidos": true,
+    "SubtotalesDesglosados": []
+  },
+  "mysql": {
+    "invoice": {
+      "Tipo": {
+        "Nombre": "Venta Crédito",
+        "Clasificacion": {
+          "OperaContado": false
+        }
+      },
+      "Numero": {
+        "Serie": "A",
+        "Numero": "2",
+        "CAEIdentificador": "",
+        "CAEDesde": "",
+        "CAEHasta": "",
+        "CAEFechaVto": ""
+      },
+      "Fecha": "2026-03-18T14:15:00-03:00",
+      "Comentario": "Entrega en oficina central, horario de 9 a 17hs.",
+      "TipoCambio": 1,
+      "PorcentajeDescGlobal": 0,
+      "DireccionFactura": {
+        "Domicilio": "Rambla Wilson 800"
+      },
+      "Empresa": {
+        "Parametros": {
+          "EFA_Emisor_RUT": "21-654321-0001",
+          "EFA_Resolucion": "Res. DGI 1234/2025",
+          "EFA_Emisor_Ciudad": "Montevideo",
+          "EFA_Emisor_Nombre": "Soluciones Tech S.A.",
+          "EFA_Emisor_Direccion": "Bulevar Artigas 1250",
+          "EFA_Emisor_NComercial": "SolTech"
+        }
+      },
+      "Sucursal": {
+        "Direccion": "Bulevar Artigas 1250"
+      }
+    },
+    "invoiceLines": [
+      {
+        "Articulo": {
+          "Codigo": "NB-001",
+          "Nombre": "Notebook Lenovo ThinkPad"
+        },
+        "Cantidad": 1,
+        "PrecioUnitario": 45000,
+        "PrecioUnitarioNeto": 36885.25,
+        "Descuento": 0,
+        "SubTotal": 45000
+      },
+      {
+        "Articulo": {
+          "Codigo": "MO-001",
+          "Nombre": "Monitor 27\" Samsung 4K"
+        },
+        "Cantidad": 1,
+        "PrecioUnitario": 18500,
+        "PrecioUnitarioNeto": 15163.93,
+        "Descuento": 0,
+        "SubTotal": 18500
+      },
+      {
+        "Articulo": {
+          "Codigo": "MU-001",
+          "Nombre": "Mouse inalámbrico"
+        },
+        "Cantidad": 2,
+        "PrecioUnitario": 1800,
+        "PrecioUnitarioNeto": 1475.41,
+        "Descuento": 0,
+        "SubTotal": 3600
+      },
+      {
+        "Articulo": {
+          "Codigo": "WC-001",
+          "Nombre": "Webcam HD 1080p"
+        },
+        "Cantidad": 1,
+        "PrecioUnitario": 2800,
+        "PrecioUnitarioNeto": 2295.08,
+        "Descuento": 901,
+        "SubTotal": 1899
+      }
+    ],
+    "company": {
+      "Nombre": "Soluciones Tech S.A.",
+      "NombreComercial": "SolTech",
+      "RUT": "21-654321-0001",
+      "Direccion": "Bulevar Artigas 1250",
+      "Ciudad": "Montevideo",
+      "logoUrl": ""
+    },
+    "Moneda": {
+      "ISO4217": "UYU",
+      "Simbolo": "$"
+    },
+    "Contacto": {
+      "GuardarComo": "María García S.A."
+    },
+    "CFE": {
+      "TipoComprobanteFiscal": {
+        "Nombre": ""
+      },
+      "CodSeguridad": "",
+      "Adenda": ""
+    },
+    "Articulos": [
+      {
+        "Articulo": {
+          "Codigo": "NB-001",
+          "Nombre": "Notebook Lenovo ThinkPad"
+        },
+        "Cantidad": 1,
+        "PrecioUnitario": 45000,
+        "PrecioUnitarioNeto": 36885.25,
+        "Descuento": 0,
+        "SubTotal": 45000
+      },
+      {
+        "Articulo": {
+          "Codigo": "MO-001",
+          "Nombre": "Monitor 27\" Samsung 4K"
+        },
+        "Cantidad": 1,
+        "PrecioUnitario": 18500,
+        "PrecioUnitarioNeto": 15163.93,
+        "Descuento": 0,
+        "SubTotal": 18500
+      },
+      {
+        "Articulo": {
+          "Codigo": "MU-001",
+          "Nombre": "Mouse inalámbrico"
+        },
+        "Cantidad": 2,
+        "PrecioUnitario": 1800,
+        "PrecioUnitarioNeto": 1475.41,
+        "Descuento": 0,
+        "SubTotal": 3600
+      },
+      {
+        "Articulo": {
+          "Codigo": "WC-001",
+          "Nombre": "Webcam HD 1080p"
+        },
+        "Cantidad": 1,
+        "PrecioUnitario": 2800,
+        "PrecioUnitarioNeto": 2295.08,
+        "Descuento": 901,
+        "SubTotal": 1899
+      }
+    ],
+    "Impuestos": [
+      {
+        "Nombre": "IVA Tasa Básica",
+        "Valor": 12441.62
+      }
+    ],
+    "SubtotalesDesglosados": [],
+    "Subtotal": 56557.38,
+    "Total": 68999,
+    "Redondeo": 0,
+    "MontoDtoGlobal": 0,
+    "isCFE": false,
+    "isConsumoFinal": false,
+    "isImpIncluidos": true,
+    "hasContacto": true,
+    "hasDtoGlobal": false,
+    "hasRedondeo": false,
+    "logoBase64": "",
+    "QRBase64": ""
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "labels": {
+    "passed": true,
+    "log": "labels.log",
+    "exitCode": 0
+  },
+  "date": "2026-11-13",
+  "main": "0c9e5d64cfe298fa6bd92ec31328a9d20d82a009",
+  "angular": {
+    "passed": true,
+    "log": "angular-final.log",
+    "tests": 389,
+    "exitCode": 0
+  },
+  "build": {
+    "warnings": "Angular existing CommonJS jsbarcode/qrcode warnings",
+    "admin": true,
+    "angular": true,
+    "api": true
+  },
+  "fiscal": {
+    "passed": true,
+    "log": "fiscal.log",
+    "exitCode": 0
+  },
+  "a2": {
+    "passed": true,
+    "cases": 17,
+    "exitCode": 0,
+    "renders": 6
+  }
+}
