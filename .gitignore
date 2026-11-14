@@ -43,6 +43,7 @@ testem.log
 /typings
 
 # Environment variables
+/.local/study/
 .env
 .env.local
 .env.*.local

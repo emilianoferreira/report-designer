@@ -2,6 +2,13 @@
   "name": "zureo-report-designer",
   "version": "0.0.0",
   "scripts": {
+    "study:setup": "node scripts/study-lab.mjs setup",
+    "study:hold": "node scripts/study-lab.mjs hold",
+    "study:up": "node scripts/study-lab.mjs up",
+    "study:stop": "node scripts/study-lab.mjs stop",
+    "study:status": "node scripts/study-lab.mjs status",
+    "study:api": "node scripts/study-lab.mjs api",
+    "study:sql": "node scripts/study-lab.mjs sql",
     "ng": "ng",
     "start": "ng serve",
     "start:dotnet": "ng serve --configuration dotnet",

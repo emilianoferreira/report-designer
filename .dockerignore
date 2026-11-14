@@ -1,4 +1,5 @@
 .git
+.local/study
 **/node_modules
 **/bin
 **/obj
