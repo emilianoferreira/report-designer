@@ -1,7 +1,22 @@
 <div class="preview-shell">
-@for (warning of warnings; track $index) { <p role="status">{{ warning }}</p> }
-@if (checking) { <p role="status">Validando imágenes…</p> }
-@for (error of errors; track $index) { <p role="alert">{{ error }}</p> }
+@if (batchMode) {
+  <section aria-label="Diagnóstico del lote">
+    <h3>Diagnóstico por artículo</h3>
+    @if (!diagnostics.length && !checking) { <p>Sin incidencias en los elementos del molde.</p> }
+    @for (issue of diagnostics; track $index) {
+      <p [attr.role]="issue.severity === 'error' ? 'alert' : 'status'">
+        <strong>{{issue.articleCode || issue.articleName || 'Molde'}}{{issue.elementName ? ' · ' + issue.elementName : ''}}</strong>:
+        {{issue.message}}
+        @if(issue.quantity){ <span> · {{issue.quantity}} etiquetas</span> }
+        @for(page of issue.pages; track page){ <button (click)="goToPage(page)" [disabled]="page > pageCount">Página {{page}}</button> }
+      </p>
+    }
+  </section>
+} @else {
+  @for (warning of warnings; track $index) { <p role="status">{{ warning }}</p> }
+  @for (error of errors; track $index) { <p role="alert">{{ error }}</p> }
+}
+@if (checking) { <p role="status">Validando fuentes, imágenes y contenido…</p> }
   <div class="preview-toolbar">
     <div class="toolbar-group">
       @if (!batchMode) {
@@ -19,16 +34,23 @@
     </div>
 
     <div class="toolbar-group">
-      <button [disabled]="!!layoutError || checking || errors.length > 0" (click)="print()">Imprimir</button>
-      <button [disabled]="!!layoutError || checking || errors.length > 0" (click)="exportHtml()">Exportar HTML</button>
-      <button (click)="exportJson()">Exportar JSON</button>
+      <button [disabled]="blocked" (click)="print()">Imprimir</button>
+      <button [disabled]="blocked" (click)="exportHtml()">Exportar HTML</button>
+      <button (click)="exportJson()">{{batchMode ? 'Exportar molde JSON' : 'Exportar JSON'}}</button>
+      <button [disabled]="!html || busy || checking" (click)="revalidate()">Revalidar contenido</button>
     </div>
   </div>
 
+  <nav aria-label="Páginas del lote">
+    <button [disabled]="currentPage <= 1 || !pageCount" (click)="goToPage(currentPage - 1)">Página anterior</button>
+    <span>Página {{pageCount ? currentPage : 0}} de {{pageCount}}</span>
+    <button [disabled]="currentPage >= pageCount" (click)="goToPage(currentPage + 1)">Página siguiente</button>
+  </nav>
   <div class="preview-body">
-    @if (mode === 'sheet') {
+
       <div
         class="frame-wrapper"
+        [class.inactive-sheet]="mode !== 'sheet'"
         [style.width.px]="pageWidthPx"
         [style.height.px]="pageHeightPx"
         [style.transform]="'scale(' + zoom + ')'"
@@ -42,9 +64,9 @@
           title="Vista previa de etiquetas"
         ></iframe>
       </div>
-    } @else if (mode === 'html') {
+    @if (mode === 'html') {
       <pre>{{ html }}</pre>
-    } @else {
+    } @else if (mode === 'json') {
       <pre>{{ json }}</pre>
     }
   </div>

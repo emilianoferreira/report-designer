@@ -35,7 +35,7 @@
     "test:release": "node e2e/stage10/run.mjs",
     "release:review": "node deployment/operations/prepare-release.mjs",
     "auth:provision": "node scripts/provision-user.mjs",
-    "test:price-labels": "npm run build && node e2e/price-labels/regression.cjs"
+    "test:price-labels": "npm run build && node e2e/price-labels/regression.cjs && node e2e/price-labels/print-batch.cjs && node e2e/price-labels/report-compatibility.cjs"
   },
   "private": true,
   "dependencies": {

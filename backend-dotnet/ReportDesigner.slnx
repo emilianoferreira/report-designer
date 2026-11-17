@@ -5,4 +5,7 @@
     <Project Path="src/ReportDesigner.Domain/ReportDesigner.Domain.csproj" />
     <Project Path="src/ReportDesigner.Infrastructure/ReportDesigner.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LabelPrinting/LabelPrinting.csproj" />
+  </Folder>
 </Solution>
