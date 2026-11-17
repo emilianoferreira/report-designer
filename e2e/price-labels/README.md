@@ -1,5 +1,19 @@
 # Regresiones del diseñador de etiquetas
 
+## Preparación de lotes — primer incremento
+
+Desde el diseñador, **Preparar impresión** abre `/price-labels/print`. Elegir un
+molde guardado y agregar artículos de demostración. Cada artículo admite cantidad
+individual; la suma no puede superar 100. La selección mantiene orden y no duplica
+artículos. El lote vive únicamente en la pantalla y no modifica el JSON del molde.
+La vista previa reutiliza el renderer mediante expansión acotada de cantidades y
+una copia por entrada. No hay conexión a Zureo, listas de precios ni nuevos endpoints
+en este incremento; los datos sintéticos se identifican expresamente en la pantalla.
+
+Después de `npm run build`, ejecutar `node e2e/price-labels/print-batch.cjs` para
+verificar acceso viewer, selección de molde, cantidades 2/5/1, paginación, límite
+y eliminación. Las pruebas unitarias están en `label-print-session.service.spec.ts`.
+
 Ejecutar desde la raíz del repositorio:
 
 `npm run test:price-labels`

@@ -2,7 +2,7 @@
   <h2 id="fiscal-profile-title">Perfil fiscal del molde</h2>
   <p>Definí para qué comprobantes se usará este molde. El perfil se guarda con el diseño;
     los datos de cada comprobante se mantienen separados.</p>
-  <p class="notice">Esta etapa prepara el contexto fiscal. Todavía no evalúa el cumplimiento DGI.</p>
+  <p class="notice">El perfil declara el contexto; las validaciones del diseño y de la vista previa indican su alcance y los controles pendientes.</p>
   @if (template$ | async; as template) {
     @if (template.compliance; as profile) {
       @if (isSupportedProfile(profile)) {
@@ -48,6 +48,16 @@
               <option value="blank-paper">Sin datos preimpresos</option><option value="preprinted">Con datos preimpresos</option>
             </select>
           </label>
+          <label>Distribución fiscal declarada
+            <select aria-label="Distribución fiscal declarada" [ngModel]="profile.distribution" (ngModelChange)="change('distribution', $event)">
+              <option [ngValue]="undefined">Sin definir</option><option value="standard">Ubicaciones convencionales</option><option value="sequential">Alternativa secuencial por tamaño</option>
+            </select>
+          </label>
+          <label>Ubicación de adenda declarada
+            <select aria-label="Ubicación de adenda declarada" [ngModel]="profile.adendaPlacement" (ngModelChange)="change('adendaPlacement', $event)">
+              <option [ngValue]="undefined">Sin definir</option><option value="separate-page">Hoja separada</option><option value="after-cfe">Después del CFE</option><option value="within-body">Dentro del cuerpo</option>
+            </select>
+          </label>
         </div>
         <p>El tamaño del papel y el tipo comercial del molde no determinan su tipo CFE.
           Dejá “Sin definir” cuando no cuentes con esa información.</p>
@@ -62,7 +72,7 @@
     }
   }
   <p>Para asignar roles fiscales, seleccioná un elemento en Diseño y abrí su pestaña Datos.
-    Un rol identifica la función prevista del elemento; su contenido y visibilidad se comprobarán en etapas posteriores.</p>
+    Un rol identifica la función prevista del elemento; por sí solo no prueba contenido, visibilidad ni cumplimiento.</p>
   <div class="history">
     <button type="button" [disabled]="!state.canUndo" (click)="state.undo()">Deshacer</button>
     <button type="button" [disabled]="!state.canRedo" (click)="state.redo()">Rehacer</button>

@@ -1,3 +1,5 @@
+import { inject } from '@angular/core';
+import { ValidationSessionService } from '../../services/validation-session.service';
 /**
  * Element Renderer Component
  * Renders a single TemplateElement on the canvas based on its type.
@@ -37,6 +39,7 @@ import JsBarcode from 'jsbarcode';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ElementRendererComponent implements OnChanges {
+  readonly validation = inject(ValidationSessionService, { optional: true });
   @Input() element!: TemplateElement;
   @Input() selected = false;
   @Input() sectionKey: 'header' | 'detail' | 'footer' = 'header';

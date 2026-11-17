@@ -4,10 +4,12 @@
 @for (error of errors; track $index) { <p role="alert">{{ error }}</p> }
   <div class="preview-toolbar">
     <div class="toolbar-group">
+      @if (!batchMode) {
       <label>
         Copias por articulo
         <input type="number" [(ngModel)]="copies" (change)="onCopiesChange()" min="1" max="99" />
       </label>
+      }
     </div>
 
     <div class="toolbar-group">

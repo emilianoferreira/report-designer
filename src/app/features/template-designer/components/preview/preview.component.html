@@ -35,7 +35,7 @@
       <div class="toolbar-group">
         <span class="toolbar-label">Exportar:</span>
         <button class="toolbar-btn" (click)="exportHtmlRendered()" title="Descargar HTML con datos resueltos">HTML render</button>
-        <button class="toolbar-btn" (click)="exportHtmlTemplate()" title="Descargar HTML con directivas z-code para el motor PDF de Zureo">HTML z-code</button>
+        <button class="toolbar-btn" (click)="exportHtmlTemplate()" title="Exportar directivas. Los controles del navegador no validan la salida ejecutada por Zureo.">HTML z-code</button>
         <button class="toolbar-btn" (click)="exportJson()" title="Descargar la definición del template como JSON">JSON</button>
       </div>
 
@@ -60,13 +60,15 @@
 
   <!-- Preview content — switches by viewMode -->
   @if (printMessage) { <p class="renderer-context" role="alert">{{ printMessage }}</p> }
-  @if (fiscalSample && renderedReport; as report) {
+  <p class="renderer-context">El informe corresponde a impresión desde el navegador. La salida de las directivas HTML z-code requiere validación en Zureo.</p>
+  @if ((fiscalSample || validation?.scenario$?.value === 'json') && renderedReport; as report) {
     <details class="renderer-context">
       <summary>Validación de impresión · {{ report.status === 'violations' ? 'Hallazgos detectados' : 'Cobertura incompleta' }}</summary>
-      <p>Escenario ficticio. Se evalúa la salida de este ejemplo.</p>
+      <p>{{ validation?.scenario$?.value === 'json' ? 'Datos JSON importados en memoria.' : 'Escenario ficticio.' }} Se evalúa únicamente esta salida.</p>
       @for (result of report.results; track $index) {
         @if (result.status !== 'pending') {
           <p><strong>{{ result.id }} · {{ result.title }} · {{ ruleLabels[result.status] }}</strong><br>
+            @if (result.category === 'technical') { <span>Diagnóstico técnico · </span> }
             {{ result.message }} {{ result.action }}
             @if (result.source) { <a [href]="result.source" target="_blank" rel="noopener noreferrer">{{ result.reference }}</a> }
             @for (element of result.elements; track $index) {

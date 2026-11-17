@@ -34,6 +34,8 @@ import { evaluateExpression } from '../utils/expression-evaluator';
 import QRCode from 'qrcode';
 import JsBarcode from 'jsbarcode';
 import { RenderArtifact, RenderEvidence } from './render-evidence';
+import { FiscalRole } from '../../../core/models/fiscal.model';
+import { fiscalZones, GENERATED_DETAIL_ROLES } from '../utils/fiscal-identification';
 
 /** Options for HTML generation */
 export interface RenderOptions {
@@ -62,7 +64,7 @@ const DEFAULT_RENDER_OPTIONS: RenderOptions = {
 })
 export class HtmlRendererService {
   renderWithEvidence(template: ReportTemplate, data: InvoiceData, printSurface = false): RenderArtifact {
-    const evidence: RenderEvidence = { version: '1.0', elements: [], diagnostics: [] };
+    const evidence: RenderEvidence = { version: '1.0', elements: [], content: [], diagnostics: [] };
     for (const key of ['header', 'detail', 'footer'] as const) {
       const section = template.sections[key];
       for (const element of section.elements) if (element.style.namedStyle) evidence.diagnostics.push({
@@ -88,14 +90,14 @@ export class HtmlRendererService {
     // Controlled renderer output: annotate generated blocks without a DOM round trip.
     html = html.replace(/<(div|table)( class="(detail-table|ticket-item|subtotals-block|ticket-subtotals-block)")/g,
       (match, tag: string, cls: string, kind: string) => {
-        const id = `generated-${evidence.generated?.length ?? 0}`;
+        const id = `generated-block-${evidence.generated?.length ?? 0}`;
         (evidence.generated ??= []).push({ id, kind });
         return `<${tag} data-render-generated="${id}"${cls}`;
       });
     html = html.replace(/class="section section-(header|detail|footer)"/g,
       (match, section: string) => `${match} data-render-section="${section}"`);
     html = html.replace(/<tr(?=[\s>])/g, () => {
-      const id = `generated-${evidence.generated?.length ?? 0}`;
+      const id = `generated-block-${evidence.generated?.length ?? 0}`;
       (evidence.generated ??= []).push({ id, kind: 'generated-row' });
       return `<tr data-render-generated="${id}"`;
     });
@@ -479,6 +481,19 @@ ${footerHtml}
     return parts.join(';');
   }
 
+  /** Render-local identities never change stored template elements. */
+  private generatedContent(opts: RenderOptions, path?: string, explicitRoles?: FiscalRole[], extraPaths: string[] = []): string {
+    if (!opts.evidence) return '';
+    const content = opts.evidence.content ??= [];
+    const field = path?.replace(/^(invoiceLines|Articulos)\.\d+\./, '');
+    const roles = explicitRoles ?? (field ? GENERATED_DETAIL_ROLES[field] ?? [] : []);
+    const instanceId = 'generated-content-' + content.length;
+    content.push({ instanceId, origin: 'generated', section: 'detail',
+      sourcePaths: path ? [path, ...extraPaths] : [], roles: [...roles], zones: fiscalZones(roles),
+      emitted: true, semanticSource: 'renderer-contract', association: roles.length > 1 ? 'composite' : 'whole' });
+    return ' data-render-content="' + instanceId + '"';
+  }
+
   private renderDetailTable(
     section: DetailSectionDefinition,
     data: InvoiceData,
@@ -540,12 +555,12 @@ ${footerHtml}
       const subtotal = line['SubTotal'] ?? 0;
 
       html += `          <tr${opts.evidence ? ` data-render-source="invoiceLines.${rowIndex}"` : ''}>
-            <td class="dc-cod">${this.escapeHtml(String(codigo))}</td>
-            <td class="dc-nom">${this.escapeHtml(String(nombre))}</td>
-            <td class="dc-qty">${cantidad}</td>
-            <td class="dc-unit">${this.formatNumber(unitario)}</td>
-            <td class="dc-desc">${this.formatNumber(descuento)}</td>
-            <td class="dc-sub">${this.formatNumber(subtotal)}</td>
+            <td class="dc-cod"${this.generatedContent(opts, `${data.invoiceLines ? 'invoiceLines' : 'Articulos'}.${rowIndex}.Articulo.Codigo`)}>${this.escapeHtml(String(codigo))}</td>
+            <td class="dc-nom"${this.generatedContent(opts, `${data.invoiceLines ? 'invoiceLines' : 'Articulos'}.${rowIndex}.Articulo.Nombre`, ['detail.description'], [`${data.invoiceLines ? 'invoiceLines' : 'Articulos'}.${rowIndex}.Articulo.Codigo`])}>${this.escapeHtml(String(nombre))}</td>
+            <td class="dc-qty"${this.generatedContent(opts, `${data.invoiceLines ? 'invoiceLines' : 'Articulos'}.${rowIndex}.Cantidad`)}>${this.escapeHtml(String(cantidad))}</td>
+            <td class="dc-unit"${this.generatedContent(opts, `${data.invoiceLines ? 'invoiceLines' : 'Articulos'}.${rowIndex}.${isImpIncluidos ? 'PrecioUnitario' : 'PrecioUnitarioNeto'}`)}>${this.formatNumber(unitario)}</td>
+            <td class="dc-desc"${this.generatedContent(opts, `${data.invoiceLines ? 'invoiceLines' : 'Articulos'}.${rowIndex}.Descuento`)}>${this.formatNumber(descuento)}</td>
+            <td class="dc-sub"${this.generatedContent(opts, `${data.invoiceLines ? 'invoiceLines' : 'Articulos'}.${rowIndex}.SubTotal`)}>${this.formatNumber(subtotal)}</td>
           </tr>\n`;
     }
 
@@ -599,15 +614,15 @@ ${footerHtml}
 
       html += `      <div class="ticket-item"${opts.evidence ? ` data-render-source="invoiceLines.${rowIndex}"` : ''}>\n`;
       // Line 1: (Code) Name
-      html += `        <div class="ticket-item-name">(${this.escapeHtml(String(codigo))}) ${this.escapeHtml(String(nombre))}</div>\n`;
+      html += `        <div class="ticket-item-name"${this.generatedContent(opts, `${data.invoiceLines ? 'invoiceLines' : 'Articulos'}.${rowIndex}.Articulo.Nombre`, ['detail.description'], [`${data.invoiceLines ? 'invoiceLines' : 'Articulos'}.${rowIndex}.Articulo.Codigo`])}>(${this.escapeHtml(String(codigo))}) ${this.escapeHtml(String(nombre))}</div>\n`;
       // Line 2: Date (if available)
       if (fechaArt) {
-        html += `        <div class="ticket-item-date">${this.formatDate(String(fechaArt), 'dd/MM/yyyy')}</div>\n`;
+        html += `        <div class="ticket-item-date"${this.generatedContent(opts, `${data.invoiceLines ? 'invoiceLines' : 'Articulos'}.${rowIndex}.FechaArticulo`)}>${this.formatDate(String(fechaArt), 'dd/MM/yyyy')}</div>\n`;
       }
       // Line 3: x{qty}  {unit price}   |   {subtotal}
       html += `        <div class="ticket-item-qty-row">
-          <span class="ticket-item-qty">x${cantidad}\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0${this.formatNumber(unitario)}</span>
-          <span class="ticket-item-subtotal">${this.formatNumber(subtotal)}</span>
+          <span class="ticket-item-qty"${this.generatedContent(opts, `${data.invoiceLines ? 'invoiceLines' : 'Articulos'}.${rowIndex}.Cantidad`, ['detail.quantity', 'detail.unit-price'], [`${data.invoiceLines ? 'invoiceLines' : 'Articulos'}.${rowIndex}.${isImpIncluidos ? 'PrecioUnitario' : 'PrecioUnitarioNeto'}`])}>x${this.escapeHtml(String(cantidad))}\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0${this.formatNumber(unitario)}</span>
+          <span class="ticket-item-subtotal"${this.generatedContent(opts, `${data.invoiceLines ? 'invoiceLines' : 'Articulos'}.${rowIndex}.SubTotal`)}>${this.formatNumber(subtotal)}</span>
         </div>\n`;
       html += `      </div>\n`;
     }
@@ -632,24 +647,24 @@ ${footerHtml}
     // Discount global
     if (data.hasDtoGlobal) {
       html += `            <tr>
-              <td class="tst-lbl">Descuento:</td>
-              <td class="tst-val">${this.formatNumber(data.MontoDtoGlobal || 0)}</td>
+              <td class="tst-lbl"${this.generatedContent(opts)}>Descuento:</td>
+              <td class="tst-val"${this.generatedContent(opts, 'MontoDtoGlobal')}>${this.formatNumber(data.MontoDtoGlobal || 0)}</td>
             </tr>\n`;
     }
 
     // Subtotal
     if (!data.isCFE) {
       html += `            <tr>
-              <td class="tst-lbl">Subtotal:</td>
-              <td class="tst-val">${this.formatNumber(data.Subtotal || 0)}</td>
+              <td class="tst-lbl"${this.generatedContent(opts)}>Subtotal:</td>
+              <td class="tst-val"${this.generatedContent(opts, 'Subtotal')}>${this.formatNumber(data.Subtotal || 0)}</td>
             </tr>\n`;
 
       // Impuestos
       const impuestos = data.Impuestos || [];
       for (const imp of impuestos) {
         html += `            <tr>
-              <td class="tst-lbl">${this.escapeHtml(imp.Nombre)}:</td>
-              <td class="tst-val">${this.formatNumber(imp.Valor)}</td>
+              <td class="tst-lbl"${this.generatedContent(opts)}>${this.escapeHtml(imp.Nombre)}:</td>
+              <td class="tst-val"${this.generatedContent(opts, `Impuestos.${impuestos.indexOf(imp)}.Valor`)}>${this.formatNumber(imp.Valor)}</td>
             </tr>\n`;
       }
     } else {
@@ -657,8 +672,8 @@ ${footerHtml}
       const desglosados = data.SubtotalesDesglosados || [];
       for (const s of desglosados) {
         html += `            <tr>
-              <td class="tst-lbl">${this.escapeHtml(s.Key)}:</td>
-              <td class="tst-val">${this.formatNumber(s.Value)}</td>
+              <td class="tst-lbl"${this.generatedContent(opts)}>${this.escapeHtml(s.Key)}:</td>
+              <td class="tst-val"${this.generatedContent(opts, `SubtotalesDesglosados.${desglosados.indexOf(s)}.Value`)}>${this.formatNumber(s.Value)}</td>
             </tr>\n`;
       }
     }
@@ -666,16 +681,16 @@ ${footerHtml}
     // Redondeo
     if (data.hasRedondeo) {
       html += `            <tr>
-              <td class="tst-lbl">Redondeo:</td>
-              <td class="tst-val">${this.formatNumber(data.Redondeo || 0)}</td>
+              <td class="tst-lbl"${this.generatedContent(opts)}>Redondeo:</td>
+              <td class="tst-val"${this.generatedContent(opts, 'Redondeo')}>${this.formatNumber(data.Redondeo || 0)}</td>
             </tr>\n`;
     }
 
     // Total
     const simbolo = data.Moneda?.Simbolo || '$';
     html += `            <tr class="ticket-total-row">
-              <td class="tst-lbl">Total:</td>
-              <td class="tst-val">${simbolo} ${this.formatNumber(data.Total || 0)}</td>
+              <td class="tst-lbl"${this.generatedContent(opts)}>Total:</td>
+              <td class="tst-val"${this.generatedContent(opts, 'Total')}>${simbolo} ${this.formatNumber(data.Total || 0)}</td>
             </tr>\n`;
 
     html += `          </tbody>
@@ -724,24 +739,24 @@ ${footerHtml}
     // Discount global
     if (data.hasDtoGlobal) {
       html += `            <tr>
-              <td class="st-lbl">Descuento:</td>
-              <td class="st-val">(${this.formatNumber(data.invoice?.['PorcentajeDescGlobal'] || 0)} %) ${this.formatNumber(data.MontoDtoGlobal || 0)}</td>
+              <td class="st-lbl"${this.generatedContent(opts)}>Descuento:</td>
+              <td class="st-val"${this.generatedContent(opts, 'MontoDtoGlobal')}>(${this.formatNumber(data.invoice?.['PorcentajeDescGlobal'] || 0)} %) ${this.formatNumber(data.MontoDtoGlobal || 0)}</td>
             </tr>\n`;
     }
 
     // Subtotal
     if (!data.isCFE) {
       html += `            <tr>
-              <td class="st-lbl">Subtotal:</td>
-              <td class="st-val">${this.formatNumber(data.Subtotal || 0)}</td>
+              <td class="st-lbl"${this.generatedContent(opts)}>Subtotal:</td>
+              <td class="st-val"${this.generatedContent(opts, 'Subtotal')}>${this.formatNumber(data.Subtotal || 0)}</td>
             </tr>\n`;
 
       // Impuestos
       const impuestos = data.Impuestos || [];
       for (const imp of impuestos) {
         html += `            <tr>
-              <td class="st-lbl">${this.escapeHtml(imp.Nombre)} :</td>
-              <td class="st-val">${this.formatNumber(imp.Valor)}</td>
+              <td class="st-lbl"${this.generatedContent(opts)}>${this.escapeHtml(imp.Nombre)} :</td>
+              <td class="st-val"${this.generatedContent(opts, `Impuestos.${impuestos.indexOf(imp)}.Valor`)}>${this.formatNumber(imp.Valor)}</td>
             </tr>\n`;
       }
     } else {
@@ -749,8 +764,8 @@ ${footerHtml}
       const desglosados = data.SubtotalesDesglosados || [];
       for (const s of desglosados) {
         html += `            <tr>
-              <td class="st-lbl">${this.escapeHtml(s.Key)} :</td>
-              <td class="st-val">${this.formatNumber(s.Value)}</td>
+              <td class="st-lbl"${this.generatedContent(opts)}>${this.escapeHtml(s.Key)} :</td>
+              <td class="st-val"${this.generatedContent(opts, `SubtotalesDesglosados.${desglosados.indexOf(s)}.Value`)}>${this.formatNumber(s.Value)}</td>
             </tr>\n`;
       }
     }
@@ -758,16 +773,16 @@ ${footerHtml}
     // Redondeo
     if (data.hasRedondeo) {
       html += `            <tr>
-              <td class="st-lbl">Redondeo:</td>
-              <td class="st-val">${this.formatNumber(data.Redondeo || 0)}</td>
+              <td class="st-lbl"${this.generatedContent(opts)}>Redondeo:</td>
+              <td class="st-val"${this.generatedContent(opts, 'Redondeo')}>${this.formatNumber(data.Redondeo || 0)}</td>
             </tr>\n`;
     }
 
     // Total
     const simbolo = data.Moneda?.Simbolo || '$';
     html += `            <tr class="total-row">
-              <td class="st-lbl">Total:</td>
-              <td class="st-val">${simbolo} ${this.formatNumber(data.Total || 0)}</td>
+              <td class="st-lbl"${this.generatedContent(opts)}>Total:</td>
+              <td class="st-val"${this.generatedContent(opts, 'Total')}>${simbolo} ${this.formatNumber(data.Total || 0)}</td>
             </tr>\n`;
 
     html += `          </tbody>
@@ -825,6 +840,12 @@ ${footerHtml}
     const classes = `${element.screenOnly ? ' element-screen-only' : ''}${element.printOnly ? ' element-print-only' : ''}`;
     if (html && classes) html = html.replace('class="element', `class="element${classes}`);
     if (opts.evidence) {
+      const roles = [...(element.fiscalRoles ?? [])];
+      opts.evidence.content?.push({ instanceId: 'element:' + section + ':' + element.id, origin: 'template',
+        elementId: element.id, section, roles, zones: fiscalZones(roles),
+        sourcePaths: element.type === 'dataField' ? [element.binding.source] :
+          element.type === 'qrCode' || element.type === 'barcode' ? [element.dataBinding] : [],
+        emitted: !!html, semanticSource: 'declared', association: roles.length > 1 ? 'composite' : 'whole' });
       opts.evidence.elements.push({ id: element.id, section, emitted: !!html, roles: [...(element.fiscalRoles ?? [])] });
       for (const diagnostic of opts.evidence.diagnostics.slice(start)) {
         diagnostic.elementId = element.id; diagnostic.section = section;
@@ -1084,7 +1105,7 @@ ${footerHtml}
     const width = mmToPx(el.size.width);
     const height = mmToPx(el.size.height);
 
-    return `left: ${left}px; top: ${top}px; width: ${width}px; height: ${height}px; z-index: ${el.zIndex};`;
+    return `left: ${left}px; top: ${top}px; width: ${width}px; height: ${height}px; z-index: ${el.zIndex};${el.style.opacity != null && el.style.opacity < 1 ? ` opacity: ${el.style.opacity};` : ''}`;
   }
 
   private getContentCSS(el: TemplateElement, template: ReportTemplate): string {
@@ -1108,7 +1129,7 @@ ${footerHtml}
 
     if (el.style.textAlign && el.style.textAlign !== 'left') css += ` text-align: ${el.style.textAlign};`;
     if (el.style.backgroundColor) css += ` background-color: ${el.style.backgroundColor};`;
-    if (el.style.opacity != null && el.style.opacity < 1) css += ` opacity: ${el.style.opacity};`;
+
 
     if (el.style.verticalAlign) {
       css += ` display: flex;`;

@@ -36,6 +36,7 @@ export class PriceLabelPreviewComponent implements OnChanges, AfterViewInit, OnD
   @Input({ required: true }) articles!: PriceLabelArticle[];
   @Input({ required: true }) company!: PriceLabelCompany;
 
+  @Input() batchMode = false;
   errors: string[] = [];
   warnings: string[] = [];
   checking = false;
@@ -148,7 +149,7 @@ export class PriceLabelPreviewComponent implements OnChanges, AfterViewInit, OnD
       });
       if (print) {
         const frame = this.previewFrame.nativeElement;
-        Promise.all(Array.from(doc.images).map(img => img.decode()))
+        Promise.all([doc.fonts.ready, ...Array.from(doc.images).map(img => img.decode())])
           .then(() => { if (revision === this.revision && frame.isConnected && !this.errors.length && !this.checking) frame.contentWindow?.print(); }).catch(() => { this.errors = ['No se pudieron cargar las imágenes para imprimir.']; });
       }
     });

@@ -1,3 +1,4 @@
+import { ContentIdentity } from '../../../core/models/validation.model';
 /** Renderer observations only. No normative verdicts or DOM measurements. */
 export interface RenderDiagnostic {
   code: 'expression-error' | 'missing-value' | 'generation-error' | 'unsupported-feature' | 'omitted-element' | 'resource-error';
@@ -9,6 +10,7 @@ export interface RenderEvidence {
   version: '1.0';
   elements: Array<{ id: string; section: string; emitted: boolean; roles: string[] }>;
   generated?: Array<{ id: string; kind: string; sourcePath?: string }>;
+  content?: Array<ContentIdentity & { emitted: boolean; semanticSource: 'declared' | 'renderer-contract'; association: 'whole' | 'composite' }>;
   qrPayloads?: Array<{ elementId: string; payload: string }>;
   diagnostics: RenderDiagnostic[];
 }

@@ -1,3 +1,5 @@
+import { inject } from '@angular/core';
+import { ValidationSessionService } from '../../services/validation-session.service';
 /**
  * Preview Component
  * Renders the template + sample data as HTML in an iframe.
@@ -30,8 +32,9 @@ import { RenderEvidence } from '../../services/render-evidence';
 import { sampleFiscalInvoice } from '../../data/sample-fiscal-invoice';
 import { SelectionService } from '../../services/selection.service';
 import { RuleResult, RuleStatus } from '../../utils/static-fiscal-rules';
-import { confirmedPrintFailures, inspectFiscalPrint, RenderedFiscalReport } from '../../utils/rendered-fiscal-rules';
-import { paginateFiscalPrint } from '../../utils/paginate-fiscal-print';
+import { inspectFiscalPrint, RenderedFiscalReport } from '../../utils/rendered-fiscal-rules';
+import { prepareBrowserPrint } from '../../utils/prepare-browser-print';
+import { decideBrowserPrint } from '../../utils/print-validation-policy';
 import { FiscalAdviceComponent } from '../fiscal-advice/fiscal-advice.component';
 
 export type PreviewViewMode = 'render' | 'html' | 'json';
@@ -45,6 +48,7 @@ export type PreviewViewMode = 'render' | 'html' | 'json';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PreviewComponent implements OnInit, OnDestroy {
+  readonly validation = inject(ValidationSessionService, { optional: true });
   renderEvidence?: RenderEvidence;
   renderInputSnapshot = '';
   previewReady = false;
@@ -94,6 +98,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.validation?.scenario$.pipe(takeUntil(this.destroy$), skip(1)).subscribe(() => this.renderPreview());
     // Re-render preview when template changes (debounced)
     this.templateState.template$
       .pipe(
@@ -104,6 +109,8 @@ export class PreviewComponent implements OnInit, OnDestroy {
       .subscribe(() => {
         this.renderPreview();
       });
+    this.fiscalSample = this.validation?.scenario$.value.startsWith('fiscal') ?? false;
+    this.sampleDataMode = this.validation?.scenario$.value.endsWith('multi') ? 'multi' : 'single';
     this.renderPreview();
   }
 
@@ -139,7 +146,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
     this.pageHeightPx = mmToPx(template.page.height);
 
     // Precompute all formats — cheap and keeps view switching instant
-    const artifact = this.renderer.renderWithEvidence(template, data, data.fiscal?.isCfe === true);
+    const artifact = this.renderer.renderWithEvidence(template, data, true);
     this.previewHtml = artifact.html;
     this.renderEvidence = artifact.evidence;
     this.renderInputSnapshot = artifact.inputSnapshot;
@@ -159,7 +166,15 @@ export class PreviewComponent implements OnInit, OnDestroy {
     const html = this.previewHtml;
     const evidence = this.renderEvidence;
     this.previewReady = false;
-    this.preparation = this.prepareDocument(version, html, evidence);
+    this.preparation = this.prepareDocument(version, html, evidence).catch(() => {
+      if (version === this.injectionVersion) {
+        this.previewReady = false;
+        this.renderedReport = undefined;
+        this.printMessage = 'No se pudo preparar la salida. Revisá el molde y los datos y volvé a intentarlo.';
+        this.cdr.markForCheck();
+      }
+      return undefined;
+    });
   }
 
   private async prepareDocument(version: number, html: string, evidence: RenderEvidence | undefined): Promise<Document | undefined> {
@@ -170,28 +185,24 @@ export class PreviewComponent implements OnInit, OnDestroy {
     doc.open();
     doc.write(html);
     doc.close();
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const resources = Promise.all([doc.fonts.ready, ...Array.from(doc.images).map(image => image.decode().catch(() => {
-      if (version === this.injectionVersion) evidence?.diagnostics.push({ code: 'resource-error',
-        elementId: image.closest('[data-render-element]')?.getAttribute('data-render-element') ?? undefined,
-        message: 'No se pudo cargar o decodificar una imagen.' });
-    }))]);
-    const loaded = await Promise.race([resources.then(() => true), new Promise<boolean>(resolve => {
-      timer = setTimeout(() => resolve(false), 5000);
-    })]);
-    if (timer) clearTimeout(timer);
-    if (version !== this.injectionVersion) return undefined;
-    if (!loaded) evidence?.diagnostics.push({ code: 'resource-error', message: 'Fuentes o imágenes no finalizaron en el tiempo de espera.' });
-    this.previewReady = loaded;
-    if (this.fiscalSample && loaded && this.renderInputSnapshot === this.currentSnapshot() &&
-        !evidence?.diagnostics.some(diagnostic => diagnostic.code === 'resource-error')) {
-      const template = this.templateState.getCurrentTemplate();
-      const pagination = paginateFiscalPrint(doc, template);
-      this.paginationPending = pagination.pending;
-      this.pageHeightPx = mmToPx(template.page.height) * pagination.pages;
-      if (doc.querySelector('[data-render-page]')) this.paginatedHtml = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+    const template = this.templateState.getCurrentTemplate();
+    const context = this.fiscalContext;
+    const snapshot = this.renderInputSnapshot;
+    if (!evidence || !context) return undefined;
+    const prepared = await prepareBrowserPrint(doc, template, context, evidence,
+      () => version === this.injectionVersion && snapshot === this.currentSnapshot() &&
+        doc === this.previewFrame?.nativeElement.contentDocument);
+    if (!prepared) return undefined;
+    this.previewReady = prepared.resourcesReady;
+    this.paginationPending = prepared.paginationPending;
+    this.pageHeightPx = mmToPx(template.page.height) * prepared.pages;
+    if (doc.querySelector('[data-render-page]')) this.paginatedHtml = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+    this.renderedReport = prepared.report;
+    if (this.validation?.requestedPage) {
+      const page = doc.querySelectorAll('body > .page')[this.validation.requestedPage - 1];
+      page?.scrollIntoView({ block: 'nearest' });
+      this.validation.requestedPage = undefined;
     }
-    this.refreshFiscalReport(doc);
     this.cdr.markForCheck();
     return doc;
   }
@@ -214,6 +225,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   // ─────────────────────────────────────────────────────────────────
 
   private getActiveData(): InvoiceData {
+    if (this.validation) return this.validation.data();
     if (this.fiscalSample) return sampleFiscalInvoice(this.templateState.getCurrentTemplate().compliance, this.sampleDataMode === 'multi');
     return this.sampleDataMode === 'single'
       ? SAMPLE_INVOICE_DATA
@@ -222,11 +234,13 @@ export class PreviewComponent implements OnInit, OnDestroy {
 
   toggleSampleData(): void {
     this.sampleDataMode = this.sampleDataMode === 'single' ? 'multi' : 'single';
+    this.validation?.select(this.fiscalSample ? (this.sampleDataMode === 'multi' ? 'fiscal-multi' : 'fiscal-single') : this.sampleDataMode);
     this.renderPreview();
   }
 
   toggleFiscalSample(): void {
     this.fiscalSample = !this.fiscalSample;
+    this.validation?.select(this.fiscalSample ? (this.sampleDataMode === 'multi' ? 'fiscal-multi' : 'fiscal-single') : this.sampleDataMode);
     this.renderPreview();
   }
 
@@ -267,9 +281,14 @@ export class PreviewComponent implements OnInit, OnDestroy {
         return;
       }
       const report = this.refreshFiscalReport(doc);
-      const failures = report ? confirmedPrintFailures(report) : [];
-      if (failures.length) {
-        this.printMessage = 'Impresión bloqueada. Corregí ' + failures.map(result => result.id + ' · ' + result.title).join(', ') + '.';
+      if (!this.fiscalContext) throw new Error('missing-print-context');
+      const decision = decideBrowserPrint(this.fiscalContext, report, snapshot, this.currentSnapshot());
+      if (decision.state === 'refresh') {
+        this.printMessage = 'La evidencia de impresión cambió. Volvé a preparar la vista actual.';
+        return;
+      }
+      if (decision.state === 'block') {
+        this.printMessage = 'Impresión bloqueada. Corregí ' + decision.failures.map(result => result.id + ' · ' + result.title + (result.page ? ' · página ' + result.page : '')).join(', ') + '.';
         return;
       }
       doc.defaultView?.print();

@@ -9,6 +9,8 @@ export interface PrintPagination {
 /** Split the resolved detail table after resource loading. The original document
  * stays intact until the complete sequence of sheets fits. */
 export function paginateFiscalPrint(doc: Document, template: ReportTemplate): PrintPagination {
+  const existing = doc.querySelectorAll('body > .page[data-render-page]');
+  if (existing.length) return { pages: existing.length };
   if (template.page.dynamicHeight || template.compliance?.medium === 'roll') return { pages: 1 };
   const page = doc.querySelector<HTMLElement>('body > .page');
   const header = page?.querySelector<HTMLElement>('.section-header');
@@ -47,6 +49,12 @@ export function paginateFiscalPrint(doc: Document, template: ReportTemplate): Pr
   const continuationFooter = footer.cloneNode(false) as HTMLElement;
   const seals = Array.from(footer.querySelectorAll<HTMLElement>('[data-render-element]'))
     .filter(element => element.querySelector('svg[data-qr-modules]') && element.getBoundingClientRect().height > 0);
+  if (seals.length === 1) {
+    const codeIds = new Set(template.sections.footer.elements.filter(element => element.fiscalRoles?.includes('security.code')).map(element => element.id));
+    for (const element of Array.from(footer.querySelectorAll<HTMLElement>('[data-render-element]'))) {
+      if (codeIds.has(element.dataset['renderElement'] ?? '') && element.getBoundingClientRect().height > 0 && !seals.includes(element)) seals.push(element);
+    }
+  }
   const sealTop = seals.length ? Math.min(...seals.map(seal => seal.offsetTop)) : 0;
   let sealHeight = 0;
   for (const seal of seals) {
@@ -80,7 +88,7 @@ export function paginateFiscalPrint(doc: Document, template: ReportTemplate): Pr
   const fits = (sheet: HTMLElement) => {
     const box = sheet.getBoundingClientRect();
     if (box.height > height + 0.05) return false;
-    return Array.from(sheet.querySelectorAll('[data-render-element], [data-render-generated]')).every(element => {
+    return Array.from(sheet.querySelectorAll('[data-render-element], [data-render-generated], [data-render-content], [data-render-page-label]')).every(element => {
       const rect = element.getBoundingClientRect();
       if (!rect.width || !rect.height) return true;
       return rect.top >= box.top - 0.05 && rect.bottom <= box.bottom + 0.05 &&
@@ -121,6 +129,12 @@ export function paginateFiscalPrint(doc: Document, template: ReportTemplate): Pr
     sheet.style.height = template.page.height + 'mm';
     if (index < sheets.length - 1) sheet.style.breakAfter = 'page';
   }
-  page.replaceWith(...sheets);
+  // Measure final numbering and page heights while the original remains available for rollback.
+  page.after(...sheets);
+  if (!sheets.every(fits)) {
+    sheets.forEach(sheet => sheet.remove());
+    return pending('La composición final o la numeración no cabe en la hoja; se conservó la salida original.');
+  }
+  page.remove();
   return { pages: sheets.length };
 }

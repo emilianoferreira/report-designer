@@ -1,8 +1,11 @@
 <!-- Element Renderer - renders any TemplateElement type visually -->
 <div
   class="element-wrapper"
+  [attr.data-element-id]="element.id"
   [ngStyle]="hostStyles"
   [class.selected]="selected"
+  [attr.data-validation]="(validation?.report$ | async) ? validation?.affected(element.id) : null"
+  [style.outline]="(validation?.report$ | async) && validation?.affected(element.id) ? (validation?.affected(element.id) === 'error' ? '2px solid #b52e36' : '2px dashed #bb8700') : null"
   [class.locked]="element.locked"
   [class.dragging]="isDragging"
   (mousedown)="onMouseDown($event)"

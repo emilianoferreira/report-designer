@@ -1,3 +1,5 @@
+import { inject } from '@angular/core';
+import { ValidationSessionService } from '../../services/validation-session.service';
 /**
  * Design Canvas Component
  * The central A4 surface where users place and manipulate elements.
@@ -102,6 +104,7 @@ interface MarqueeState {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
+  private validation = inject(ValidationSessionService, { optional: true });
   @ViewChild('canvasPage') canvasPage!: ElementRef<HTMLDivElement>;
   @ViewChild('scrollArea') scrollArea!: ElementRef<HTMLDivElement>;
 
@@ -218,6 +221,7 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnDestroy(): void {
+    if (this.dragState) this.validation?.endInteraction();
     if (this.wheelHandler && this.scrollArea?.nativeElement) {
       this.scrollArea.nativeElement.removeEventListener('wheel', this.wheelHandler);
     }
@@ -358,6 +362,7 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
       }
 
       this.dragState = null;
+      this.validation?.endInteraction();
       this.activeSnapLines = [];
       this.cdr.markForCheck();
     });
@@ -597,6 +602,7 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
   }): void {
     const el = this.templateState.getElement(event.section as any, event.elementId);
     if (!el || el.locked) return;
+    this.validation?.beginInteraction();
 
     const isResize = !!event.handle;
 

@@ -30,6 +30,9 @@ export interface FiscalProfile {
   operationType?: FiscalOperation;
   medium?: 'sheet' | 'roll';
   printingMode?: 'blank-paper' | 'preprinted';
+  /** Declared alternative; never evidence that its legal conditions are met. */
+  distribution?: 'standard' | 'sequential';
+  adendaPlacement?: 'separate-page' | 'after-cfe' | 'within-body';
 }
 
 /** Base-10 strings preserve decimal precision. No tax calculations in stage 1. */
@@ -166,6 +169,7 @@ export const FISCAL_ROLE_LABELS = {
   'document.date': 'Fecha de emisión',
   'recipient.name': 'Nombre del receptor',
   'recipient.document': 'Documento del receptor',
+  'recipient.document-type': 'Tipo de documento del receptor',
   'recipient.country': 'País del documento del receptor',
   'recipient.address': 'Domicilio del receptor',
   'recipient.label': 'RUC COMPRADOR / CONSUMO FINAL',
@@ -186,6 +190,15 @@ export const FISCAL_ROLE_LABELS = {
   'adjustments.description': 'Concepto del ajuste',
   'adjustments.amount': 'Importe del ajuste',
   'tax.name': 'Nombre de retención / percepción',
+  'tax.rate': 'Tasa del tributo',
+  'tax.taxable-amount': 'Base imponible del tributo',
+  'payment.description': 'Identificación del medio de pago',
+  'payment.amount': 'Importe del medio de pago',
+  'detail.mandatory-legend': 'Constancia obligatoria del ítem',
+  'document.collection-legend': 'Leyenda de cobranza',
+  'document.third-party-legend': 'Leyenda de pagos por cuenta de terceros',
+  'document.third-party-goods': 'Leyenda Bienes de Terceros',
+  'document.goods-owner': 'Identificación del propietario de los bienes',
   'tax.amount': 'Importe de retención / percepción',
   'reference.type': 'Tipo de documento referenciado',
   'reference.series': 'Serie referenciada',
@@ -203,6 +216,7 @@ export const FISCAL_ROLE_LABELS = {
   'footer.verification': 'Leyenda y sitio de verificación',
   'footer.iva-legend': 'Leyenda de IVA',
   'adenda.label': 'Rótulo ADENDA',
+  'adenda.boundary': 'Recuadro delimitador de adenda',
   'adenda.content': 'Contenido de adenda',
   'adenda.mandatory': 'Constancia obligatoria'
 } as const;
