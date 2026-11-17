@@ -6,35 +6,34 @@ using ReportDesigner.Application.LabelPrinting;
 namespace ReportDesigner.Infrastructure.LabelPrinting;
 
 // Scoped source: every external-looking identity belongs to the authenticated company.
-public sealed class DemoLabelSource(ICompanyContext company) : ILabelCatalogSource, ILabelPriceSource
+public sealed class DemoLabelSource(ICompanyContext company, DemoLabelCatalog catalog) : ILabelCatalogSource, ILabelPriceSource
 {
     private string Prefix => "demo:" + company.CompanyId.ToString("N") + ":";
-    private LabelCompany Company => new("Empresa de demostración", null);
-    private PriceListSummary[] Lists => [new(Prefix + "retail", "Demostración · General"), new(Prefix + "wholesale", "Demostración · Mayorista")];
-    private ArticleSummary[] Articles => Enumerable.Range(1, 60).Select(i => new ArticleSummary(Prefix + "article-" + i, "DEMO-" + i.ToString("D3"), "Artículo de demostración " + i, "779" + i.ToString("D9"), null)).ToArray();
+    private LabelCompany Company => new("Almacén Demo — empresa ficticia", DemoLabelCatalog.Logo);
+    private PriceListSummary[] Lists => [new(Prefix + "retail", "Principal"), new(Prefix + "wholesale", "Mayorista")];
+    private string Id(DemoLabelItem item) => Prefix + "article-" + item.Number.ToString(CultureInfo.InvariantCulture);
+    private ArticleSummary Article(DemoLabelItem item) => new(Id(item), item.Code, item.Name, item.Barcode, null);
     public Task<LabelPrintContext> ContextAsync(CancellationToken ct) { ct.ThrowIfCancellationRequested(); return Task.FromResult(new LabelPrintContext("demo", true, Company)); }
     public Task<Page<PriceListSummary>> ListsAsync(string? cursor, int pageSize, CancellationToken ct)
     { ct.ThrowIfCancellationRequested(); return Task.FromResult(Paginate(Lists, "lists", cursor, pageSize)); }
     public Task<Page<ArticleSummary>> SearchAsync(string query, string priceListId, string? cursor, int pageSize, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested(); CheckList(priceListId);
-        // Fixture 60 represents an inactive article and is never searchable.
-        var rows = query.Length == 0 ? [] : Articles.Where(a => a.Id != Prefix + "article-60" && (a.Code.StartsWith(query, StringComparison.OrdinalIgnoreCase) || a.Barcode == query)).ToArray();
+        // Only active items from the injected catalog are searchable.
+        var rows = query.Length == 0 ? [] : catalog.Items.Where(a => a.Active && (a.Code.StartsWith(query, StringComparison.OrdinalIgnoreCase) || a.Barcode == query)).Select(Article).ToArray();
         return Task.FromResult(Paginate(rows, "search:" + priceListId + ":" + query, cursor, pageSize));
     }
     public Task<ResolvedPrintSnapshot> ResolveAsync(string priceListId, IReadOnlyList<string> articleIds, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested(); CheckList(priceListId);
-        var articles = Articles.ToDictionary(a => a.Id, StringComparer.Ordinal);
+        var articles = catalog.Items.ToDictionary(Id, StringComparer.Ordinal);
         var result = articleIds.Select(id => {
-            if (!articles.TryGetValue(id, out var article) || id == Prefix + "article-60")
+            if (!articles.TryGetValue(id, out var item) || !item.Active)
                 return new ResolvedArticle(id, "unavailable", null, new("missing", null, null, null, "unknown"));
-            var index = int.Parse(id[(id.LastIndexOf('-') + 1)..], CultureInfo.InvariantCulture);
-            var missing = index == 3 && priceListId == Prefix + "wholesale";
-            var amount = index == 2 ? 0m : index * (priceListId == Prefix + "retail" ? 100.25m : 80.50m);
-            return new ResolvedArticle(id, "available", article, new(missing ? "missing" : "available", missing ? null : amount.ToString("0.00", CultureInfo.InvariantCulture), "UYU", "$", index == 4 ? "unknown" : "included"));
+            var amount = priceListId == Prefix + "retail" ? item.Principal : item.Wholesale;
+            return new ResolvedArticle(id, "available", Article(item), new(amount.HasValue ? "available" : "missing", amount?.ToString("0.00", CultureInfo.InvariantCulture), "UYU", "$", item.TaxTreatment));
         }).ToArray();
-        return Task.FromResult(new ResolvedPrintSnapshot("demo", priceListId, DateTimeOffset.UtcNow, "demo-v1", Company, result));
+        return Task.FromResult(new ResolvedPrintSnapshot("demo", priceListId, DateTimeOffset.UtcNow, "demo-v2", Company, result));
     }
     private void CheckList(string id) { if (!Lists.Any(l => l.Id == id)) throw new LabelPrintException(404, "list_unavailable", "Price list unavailable."); }
     private Page<T> Paginate<T>(T[] items, string scope, string? cursor, int size)

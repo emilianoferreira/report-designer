@@ -7,21 +7,33 @@ Los ejemplos locales se conservan únicamente en el diseñador y las pruebas.
 
 ## Configuración
 
-El valor predeterminado de LabelPrinting:Provider es Disabled. En ese modo context
-responde available=false, mode=disabled y company=null; las consultas de datos
-responden 503 con code=provider_unavailable. No existe fallback a datos sintéticos.
+La configuración appsettings.Development.json habilita Demo para el entorno local.
+Los arranques habituales (npm run server, npm run study:api y el perfil de VS Code
+Estudio .NET + MySQL) cargan esa configuración. Reiniciar el backend después de actualizar.
+Se siguen necesitando la base habitual para sesiones/moldes y un usuario autenticado;
+el catálogo ficticio no necesita tablas, seeds ni credenciales de Zureo.
 
-Para habilitar explícitamente la demostración en una instancia Development:
+Para deshabilitarlo explícitamente, la variable de entorno tiene prioridad:
 
 ```powershell
-$env:LabelPrinting__Provider = 'Demo'
+$env:LabelPrinting__Provider = 'Disabled'
 ```
 
-Reiniciar el backend con su configuración habitual de base y autenticación.
-Demo solo se acepta en Development y Testing; en Production/Staging el arranque
-falla. Valores desconocidos también fallan. La selección es independiente de
-Database:Provider y funciona con las sesiones existentes de MySQL o PostgreSQL.
-No se habilita una autenticación de prueba ni se crean usuarios automáticamente.
+Sin configuración, el registro conserva Disabled. En ese modo context responde
+available=false, mode=disabled y company=null; las consultas responden 503.
+Demo solo se acepta en Development/Testing; una activación explícita en Production
+ o Staging impide arrancar. No existe fallback automático tras un error de catálogo.
+
+## Probar desde la interfaz
+
+1. Iniciar el backend local con la configuración habitual y Angular con npm start.
+2. Iniciar sesión; crear o abrir un molde de etiquetas y guardarlo.
+3. Abrir Preparar impresión, elegir ese molde y la lista Principal.
+4. Buscar DEMO- para ver los primeros 25 artículos; Más resultados muestra los 5 restantes.
+5. Agregar artículos, asignar cantidades y cambiar a Mayorista. El orden y las
+   cantidades se conservan mientras se actualizan los precios.
+6. Revisar el lote y usar Imprimir o Exportar HTML. El logo del molde predeterminado
+   se resuelve con el logo ficticio incluido en la respuesta.
 
 ## HTTP
 
@@ -55,16 +67,22 @@ usan el ProblemDetails de ASP.NET, sin cambiar el comportamiento de otras APIs.
 
 ## Datos sintéticos
 
-Cada empresa tiene IDs separados con prefijo demo y su propia proyección de dos
-listas: General y Mayorista. Hay 60 artículos sintéticos ordenados por código:
-59 activos y uno inactivo. DEMO-002 tiene precio cero; DEMO-003 no tiene precio
-mayorista; DEMO-004 declara tratamiento tributario unknown. Los demás precios se
-generan con decimal en el proveedor exclusivamente para demostración.
+Cada empresa tiene IDs separados y dos listas: Principal y Mayorista. El catálogo
+habitual contiene 30 artículos activos, de DEMO-001 a DEMO-030, con precios fijos
+positivos en ambas listas. Los primeros seis son arroz (65/52), azúcar (58/46),
+aceite (115/95), yerba (210/175), fideos (49/39) y café (185/155), en UYU.
 
-No se inventan logos ni imágenes: son null. Un molde que requiere esos datos deberá
-advertir su ausencia al integrar el frontend. El campo mode=demo permite identificar
-la fuente tanto en contexto como en cada instantánea. Nunca usar estos fixtures
-como evidencia de una integración real con Zureo.
+Los importes simulados declaran impuestos incluidos; no representan tasas ni precios
+reales de mercado. Los códigos EAN-13 sintéticos usan prefijo 200 y dígito verificador
+correcto; son compatibles con CODE128 y no acreditan identificadores comerciales asignados.
+
+La empresa Almacén Demo — empresa ficticia incluye un logo SVG embebido con el texto
+DATOS FICTICIOS, sin solicitudes a servidores de imágenes. Las imágenes de producto
+siguen siendo null. El contexto y las instantáneas conservan mode=demo.
+
+Precio cero, precio faltante, artículo inactivo y tratamiento desconocido están en
+un catálogo inyectado exclusivamente por las pruebas .NET, fuera del catálogo habitual.
+Los contratos HTTP y el JSON persistido de los moldes permanecen iguales.
 
 ## Pruebas
 
@@ -82,6 +100,7 @@ Integración HTTP con sesiones reales y PostgreSQL descartable:
 ```powershell
 dotnet build backend-dotnet/src/ReportDesigner.Api/ReportDesigner.Api.csproj -m:1
 npm --prefix server run build
+npm run build
 node e2e/price-labels/backend-demo.mjs
 ```
 
@@ -89,5 +108,7 @@ Reutiliza el harness aislado existente, sin consultar bases configuradas por el
 usuario. Necesita dependencias de server instaladas, SDK .NET y permisos de conexión
 local. Comprueba primero las regresiones de seguridad de ambos backends; luego los
 endpoints nuevos de .NET, viewer, CSRF, paginación, empresa ajena y sesión revocada.
+También prueba Angular compilado contra esa API: molde con logo, EAN-13, cantidades,
+cambio de lista, impresión y exportación HTML.
 El adaptador demo no toca MySQL; la integración específica de datos Zureo sigue
 pendiente de documentación y de un adaptador real.

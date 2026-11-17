@@ -13,6 +13,7 @@ public static class LabelPrintingRegistration
             throw new InvalidOperationException("The demo label provider is restricted to Development and Testing.");
         services.AddScoped<LabelPrintService>();
         if (provider == "Demo") {
+            services.AddSingleton(DemoLabelCatalog.Default);
             services.AddScoped<DemoLabelSource>();
             services.AddScoped<ILabelCatalogSource>(sp => sp.GetRequiredService<DemoLabelSource>());
             services.AddScoped<ILabelPriceSource>(sp => sp.GetRequiredService<DemoLabelSource>());

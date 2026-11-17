@@ -1,5 +1,5 @@
 <header><a routerLink="/templates">← Moldes</a><h1>Preparar impresión</h1><a routerLink="/price-labels">Diseñar etiquetas</a></header>
-@if(state.context?.mode === 'demo'){<p class="demo" role="status"><strong>Demostración — datos sintéticos del backend.</strong> No son datos reales de Zureo.</p>}
+@if(state.context?.mode === 'demo'){<p class="demo" role="status"><strong>Demostración — datos sintéticos del backend.</strong> No son datos reales de Zureo. Escribí DEMO- en el buscador para recorrer los 30 artículos de prueba.</p>}
 <p>El lote se descarta al salir. Imprimir y exportar utilizan los precios de la última vista previa.</p>
 @if(state.loading){<p role="status">Cargando catálogo…</p>}
 @if(state.error){<p role="alert">{{state.error}}</p><button (click)="state.initialize()">Reintentar carga</button>}

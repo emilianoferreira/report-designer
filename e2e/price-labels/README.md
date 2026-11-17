@@ -8,11 +8,11 @@ El catálogo se consulta por páginas de 25; las búsquedas conservan el lote. C
 artículo admite cantidad individual y la suma no puede superar 100 etiquetas.
 
 La pantalla consume /api/label-print; no usa fixtures locales como sustitución.
-Para probar con datos sintéticos, configurar explícitamente LabelPrinting__Provider=Demo
-en el backend Development y reiniciarlo. Ver [guía](../../docs/label-print-backend.md).
+El backend Development habilita el catálogo ficticio mediante appsettings.Development.json;
+reiniciarlo tras actualizar. Una configuración explícita Disabled conserva prioridad. Ver [guía](../../docs/label-print-backend.md).
 Con el proveedor deshabilitado se informa la indisponibilidad, sin mostrar artículos.
-Los moldes predeterminados que incluyen logo requieren uno real o quitar ese elemento
-antes de guardar el molde: el proveedor demo no suministra imágenes.
+El proveedor demo incluye un logo ficticio embebido para los moldes predeterminados.
+Buscar DEMO- permite recorrer 30 artículos con precios en Principal y Mayorista.
 
 Cambiar la lista conserva selección, orden y cantidades, invalida los precios anteriores
 y resuelve el lote completo. Actualizar precios consulta manualmente; si falla, permite
