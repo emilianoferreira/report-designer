@@ -44,6 +44,8 @@ export interface FiscalAdjustment {
   billingIndicator?: number;
 }
 export interface FiscalTax {
+  /** Explicit origin classification; names and rates never infer tax kind. */
+  kind?: 'vat' | 'withholding' | 'perception' | 'other';
   code?: string;
   name?: string;
   rate?: FiscalDecimal;
@@ -52,6 +54,7 @@ export interface FiscalTax {
 }
 export interface FiscalLine {
   id?: string;
+  operationType?: FiscalOperation;
   description?: string;
   quantity?: FiscalDecimal;
   unitPrice?: FiscalDecimal;
@@ -63,8 +66,12 @@ export interface FiscalLine {
   mandatoryLegend?: string;
 }
 export interface FiscalReference {
+  id?: string;
+  documentDescription?: string;
   global?: boolean;
   cfeType?: number;
+  /** Optional supplied display name, checked against the referenced code before use. */
+  cfeTypeName?: string;
   series?: string;
   number?: string;
   reason?: string;
@@ -101,6 +108,16 @@ export interface FiscalData {
   receiverName?: string;
   receiverAddress?: string;
   finalConsumer?: boolean;
+  /** Explicit operation facts, never inferred from country, text or CFE type. */
+  exportOperation?: boolean;
+  receiverNonResidentWithoutRut?: boolean;
+  receiverIsIndividual?: boolean;
+  /** True means a particular receiver exception needs separate normative review.
+   * False explicitly declares that no such exception applies; absent is unknown. */
+  receiverSectorException?: boolean;
+  thirdPartyGoods?: boolean;
+  goodsOwnerName?: string;
+  goodsOwnerDocument?: string;
   series?: string;
   number?: string;
   issueDate?: string;
@@ -108,6 +125,9 @@ export interface FiscalData {
   paymentMethod?: 'cash' | 'credit';
   currency?: string;
   netAmount?: FiscalDecimal;
+  /** Rate to UYU supplied by the origin; never fetched or calculated implicitly. */
+  exchangeRate?: FiscalDecimal;
+  exchangeRateDate?: string;
   totalAmount?: FiscalDecimal;
   totalPayable?: FiscalDecimal;
   nonBillableAmount?: FiscalDecimal;
@@ -116,6 +136,7 @@ export interface FiscalData {
   hasWithholdingsOrPerceptions?: boolean;
   uiValue?: FiscalDecimal;
   uiValueDate?: string;
+  uiValueSource?: string;
   securityCode?: string;
   signatureHash?: string;
   qrPayload?: string;
@@ -131,6 +152,8 @@ export interface FiscalData {
   adjustments?: FiscalAdjustment[];
   taxes?: FiscalTax[];
   references?: FiscalReference[];
+  /** Explicit source claim about the supplied collection, never inferred from its length. */
+  referencesComplete?: boolean;
 }
 
 export type FiscalField = Exclude<keyof FiscalData, 'schemaVersion'>;
@@ -152,6 +175,9 @@ export interface ValidationContext {
   profile?: FiscalProfile;
   facts: FiscalFacts;
   diagnostics: FiscalContextDiagnostic[];
+  /** Canonical scalar paths, including collection index; optional for old callers.
+   * A valid sibling survives malformed collection data. Never proves collection completeness. */
+  fieldFacts?: Record<string, FiscalFact<unknown>>;
 }
 
 export const FISCAL_ROLE_LABELS = {
@@ -173,6 +199,7 @@ export const FISCAL_ROLE_LABELS = {
   'recipient.country': 'País del documento del receptor',
   'recipient.address': 'Domicilio del receptor',
   'recipient.label': 'RUC COMPRADOR / CONSUMO FINAL',
+  'recipient.boundary': 'Recuadro de identificación del receptor',
   'detail.description': 'Descripción del ítem',
   'detail.quantity': 'Cantidad',
   'detail.unit-price': 'Precio unitario',
@@ -182,6 +209,7 @@ export const FISCAL_ROLE_LABELS = {
   'detail.sign': 'Signo del importe',
   'totals.currency': 'Moneda',
   'totals.tax': 'IVA discriminado',
+  'totals.net': 'Montos netos por tasa de IVA',
   'totals.amount': 'Total del comprobante',
   'totals.payable': 'Total a pagar',
   'totals.non-billable': 'Monto no facturable',
@@ -207,6 +235,7 @@ export const FISCAL_ROLE_LABELS = {
   'reference.date': 'Fecha referenciada',
   'reference.amount': 'Importe referenciado',
   'reference.currency': 'Moneda referenciada',
+  'reference.description': 'Identificación de documento sin codificación',
   'security.qr': 'QR de consulta DGI',
   'security.code': 'Código de seguridad',
   'footer.cae': 'Número de CAE',

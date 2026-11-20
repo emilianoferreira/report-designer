@@ -131,7 +131,7 @@ const assert = require('node:assert/strict');
     await expect(frame.locator('[data-render-element]').first()).toBeAttached();
     await expect(frame.locator('[data-render-source="invoiceLines.0"]')).toBeAttached();
     await expect(frame.locator('.element-rectangle')).toHaveCSS('position', 'absolute');
-    await expect(page.locator('.renderer-context summary')).toContainText('carga finalizada', { timeout: 10000 });
+    await expect(page.locator('[data-print-preparation] > summary')).toContainText('carga finalizada', { timeout: 10000 });
     // Small single-sheet fixture isolates QR checks from pagination and unrelated artwork.
     const qr = structuredClone(original.sections.header.elements.find(element => element.type === 'qrCode'));
     qr.position = { x: 6, y: 6 };

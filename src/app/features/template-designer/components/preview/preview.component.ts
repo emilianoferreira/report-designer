@@ -20,7 +20,7 @@ import {
   ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subject, takeUntil, debounceTime, skip } from 'rxjs';
+import { Subject, takeUntil, debounceTime, skip, tap } from 'rxjs';
 import { TemplateStateService } from '../../services/template-state.service';
 import { HtmlRendererService } from '../../services/html-renderer.service';
 import { SAMPLE_INVOICE_DATA, SAMPLE_INVOICE_MULTILINE } from '../../data/sample-invoice';
@@ -34,7 +34,9 @@ import { SelectionService } from '../../services/selection.service';
 import { RuleResult, RuleStatus } from '../../utils/static-fiscal-rules';
 import { inspectFiscalPrint, RenderedFiscalReport } from '../../utils/rendered-fiscal-rules';
 import { prepareBrowserPrint } from '../../utils/prepare-browser-print';
-import { decideBrowserPrint } from '../../utils/print-validation-policy';
+import { decideBrowserPrint, isContentValidationFinding } from '../../utils/print-validation-policy';
+import { buildValidationFeedback, printFailureLabel, ValidationFeedback } from '../../utils/validation-feedback';
+import { ValidationFeedbackComponent } from '../validation-feedback/validation-feedback.component';
 import { FiscalAdviceComponent } from '../fiscal-advice/fiscal-advice.component';
 
 export type PreviewViewMode = 'render' | 'html' | 'json';
@@ -42,7 +44,7 @@ export type PreviewViewMode = 'render' | 'html' | 'json';
 @Component({
   selector: 'app-preview',
   standalone: true,
-  imports: [CommonModule, FiscalAdviceComponent],
+  imports: [CommonModule, FiscalAdviceComponent, ValidationFeedbackComponent],
   templateUrl: './preview.component.html',
   styleUrl: './preview.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -59,6 +61,9 @@ export class PreviewComponent implements OnInit, OnDestroy {
   @Output() readonly showDesign = new EventEmitter<void>();
   fiscalSample = false;
   renderedReport?: RenderedFiscalReport;
+  feedback?: ValidationFeedback;
+  reportPending = true;
+  readonly isContentFinding = isContentValidationFinding;
   printing = false;
   printMessage = '';
   readonly ruleLabels: Record<RuleStatus, string> = { pass: 'Cumple', fail: 'Incumple', pending: 'Pendiente', 'not-applicable': 'No aplica' };
@@ -98,20 +103,24 @@ export class PreviewComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.validation?.scenario$.pipe(takeUntil(this.destroy$), skip(1)).subscribe(() => this.renderPreview());
     // Re-render preview when template changes (debounced)
     this.templateState.template$
       .pipe(
-        takeUntil(this.destroy$),
         skip(1),
-        debounceTime(300)
+        tap(() => this.invalidateReport()),
+        debounceTime(300),
+        takeUntil(this.destroy$)
       )
       .subscribe(() => {
         this.renderPreview();
       });
-    this.fiscalSample = this.validation?.scenario$.value.startsWith('fiscal') ?? false;
-    this.sampleDataMode = this.validation?.scenario$.value.endsWith('multi') ? 'multi' : 'single';
-    this.renderPreview();
+    if (this.validation) {
+      this.validation.scenario$.pipe(takeUntil(this.destroy$)).subscribe(mode => {
+        this.fiscalSample = mode.startsWith('fiscal');
+        this.sampleDataMode = mode.endsWith('multi') ? 'multi' : 'single';
+        this.renderPreview();
+      });
+    } else this.renderPreview();
   }
 
   ngOnDestroy(): void {
@@ -119,6 +128,18 @@ export class PreviewComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
     if (this.copyStatusTimeout) clearTimeout(this.copyStatusTimeout);
+  }
+
+  private invalidateReport(): void {
+    this.injectionVersion++;
+    this.previewReady = false;
+    this.renderedReport = undefined;
+    this.feedback = undefined;
+    this.fiscalContext = undefined;
+    this.reportPending = true;
+    this.paginatedHtml = '';
+    this.printMessage = '';
+    this.cdr.markForCheck();
   }
 
   // ─────────────────────────────────────────────────────────────────
@@ -131,9 +152,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
    * sample data toggle flips.
    */
   renderPreview(): void {
-    this.injectionVersion++;
-    this.previewReady = false;
-    this.renderedReport = undefined;
+    this.invalidateReport();
     this.paginationPending = undefined;
     this.paginatedHtml = '';
     this.printMessage = '';
@@ -156,7 +175,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
     // Inject into iframe only if currently in render view
     if (this.viewMode === 'render') {
       this.injectIframe();
-    }
+    } else this.reportPending = false;
 
     this.cdr.markForCheck();
   }
@@ -166,10 +185,15 @@ export class PreviewComponent implements OnInit, OnDestroy {
     const html = this.previewHtml;
     const evidence = this.renderEvidence;
     this.previewReady = false;
+    this.reportPending = true;
+    this.renderedReport = undefined;
+    this.feedback = undefined;
     this.preparation = this.prepareDocument(version, html, evidence).catch(() => {
       if (version === this.injectionVersion) {
         this.previewReady = false;
         this.renderedReport = undefined;
+        this.feedback = undefined;
+        this.reportPending = false;
         this.printMessage = 'No se pudo preparar la salida. Revisá el molde y los datos y volvé a intentarlo.';
         this.cdr.markForCheck();
       }
@@ -198,6 +222,8 @@ export class PreviewComponent implements OnInit, OnDestroy {
     this.pageHeightPx = mmToPx(template.page.height) * prepared.pages;
     if (doc.querySelector('[data-render-page]')) this.paginatedHtml = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
     this.renderedReport = prepared.report;
+    this.feedback = buildValidationFeedback(context, prepared.report, snapshot, this.currentSnapshot());
+    this.reportPending = false;
     if (this.validation?.requestedPage) {
       const page = doc.querySelectorAll('body > .page')[this.validation.requestedPage - 1];
       page?.scrollIntoView({ block: 'nearest' });
@@ -212,7 +238,11 @@ export class PreviewComponent implements OnInit, OnDestroy {
    * When returning to Render, re-inject the iframe (it was destroyed by *ngIf).
    */
   setViewMode(mode: PreviewViewMode): void {
-    if (mode !== 'render') this.injectionVersion++;
+    if (mode !== 'render') {
+      this.injectionVersion++;
+      this.renderedReport = undefined; this.feedback = undefined;
+      this.reportPending = false; this.previewReady = false;
+    }
     this.viewMode = mode;
     if (mode === 'render') {
       this.injectIframe();
@@ -234,14 +264,14 @@ export class PreviewComponent implements OnInit, OnDestroy {
 
   toggleSampleData(): void {
     this.sampleDataMode = this.sampleDataMode === 'single' ? 'multi' : 'single';
-    this.validation?.select(this.fiscalSample ? (this.sampleDataMode === 'multi' ? 'fiscal-multi' : 'fiscal-single') : this.sampleDataMode);
-    this.renderPreview();
+    if (this.validation) this.validation.select(this.fiscalSample ? (this.sampleDataMode === 'multi' ? 'fiscal-multi' : 'fiscal-single') : this.sampleDataMode);
+    else this.renderPreview();
   }
 
   toggleFiscalSample(): void {
     this.fiscalSample = !this.fiscalSample;
-    this.validation?.select(this.fiscalSample ? (this.sampleDataMode === 'multi' ? 'fiscal-multi' : 'fiscal-single') : this.sampleDataMode);
-    this.renderPreview();
+    if (this.validation) this.validation.select(this.fiscalSample ? (this.sampleDataMode === 'multi' ? 'fiscal-multi' : 'fiscal-single') : this.sampleDataMode);
+    else this.renderPreview();
   }
 
   // ─────────────────────────────────────────────────────────────────
@@ -257,6 +287,8 @@ export class PreviewComponent implements OnInit, OnDestroy {
     const report = inspectFiscalPrint(this.templateState.getCurrentTemplate(), this.fiscalContext, doc,
       this.renderEvidence, this.previewReady, this.paginationPending);
     this.renderedReport = report;
+    this.feedback = buildValidationFeedback(this.fiscalContext, report, this.renderInputSnapshot, this.currentSnapshot());
+    this.reportPending = false;
     return report;
   }
 
@@ -265,12 +297,16 @@ export class PreviewComponent implements OnInit, OnDestroy {
     this.showDesign.emit();
   }
 
+  showFindingPage(finding: RuleResult): void {
+    if (finding.page) this.previewFrame?.nativeElement.contentDocument?.querySelectorAll('body > .page')[finding.page - 1]?.scrollIntoView({ block: 'nearest' });
+  }
+
   async printPreview(): Promise<void> {
     if (this.printing) return;
     this.printing = true;
     this.printMessage = '';
     try {
-      if (this.renderInputSnapshot !== this.currentSnapshot()) this.renderPreview();
+      if (!this.fiscalContext || this.renderInputSnapshot !== this.currentSnapshot()) this.renderPreview();
       if (this.viewMode !== 'render') this.setViewMode('render');
       const snapshot = this.renderInputSnapshot;
       const version = this.injectionVersion;
@@ -288,7 +324,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
         return;
       }
       if (decision.state === 'block') {
-        this.printMessage = 'Impresión bloqueada. Corregí ' + decision.failures.map(result => result.id + ' · ' + result.title + (result.page ? ' · página ' + result.page : '')).join(', ') + '.';
+        this.printMessage = 'Impresión bloqueada. Revisá ' + decision.failures.map(printFailureLabel).join('; ') + '.';
         return;
       }
       doc.defaultView?.print();
@@ -309,7 +345,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   }
 
   exportHtmlTemplate(): void {
-    this.downloadBlob(this.templateHtml, this.fileName('template.html'), 'text/html');
+    this.downloadBlob(this.renderer.exportAsZureoTemplate(this.templateState.getCurrentTemplate()), this.fileName('template.html'), 'text/html');
   }
 
   exportJson(): void {
@@ -341,7 +377,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   }
 
   copyHtmlTemplate(): Promise<void> {
-    return this.copyToClipboard(this.templateHtml);
+    return this.copyToClipboard(this.renderer.exportAsZureoTemplate(this.templateState.getCurrentTemplate()));
   }
 
   copyJson(): Promise<void> {

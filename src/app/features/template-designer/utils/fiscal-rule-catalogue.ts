@@ -1,4 +1,5 @@
-import { CFE_TYPES, FiscalField, FiscalRole, ValidationContext } from '../../../core/models/fiscal.model';
+import { FiscalField, FiscalRole, ValidationContext } from '../../../core/models/fiscal.model';
+import { supportsFiscalBrowserRules } from './fiscal-context';
 
 export const CFE_FORMAT_SOURCE = 'https://www.efactura.dgi.gub.uy/files/formato_cfe_v25-2-pdf?es=';
 export interface FiscalFieldRequirement {
@@ -21,7 +22,7 @@ const requirement = (id: string, roles: FiscalRole[], reference: string, conditi
   dependencies: ['isCfe', 'cfeType', ...dependencies],
   applicability(context) {
     if (known(context, 'isCfe') === false) return 'not-applicable';
-    if (known(context, 'isCfe') !== true || !CFE_TYPES.some(t => t.value === known(context, 'cfeType'))) return 'pending';
+    if (!supportsFiscalBrowserRules(context)) return 'pending';
     return decide(context);
   }
 });
@@ -35,9 +36,12 @@ export const FISCAL_FIELD_REQUIREMENTS: readonly FiscalFieldRequirement[] = [
   requirement('ID-02.identity', ['issuer.rut', 'document.type', 'document.series', 'document.number'], 'p. 80, Identificación del comprobante', 'Todos los CFE soportados', [], () => 'required'),
   requirement('CON-01.date', ['document.date'], 'p. 82, Fecha', 'Todos los CFE soportados', [], () => 'required'),
   requirement('REC-01.identity', ['recipient.name', 'recipient.document', 'recipient.address'], 'p. 81, Identificación del receptor',
-    'Identificación en operaciones entre contribuyentes; secreto profesional admite traslado a adenda', ['finalConsumer', 'professionalSecrecy'], c => {
-      if (known(c, 'professionalSecrecy') !== false || known(c, 'finalConsumer') !== false) return 'pending';
-      return [111, 112, 113, 181, 182].includes(known(c, 'cfeType') as number) ? 'required' : 'pending';
+    'Identificación en operaciones entre contribuyentes; secreto profesional admite traslado a adenda',
+    ['finalConsumer', 'professionalSecrecy', 'receiverSectorException', 'receiverDocumentType', 'receiverNonResidentWithoutRut'], c => {
+      if (known(c, 'professionalSecrecy') !== false || known(c, 'finalConsumer') !== false || known(c, 'receiverSectorException') !== false ||
+          known(c, 'receiverNonResidentWithoutRut') !== false || !['RUC', 'RUT'].includes(String(known(c, 'receiverDocumentType')).toUpperCase())) return 'pending';
+      // Remitos and resguardos need their own receiver branches in the normative matrix.
+      return [111, 112, 113].includes(known(c, 'cfeType') as number) ? 'required' : 'pending';
     }),
   requirement('REG-01.exemption', ['issuer.regime-legend', 'issuer.exemption-basis'], 'p. 80, Identificación del emisor',
     'Contribuyente exonerado; exoneraciones parciales requieren evaluación específica', ['issuerRegime', 'partialExemption'], c => {
@@ -46,8 +50,10 @@ export const FISCAL_FIELD_REQUIREMENTS: readonly FiscalFieldRequirement[] = [
       if (regime !== 'exempt') return 'not-applicable';
       return known(c, 'partialExemption') === false ? 'required' : 'pending';
     }),
-  requirement('CON-02.description', ['detail.description'], 'p. 82, Mercaderías o servicios', 'Detalle de la operación', [], () => 'required'),
+  requirement('CON-02.description', ['detail.description'], 'p. 82, Mercaderías o servicios', 'Detalle de la operación; e-Resguardo identifica tributos', [], c => known(c, 'cfeType') === 182 ? 'not-applicable' : 'required'),
   requirement('CON-02.quantity-price', ['detail.quantity', 'detail.unit-price'], 'p. 82, Mercaderías o servicios', 'En servicios pueden omitirse; operación mixta requiere evaluar cada ítem', ['operationType'], c => {
+    if (known(c, 'cfeType') === 182) return 'not-applicable';
+    if (known(c, 'cfeType') === 181) return 'pending'; // Quantity and price have different obligations.
     const operation = known(c, 'operationType');
     return operation === 'services' ? 'optional' : operation === 'goods' ? 'required' : 'pending';
   }),

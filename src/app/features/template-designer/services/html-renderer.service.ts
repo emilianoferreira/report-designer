@@ -36,6 +36,7 @@ import JsBarcode from 'jsbarcode';
 import { RenderArtifact, RenderEvidence } from './render-evidence';
 import { FiscalRole } from '../../../core/models/fiscal.model';
 import { fiscalZones, GENERATED_DETAIL_ROLES } from '../utils/fiscal-identification';
+import { describeFieldEvidence } from '../utils/fiscal-field-evidence';
 
 /** Options for HTML generation */
 export interface RenderOptions {
@@ -101,6 +102,12 @@ export class HtmlRendererService {
       (evidence.generated ??= []).push({ id, kind: 'generated-row' });
       return `<tr data-render-generated="${id}"`;
     });
+    const fiscalPaths = new Set(evidence.content?.flatMap(content => content.fields?.flatMap(field => field.fiscalPath ? [field.fiscalPath] : []) ?? []));
+    if (fiscalPaths.size) evidence.fieldCoverage = [...fiscalPaths].map(fiscalPath => ({
+      fiscalPath, state: 'partial',
+      evidenceIds: evidence.content!.filter(content => content.fields?.some(field => field.fiscalPath === fiscalPath)).map(content => content.instanceId),
+      reason: 'Binding explícito observado; falta verificar salida visible y cobertura de todo el campo.'
+    }));
     return { html, evidence, inputSnapshot: JSON.stringify({ template, data }) };
   }
 
@@ -490,6 +497,7 @@ ${footerHtml}
     const instanceId = 'generated-content-' + content.length;
     content.push({ instanceId, origin: 'generated', section: 'detail',
       sourcePaths: path ? [path, ...extraPaths] : [], roles: [...roles], zones: fiscalZones(roles),
+      fields: describeFieldEvidence(path ? [path, ...extraPaths] : []),
       emitted: true, semanticSource: 'renderer-contract', association: roles.length > 1 ? 'composite' : 'whole' });
     return ' data-render-content="' + instanceId + '"';
   }
@@ -843,6 +851,16 @@ ${footerHtml}
       const roles = [...(element.fiscalRoles ?? [])];
       opts.evidence.content?.push({ instanceId: 'element:' + section + ':' + element.id, origin: 'template',
         elementId: element.id, section, roles, zones: fiscalZones(roles),
+        fields: describeFieldEvidence(element.type === 'dataField' ? [element.binding.source] :
+          element.type === 'qrCode' || element.type === 'barcode' ? [element.dataBinding] : []).map(field => ({ ...field,
+            ...(element.type === 'dataField' ? { presentation: element.binding.format ? 'formatted' as const : 'raw' as const,
+              ...(element.binding.format?.type === 'date' && ['yyyy-MM-dd', 'dd/MM/yyyy'].includes(element.binding.format.pattern ?? 'dd/MM/yyyy') ? {
+                dateFormat: (element.binding.format.pattern ?? 'dd/MM/yyyy') as 'yyyy-MM-dd' | 'dd/MM/yyyy'
+              } : {}),
+              ...(element.binding.format && ['number', 'currency'].includes(element.binding.format.type) ? { numericFormat: {
+                decimalSeparator: ',' as const, groupingSeparator: '.' as const, fractionDigits: element.binding.format.decimals ?? 2,
+                prefix: element.binding.format.type === 'currency' ? element.binding.format.currencyCode === 'USD' ? 'US$ ' : '$ ' : ''
+              } } : {}) } : {}) })),
         sourcePaths: element.type === 'dataField' ? [element.binding.source] :
           element.type === 'qrCode' || element.type === 'barcode' ? [element.dataBinding] : [],
         emitted: !!html, semanticSource: 'declared', association: roles.length > 1 ? 'composite' : 'whole' });
@@ -903,8 +921,12 @@ ${footerHtml}
       const value = this.resolveBinding(el.binding.source, data);
       if (value == null && el.binding.defaultValue == null) opts.evidence?.diagnostics.push({
         code: 'missing-value', message: `Campo sin valor: ${el.binding.source}` });
+      // Canonical fiscal dates without a time represent a civil day. Date("YYYY-MM-DD")
+      // otherwise starts at midnight UTC and prints the previous day in Uruguay.
+      const civilDate = el.binding.format?.type === 'date' && el.binding.source.startsWith('fiscal.') &&
+        typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
       const formatted = el.binding.format
-        ? this.applyFormat(value, el.binding.format)
+        ? this.applyFormat(civilDate ? value + 'T00:00:00' : value, el.binding.format)
         : String(value ?? el.binding.defaultValue ?? '');
       return `      <div class="element element-datafield" style="${pos}${content}">${this.escapeHtml(formatted)}</div>\n`;
     } else {

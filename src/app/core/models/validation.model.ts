@@ -13,6 +13,8 @@ export interface ContentIdentity {
   zones: string[];
 }
 export interface ValidationFinding {
+  /** Canonical field/instance addressed by this finding, independent of rule identity. */
+  fieldPath?: string;
   page?: number;
   findingId: string;
   ruleId: string;

@@ -2,6 +2,7 @@ import { ReportTemplate } from '../../../core/models/template.model';
 import { CFE_TYPES, ValidationContext } from '../../../core/models/fiscal.model';
 import { ValidationFinding } from '../../../core/models/validation.model';
 import { CFE_FORMAT_SOURCE, FISCAL_FIELD_REQUIREMENTS } from './fiscal-rule-catalogue';
+import { FISCAL_OBLIGATION_MATRIX, FISCAL_MATRIX_VERSION, Obligation, obligationForContext } from './fiscal-obligation-matrix';
 
 export type RuleStatus = 'pass' | 'fail' | 'not-applicable' | 'pending';
 export interface RuleResult extends ValidationFinding {
@@ -16,6 +17,7 @@ export interface RuleResult extends ValidationFinding {
   elements: Array<{ id: string; section: 'header' | 'detail' | 'footer' }>;
 }
 export interface StaticFiscalReport {
+  obligationMatrix?: { version: string; cells: Array<{ id: string; obligation: Obligation }> };
   fieldRequirements?: Array<{ id: string; applicability: 'required' | 'optional' | 'pending' | 'not-applicable' }>;
   catalogueVersion: 'stage-0.3';
   scope: 'static-browser';
@@ -145,6 +147,7 @@ export function evaluateStaticFiscalRules(template: ReportTemplate, context: Val
     ids.add(el.id);
   }
   return { catalogueVersion: 'stage-0.3', scope: 'static-browser',
+    obligationMatrix: { version: FISCAL_MATRIX_VERSION, cells: FISCAL_OBLIGATION_MATRIX.map(row => ({ id: row.id, obligation: obligationForContext(row, context) })) },
     fieldRequirements: FISCAL_FIELD_REQUIREMENTS.map(rule => ({ id: rule.id, applicability: rule.applicability(context) })),
     status: results.some(r => r.status === 'fail') ? 'violations' : results.some(r => r.status === 'pending') ? 'incomplete' : 'no-detected-failures', results };
 }

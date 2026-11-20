@@ -5,13 +5,13 @@ import { RuleResult } from './static-fiscal-rules';
 import { CFE_FORMAT_SOURCE } from './fiscal-rule-catalogue';
 import { detectContentConflicts } from '../../../shared/utils/content-overlap';
 import { mmToPx, pxToMm } from './coordinate-utils';
+import { supportsFiscalBrowserRules } from './fiscal-context';
 
 /** Only explicit relative constraints. Logical zones never imply coordinates. */
 export function evaluateFiscalPlacement(template: ReportTemplate, context: ValidationContext, layout: LayoutEvidence,
   doc: Document, paginationPending?: string, verifiedQrElementIds: string[] = []): RuleResult[] {
   const results: RuleResult[] = [];
-  const known = context.facts.isCfe.state === 'known' && context.facts.isCfe.value === true &&
-    context.facts.cfeType.state === 'known' && [101, 102, 103, 111, 112, 113, 181, 182].includes(context.facts.cfeType.value) &&
+  const known = supportsFiscalBrowserRules(context) &&
     !context.diagnostics.some(d => d.kind === 'profile-mismatch');
   if (!known || !layout.ready) return results;
   const conflicts = detectContentConflicts(layout);

@@ -8,6 +8,11 @@ import { detectContentConflicts } from '../../../shared/utils/content-overlap';
 import { layoutRuleResults } from './layout-rule-results';
 import { LayoutEvidence } from '../../../core/models/layout-evidence.model';
 import { evaluateFiscalPlacement } from './fiscal-placement-rules';
+import { evaluateReceiverPrint } from './receiver-fiscal-rules';
+import { evaluateAmountPrint } from './amount-fiscal-rules';
+import { evaluateReferencePrint } from './reference-fiscal-rules';
+import { supportsFiscalBrowserRules } from './fiscal-context';
+import { hasPlainPrintedText } from './printed-field-observations';
 
 export type RenderedFiscalReport = Omit<StaticFiscalReport, 'scope'> & { scope: 'rendered-browser' };
 export const fiscalValue = <T>(fact: FiscalFact<T>): T | undefined => fact.state === 'known' ? fact.value : undefined;
@@ -41,6 +46,9 @@ export function inspectFiscalPrint(
       pageWidthPx: mmToPx(template.page.width),
       pageHeightPx: template.page.dynamicHeight || template.compliance?.medium === 'roll' ? undefined : mmToPx(template.page.height) }) : undefined;
   const report = inspectFiscalDocument(template, context, doc, evidence, resourcesReady, paginationPending, layout);
+  report.results.push(...evaluateReceiverPrint(context, doc, evidence, layout, paginationPending));
+  report.results.push(...evaluateAmountPrint(context, doc, evidence, layout, paginationPending));
+  report.results.push(...evaluateReferencePrint(context, doc, evidence, layout, paginationPending));
   if (layout) {
     report.results.push(...layoutRuleResults(layout, detectContentConflicts(layout)));
     const verifiedQrIds = report.results.filter(r => r.id === 'QR-03' && r.status === 'pass').flatMap(r => r.elements.map(e => e.id));
@@ -81,8 +89,7 @@ function inspectFiscalPage(
   resourcesReady: boolean, page: Element | undefined, paginationPending?: string, layout?: LayoutEvidence
 ): RenderedFiscalReport {
   const type = fiscalValue(context.facts.cfeType);
-  const applicable = fiscalValue(context.facts.isCfe) === true && CFE_TYPES.some(t => t.value === type)
-    && !context.diagnostics.some(d => d.kind === 'profile-mismatch' && d.field === 'cfeType');
+  const applicable = supportsFiscalBrowserRules(context);
   const staticReport = evaluateStaticFiscalRules(template, context);
   const results = staticReport.results.map(result => {
     if (!applicable && result.category === 'normative' && result.status !== 'pending') {
@@ -149,7 +156,7 @@ function inspectFiscalPage(
   update('TEC-04', 'pass', 'Se inspeccionó la misma superficie que usa el botón Imprimir.');
 
   const readable = (node: Element) => {
-    if (!node.textContent?.trim()) return false;
+    if (!node.textContent?.trim() || !hasPlainPrintedText(node)) return false;
     const id = node.getAttribute('data-render-element');
     const measured = layout?.content.filter(c => c.elementId === id && c.page === pageNumber && c.kind === 'text') ?? [];
     if (!measured.length || measured.some(c => c.certainty !== 'measured' || c.clipped) ||
@@ -194,18 +201,8 @@ function inspectFiscalPage(
         'Se encontró el texto visible exigido para el régimen.', [...address(label), ...(basis ? address(basis) : [])]);
     }
   }
-  const withRole = (node: Element, role: string) => evidence.elements.some(element =>
-    element.id === node.getAttribute('data-render-element') && element.roles.includes(role));
-  const nonBillable = fiscalValue(context.facts.nonBillableAmount);
-  const amountNode = textNodes.find(node => withRole(node, 'totals.non-billable') &&
-    node.textContent?.trim() === nonBillable);
-  if (amountNode && nonBillable !== undefined) update('CON-05.07', 'pass',
-    'El monto no facturable visible coincide con A.129 del origen.', address(amountNode));
-  const references = fiscalValue(context.facts.references);
-  const reason = references?.length === 1 ? references[0].reason : undefined;
-  const reasonNode = reason && textNodes.find(node => withRole(node, 'reference.reason') &&
-    normalize(node.textContent ?? '') === normalize(reason));
-  if (reasonNode) update('REF-03.02', 'pass', 'La razón visible de la única referencia coincide con F.6.', address(reasonNode));
+  update('CON-05.07', 'pending', 'AMT-FIELD informa la correspondencia del monto no facturable con su campo de origen.');
+  update('REF-03.02', 'pending', 'La correspondencia de cada razón se informa en REF-FIELD. La suficiencia y cobertura integral de referencias conserva su revisión específica.');
 
   const qrNodes = Array.from(page.querySelectorAll('svg[data-qr-modules]')).filter(visible);
   const otherGraphics = Array.from(page.querySelectorAll('img, canvas, object, svg:not([data-qr-modules])')).some(visible) ||

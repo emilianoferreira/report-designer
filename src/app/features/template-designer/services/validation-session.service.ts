@@ -9,6 +9,8 @@ import { sampleFiscalInvoice } from '../data/sample-fiscal-invoice';
 import { buildValidationContext } from '../utils/fiscal-context';
 import { RenderedFiscalReport } from '../utils/rendered-fiscal-rules';
 import { prepareBrowserPrint } from '../utils/prepare-browser-print';
+import { buildValidationFeedback, ValidationFeedback } from '../utils/validation-feedback';
+import { confirmedPrintFailures } from '../utils/print-validation-policy';
 
 export type ScenarioMode = 'single' | 'multi' | 'fiscal-single' | 'fiscal-multi' | 'json';
 /** Scoped to one designer page. Data and results never enter the persisted template. */
@@ -17,6 +19,7 @@ export class ValidationSessionService implements OnDestroy {
   requestedPage?: number;
   readonly scenario$ = new BehaviorSubject<ScenarioMode>('single');
   readonly report$ = new BehaviorSubject<RenderedFiscalReport | undefined>(undefined);
+  readonly feedback$ = new BehaviorSubject<ValidationFeedback | undefined>(undefined);
   readonly pending$ = new BehaviorSubject(true);
   private imported?: InvoiceData;
   get hasImportedScenario(): boolean { return this.imported !== undefined; }
@@ -28,7 +31,7 @@ export class ValidationSessionService implements OnDestroy {
   constructor(private state: TemplateStateService, private renderer: HtmlRendererService, @Inject(DOCUMENT) private document: Document) {
     this.subscription = combineLatest([state.template$, this.scenario$]).subscribe(([template]) => {
       const version = ++this.generation;
-      this.report$.next(undefined); this.pending$.next(true);
+      this.report$.next(undefined); this.feedback$.next(undefined); this.pending$.next(true);
       if (this.timer) clearTimeout(this.timer);
       this.frame?.remove(); this.frame = undefined;
       if (this.interacting) return;
@@ -48,7 +51,7 @@ export class ValidationSessionService implements OnDestroy {
     this.interacting = true; this.generation++;
     if (this.timer) clearTimeout(this.timer);
     this.frame?.remove(); this.frame = undefined;
-    this.report$.next(undefined); this.pending$.next(true);
+    this.report$.next(undefined); this.feedback$.next(undefined); this.pending$.next(true);
   }
   endInteraction(): void {
     if (!this.interacting) return;
@@ -67,7 +70,7 @@ export class ValidationSessionService implements OnDestroy {
   }
   affected(id: string): 'error' | 'warning' | undefined {
     const findings = this.report$.value?.results.filter(r => r.elements.some(e => e.id === id));
-    if (findings?.some(r => r.status === 'fail')) return 'error';
+    if (this.report$.value && confirmedPrintFailures(this.report$.value).some(r => r.elements.some(e => e.id === id))) return 'error';
     return findings?.some(r => r.status === 'pending' && r.severity === 'warning') ? 'warning' : undefined;
   }
   private async prepare(template: ReportTemplate, version: number): Promise<void> {
@@ -81,12 +84,17 @@ export class ValidationSessionService implements OnDestroy {
       const doc = frame.contentDocument;
       if (!doc) return;
       doc.open(); doc.write(artifact.html); doc.close();
-      const prepared = await prepareBrowserPrint(doc, template, buildValidationContext(template.compliance, data), artifact.evidence,
+      const context = buildValidationContext(template.compliance, data);
+      const prepared = await prepareBrowserPrint(doc, template, context, artifact.evidence,
         () => version === this.generation && frame.isConnected && artifact.inputSnapshot ===
           JSON.stringify({ template: this.state.getCurrentTemplate(), data: this.data() }));
-      if (prepared && version === this.generation) this.report$.next(prepared.report);
+      if (prepared && version === this.generation) {
+        this.report$.next(prepared.report);
+        this.feedback$.next(buildValidationFeedback(context, prepared.report, artifact.inputSnapshot,
+          JSON.stringify({ template: this.state.getCurrentTemplate(), data: this.data() })));
+      }
     } catch {
-      if (version === this.generation) this.report$.next(undefined);
+      if (version === this.generation) { this.report$.next(undefined); this.feedback$.next(undefined); }
     } finally {
       frame.remove();
       if (this.frame === frame) this.frame = undefined;
@@ -96,6 +104,7 @@ export class ValidationSessionService implements OnDestroy {
 
   ngOnDestroy(): void {
     this.generation++; this.subscription.unsubscribe();
+    this.report$.next(undefined); this.feedback$.next(undefined);
     if (this.timer) clearTimeout(this.timer);
     this.frame?.remove();
   }

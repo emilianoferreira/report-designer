@@ -4,9 +4,11 @@ import { DOCUMENT } from '@angular/common';
 import { ValidationSessionService, ScenarioMode } from '../../services/validation-session.service';
 import { SelectionService } from '../../services/selection.service';
 import { RuleResult } from '../../utils/static-fiscal-rules';
+import { isContentValidationFinding } from '../../utils/print-validation-policy';
+import { ValidationFeedbackComponent } from '../validation-feedback/validation-feedback.component';
 
 @Component({
-  selector: 'app-design-validation', standalone: true, imports: [AsyncPipe], changeDetection: ChangeDetectionStrategy.OnPush,
+  selector: 'app-design-validation', standalone: true, imports: [AsyncPipe, ValidationFeedbackComponent], changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <details open><summary>Validaciones del diseño</summary>
       <label>Escenario <select aria-label="Escenario de validación" [value]="session.scenario$ | async" (change)="select($any($event.target).value)">
@@ -19,9 +21,11 @@ import { RuleResult } from '../../utils/static-fiscal-rules';
       @if (error) { <p role="alert">{{ error }}</p> }
       @if (session.pending$ | async) { <p role="status">Actualizando; los resultados anteriores ya no están vigentes.</p> }
       @else { @if (session.report$ | async; as report) {
-        <p role="status">{{ report.status === 'violations' ? 'Hay hallazgos confirmados.' : 'Cobertura incompleta; revisar pendientes.' }}</p>
+        @if (session.feedback$ | async; as feedback) {
+          <app-validation-feedback [feedback]="feedback" (locate)="locate($event)" (preview)="preview($event)" />
+        }
         @for (finding of report.results; track finding.findingId) {
-          @if (finding.status === 'fail' || (finding.status === 'pending' && finding.severity === 'warning')) {
+          @if (!isContentFinding(finding) && (finding.status === 'fail' || (finding.status === 'pending' && finding.severity === 'warning'))) {
             <article [class.error]="finding.status === 'fail'">
               <strong>{{ finding.title }} · {{ finding.status === 'fail' ? 'Confirmado' : 'Advertencia pendiente' }}</strong>
               <p>{{ finding.category === 'technical' ? 'Técnico' : 'DGI' }} · {{ finding.message }}</p><p>{{ finding.action }}</p>
@@ -32,13 +36,14 @@ import { RuleResult } from '../../utils/static-fiscal-rules';
           }
         }
         <details><summary>Todos los controles y pendientes</summary>
-          @for (finding of report.results; track finding.findingId) { <p>{{ finding.id }} · {{ finding.status }} · {{ finding.message }}</p> }
+          @for (finding of report.results; track finding.findingId) { @if (!isContentFinding(finding)) { <p>{{ finding.id }} · {{ finding.status }} · {{ finding.message }}</p> } }
         </details>
       } @else { <p role="status">No se pudo preparar el análisis; revisá el escenario y sus recursos.</p> } }
     </details>`,
   styles: `:host{display:block;padding:10px;font-size:12px}p{line-height:1.4}label{display:block;margin:8px 0}select,input{max-width:100%}article{border-left:3px solid #bb8700;padding:8px;margin:8px 0;background:#fff7df}article.error{border-color:#b52e36;background:#fff0f0}button{margin:4px;overflow-wrap:anywhere;max-width:100%}`
 })
 export class DesignValidationComponent {
+  readonly isContentFinding = isContentValidationFinding;
   @Output() readonly showPreview = new EventEmitter<void>();
   readonly session = inject(ValidationSessionService);
   private selection = inject(SelectionService);
