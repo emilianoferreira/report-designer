@@ -74,6 +74,9 @@ describe('Conservative fiscal placement', () => {
     doc.body.innerHTML = '<div class="page"><span data-render-element="issuer">Emisor</span><span data-render-element="code">ABCDEF</span><span data-render-element="label">ADENDA</span></div>';
     const layout: LayoutEvidence = { ready: true, output: 'browser', pending: [], content: [boundary, label, adenda, issuer, code] };
     expect(evaluateFiscalPlacement(template, ctx, layout, doc).find(r => r.id === 'POS-ADENDA-MARGIN')?.status).toBe('fail');
+    ctx.facts.professionalSecrecy = { state: 'known', value: true, candidates: [] };
+    expect(evaluateFiscalPlacement(template, ctx, layout, doc).find(r => r.id === 'POS-ADENDA-MARGIN')?.status).toBe('pending');
+    ctx.facts.professionalSecrecy = { state: 'known', value: false, candidates: [] };
     issuer.bounds.y = 0; issuer.ink[0].y = 0;
     expect(evaluateFiscalPlacement(template, ctx, layout, doc).some(r => r.id === 'POS-ADENDA-MARGIN')).toBeFalse();
     issuer.bounds.y = 20; issuer.ink[0].y = 20; ctx.facts.issuerName = { state: 'unknown', candidates: [] };

@@ -46,7 +46,7 @@ const assert = require('node:assert/strict');
       }
       return route.fulfill({ status: 404, json: {} });
     });
-    const data = { invoice: {}, company: {}, invoiceLines: [], fiscal: { schemaVersion: '1.0', isCfe: true, cfeType: 112,
+    const data = { invoice: {}, company: {}, invoiceLines: [], printSupport: { kind: 'blank' }, fiscal: { schemaVersion: '1.0', isCfe: true, cfeType: 112, issueDate: '2026-11-20',
       issuerRegime: 'general', operationType: 'goods', finalConsumer: false, receiverDocumentType: 'RUC', receiverName: 'Empresa Receptora',
       receiverAddress: 'Domicilio', receiverDocumentNumber: '219876540012', receiverNonResidentWithoutRut: false,
       professionalSecrecy: false, receiverSectorException: false, exportOperation: false, currency: 'UYU', totalAmount: '100', totalPayable: '100',
@@ -56,6 +56,10 @@ const assert = require('node:assert/strict');
     await panel.locator('input[type=file]').setInputFiles({ name: 'content.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data)) });
     await expect(panel.locator('app-validation-feedback')).toContainText('Sin fallos que bloqueen', { timeout: 15000 });
     const receiver = panel.locator('[data-validation-family="receiver"]');
+    const coverage = panel.locator('[data-receiver-coverage]');
+    await coverage.locator('summary').click();
+    await expect(coverage).toContainText('Cobertura pendiente');
+    await expect(coverage).toContainText('sin asociación verificable');
     await receiver.locator(':scope > summary').click(); await receiver.locator(':scope > details > summary').click();
     await receiver.getByRole('button', { name: 'Seleccionar payer', exact: true }).click();
     await expect(page.locator('[data-element-id="payer"]')).toHaveClass(/selected/);
@@ -64,17 +68,23 @@ const assert = require('node:assert/strict');
     await expect(page.locator('.renderer-context summary').filter({ hasText: 'carga finalizada' })).toBeVisible();
     await page.getByText('Validación de impresión', { exact: false }).click();
     const feedback = page.locator('app-preview app-validation-feedback'), print = page.getByRole('button', { name: 'Imprimir', exact: true });
+    const downloadZureo = async () => {
+      const [file] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'HTML z-code', exact: true }).first().click()]);
+      return fs.readFileSync(await file.path(), 'utf8');
+    };
     await expect(feedback).toContainText('Sin fallos que bloqueen');
+    await expect(feedback.locator('[data-receiver-coverage] summary')).toBeVisible();
     assert.equal(await feedback.locator('app-fiscal-advice').count(), 0);
     await page.evaluate(() => { window.printCalls = 0; document.querySelector('iframe:not([aria-hidden="true"])').contentWindow.print = () => { window.printCalls++; }; });
     await print.click(); await expect.poll(() => page.evaluate(() => window.printCalls)).toBe(1);
+    const baselineZureo = await downloadZureo();
+    assert.ok(baselineZureo.includes('z-code'));
     for (const [id, , , original, wrong, rule, family] of definitions) {
       await page.evaluate(({ id, wrong }) => { document.querySelector('iframe:not([aria-hidden="true"])').contentDocument.querySelector(`[data-render-element="${id}"]`).textContent = wrong; }, { id, wrong });
       await print.click(); await expect(page.getByRole('alert')).toContainText(rule);
       await expect(feedback.locator(`[data-validation-family="${family}"]`)).toContainText('Confirmado · bloquea impresión del navegador');
       assert.equal(await page.evaluate(() => window.printCalls), 1);
-      const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'HTML z-code', exact: true }).first().click()]);
-      assert.ok(fs.readFileSync(await download.path(), 'utf8').includes('z-code'));
+      assert.equal(await downloadZureo(), baselineZureo);
       await page.evaluate(({ id, original }) => { document.querySelector('iframe:not([aria-hidden="true"])').contentDocument.querySelector(`[data-render-element="${id}"]`).textContent = original; }, { id, original });
     }
     await print.click(); await expect.poll(() => page.evaluate(() => window.printCalls)).toBe(2);
@@ -89,6 +99,89 @@ const assert = require('node:assert/strict');
     await expect(page.locator('[data-print-preparation] > summary')).toContainText('carga finalizada');
     await page.evaluate(() => { window.printCalls = 0; document.querySelector('iframe:not([aria-hidden="true"])').contentWindow.print = () => { window.printCalls++; }; });
     await print.click(); await expect.poll(() => page.evaluate(() => window.printCalls)).toBe(1);
+    await page.evaluate(() => {
+      const doc = document.querySelector('iframe:not([aria-hidden="true"])').contentDocument;
+      doc.querySelector('[data-render-element="reference"]').style.display = 'none';
+    });
+    await print.click();
+    await expect(page.getByRole('alert')).toContainText(/REC-OMISSION.*página 1/);
+    assert.equal(await page.evaluate(() => window.printCalls), 1);
+    const omissions = feedback.locator('[data-finding-id^="REC-OMISSION:"]');
+    await expect(omissions).toHaveCount(3);
+    const documentOmission = omissions.filter({ hasText: 'Documento' });
+    await expect(documentOmission).toBeVisible();
+    await expect(documentOmission).toContainText('Omisión confirmada · bloquea impresión del navegador');
+    await expect(documentOmission).toContainText('Página 1');
+    await expect(documentOmission).toContainText('Obligatorio');
+    await expect(documentOmission).toContainText('Cobertura completa del HTML');
+    await expect(feedback).toContainText('Modalidad evaluada · RUC del comprador');
+    assert.equal(await downloadZureo(), baselineZureo);
+    const previewCoverage = feedback.locator('[data-receiver-coverage]');
+    await page.evaluate(() => {
+      const doc = document.querySelector('iframe:not([aria-hidden="true"])').contentDocument;
+      const style = doc.createElement('style');
+      style.id = 'outside-alternative';
+      style.textContent = 'body::before{content:"219876540012"}';
+      doc.head.append(style);
+    });
+    await print.click();
+    await expect.poll(() => page.evaluate(() => window.printCalls)).toBe(2);
+    await expect(omissions).toHaveCount(0);
+    await expect(previewCoverage).toContainText('fuera de las páginas');
+    await page.evaluate(() => {
+      const doc = document.querySelector('iframe:not([aria-hidden="true"])').contentDocument;
+      doc.querySelector('#outside-alternative').remove();
+      window.preparedSheet = doc.querySelector('body > .page');
+      window.preparedSheet.replaceWith(window.preparedSheet.cloneNode(true));
+    });
+    await print.click();
+    await expect.poll(() => page.evaluate(() => window.printCalls)).toBe(3);
+    await expect(omissions).toHaveCount(0);
+    await expect(previewCoverage).toContainText('Cambió la composición de hojas');
+    await page.evaluate(() => {
+      const doc = document.querySelector('iframe:not([aria-hidden="true"])').contentDocument;
+      doc.querySelector('body > .page').replaceWith(window.preparedSheet);
+      delete window.preparedSheet;
+    });
+    await print.click();
+    await expect(page.getByRole('alert')).toContainText('REC-OMISSION');
+    assert.equal(await page.evaluate(() => window.printCalls), 3);
+    await page.evaluate(() => {
+      const doc = document.querySelector('iframe:not([aria-hidden="true"])').contentDocument;
+      doc.querySelector('[data-render-element="reference"]').style.display = '';
+    });
+    await print.click();
+    await expect.poll(() => page.evaluate(() => window.printCalls)).toBe(4);
+    await expect(omissions).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Diseño', exact: true }).click();
+    const preprinted = { ...data, printSupport: { kind: 'preprinted', pages: [{ page: 1,
+      roles: ['recipient.document', 'recipient.address', 'recipient.label'] }] } };
+    await panel.locator('input[type=file]').setInputFiles({ name: 'preimpreso.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(preprinted)) });
+    await page.getByRole('button', { name: 'Vista Previa', exact: true }).click();
+    await expect(page.locator('[data-print-preparation] > summary')).toContainText('carga finalizada');
+    await page.evaluate(() => {
+      const frame = document.querySelector('iframe:not([aria-hidden="true"])');
+      window.printCalls = 0;
+      frame.contentWindow.print = () => { window.printCalls++; };
+      frame.contentDocument.querySelector('[data-render-element="reference"]').style.display = 'none';
+    });
+    await print.click();
+    await expect.poll(() => page.evaluate(() => window.printCalls)).toBe(1);
+    await expect(omissions).toHaveCount(0);
+    await expect(previewCoverage).toContainText('Su contenido físico no se inspeccionó');
+
+    await page.getByRole('button', { name: 'Diseño', exact: true }).click();
+    const secret = { ...data, fiscal: { ...data.fiscal, professionalSecrecy: true } };
+    await panel.locator('input[type=file]').setInputFiles({ name: 'secreto.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(secret)) });
+    await expect(panel.locator('[data-finding-id^="REC-SECRECY:location:"]')).toHaveCount(1);
+    await page.getByRole('button', { name: 'Vista Previa', exact: true }).click();
+    await expect(page.locator('[data-print-preparation] > summary')).toContainText('carga finalizada');
+    await expect(feedback).toContainText('Sin fallos que bloqueen');
+    await expect(feedback.locator('[data-finding-id^="REC-SECRECY:location:"] strong')).toHaveText(/Pendiente/);
+    await page.evaluate(() => { window.printCalls = 0; document.querySelector('iframe:not([aria-hidden="true"])').contentWindow.print = () => { window.printCalls++; }; });
+    await print.click();
+    await expect.poll(() => page.evaluate(() => window.printCalls)).toBe(1);
     assert.deepEqual(errors, []); assert.equal(writes, 0); assert.equal(aiRequests, 0); assert.equal(JSON.stringify(template), before);
     console.log('Content feedback regression passed: receiver/amount/reference gate, pending allowance, selection, fresh DOM inspection and independent Zureo export.');
   } finally { await browser.close(); }

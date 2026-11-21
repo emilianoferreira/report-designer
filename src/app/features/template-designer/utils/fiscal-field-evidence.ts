@@ -1,4 +1,4 @@
-import { FiscalFact, ValidationContext } from '../../../core/models/fiscal.model';
+import { FiscalFact, ReceiverPrintRole, ValidationContext } from '../../../core/models/fiscal.model';
 
 export interface FieldEvidence {
   sourcePath: string;
@@ -38,6 +38,15 @@ export interface FieldCoverage {
   state: 'partial' | 'complete' | 'unsupported';
   evidenceIds: string[];
   reason: string;
+}
+
+export interface ReceiverPageCoverage extends FieldCoverage {
+  role: ReceiverPrintRole;
+  page?: number;
+  scope: 'browser-html';
+  inspected: boolean;
+  state: 'partial' | 'complete';
+  reasons: string[];
 }
 
 /** Explicit codes in Formato CFE 25.2, table D (including UI and UR).

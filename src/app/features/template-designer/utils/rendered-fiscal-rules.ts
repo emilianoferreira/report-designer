@@ -13,8 +13,16 @@ import { evaluateAmountPrint } from './amount-fiscal-rules';
 import { evaluateReferencePrint } from './reference-fiscal-rules';
 import { supportsFiscalBrowserRules } from './fiscal-context';
 import { hasPlainPrintedText } from './printed-field-observations';
+import { ReceiverPageCoverage } from './fiscal-field-evidence';
+import { inspectReceiverCoverage } from './receiver-page-coverage';
+import { evaluateReceiverOmissions } from './receiver-omissions';
+import { evaluateReceiverAdenda, verifiedCfeIdentity } from './receiver-adenda';
+import { evaluateReceiverAlternatives, verifiedReceiverPages } from './receiver-repetition';
 
-export type RenderedFiscalReport = Omit<StaticFiscalReport, 'scope'> & { scope: 'rendered-browser' };
+export type RenderedFiscalReport = Omit<StaticFiscalReport, 'scope'> & {
+  scope: 'rendered-browser';
+  receiverCoverage?: ReceiverPageCoverage[];
+};
 export const fiscalValue = <T>(fact: FiscalFact<T>): T | undefined => fact.state === 'known' ? fact.value : undefined;
 const normalize = (text: string) => text.normalize('NFC').replace(/\s+/g, ' ').trim().toLocaleUpperCase('es-UY');
 
@@ -46,7 +54,27 @@ export function inspectFiscalPrint(
       pageWidthPx: mmToPx(template.page.width),
       pageHeightPx: template.page.dynamicHeight || template.compliance?.medium === 'roll' ? undefined : mmToPx(template.page.height) }) : undefined;
   const report = inspectFiscalDocument(template, context, doc, evidence, resourcesReady, paginationPending, layout);
-  report.results.push(...evaluateReceiverPrint(context, doc, evidence, layout, paginationPending));
+  const pageCount = doc?.querySelectorAll('body > .page').length ?? 0;
+  const adendaOnMultiplePages = pageCount > 1 && layout?.content.some(item => item.zones.includes('adenda'));
+  const cfeIdentity = report.receiverObligations && (adendaOnMultiplePages || report.receiverObligations.secrecy === true)
+    ? verifiedCfeIdentity(context, doc, evidence, layout, paginationPending) : [];
+  const pages = paginationPending || (template.compliance?.adendaPlacement === 'separate-page' && pageCount > 1)
+    ? [] : verifiedReceiverPages(doc, report.results, layout, cfeIdentity);
+  const receiverFindings = evaluateReceiverPrint(context, doc, evidence, layout, paginationPending, report.receiverObligations, pages);
+  const omittedRoles = new Set<string>();
+  if (report.receiverObligations) {
+    const coveragePending = paginationPending ?? (pageCount === 1 && layout?.ready && !pages.length
+      ? 'No se pudo verificar esta superficie como una hoja única del CFE.' : undefined);
+    report.receiverCoverage = inspectReceiverCoverage(context, report.receiverObligations, doc, evidence, layout, coveragePending);
+    const omissions = evaluateReceiverOmissions(context, report.receiverObligations, report.receiverCoverage,
+      pages, receiverFindings);
+    for (const finding of omissions) omittedRoles.add(`${finding.omission!.coverage.role}:${finding.page}`);
+    report.results.push(...omissions,
+      ...evaluateReceiverAlternatives(context, report.receiverObligations, report.receiverCoverage, pages, pageCount, receiverFindings, omissions, layout),
+      ...evaluateReceiverAdenda(template, report.receiverObligations, doc, layout, report.receiverCoverage, cfeIdentity, paginationPending));
+  }
+  report.results.push(...receiverFindings.filter(finding => !finding.ruleId.startsWith('REC-FIELD.') ||
+    !omittedRoles.has('recipient.' + finding.ruleId.slice('REC-FIELD.'.length) + ':' + finding.page)));
   report.results.push(...evaluateAmountPrint(context, doc, evidence, layout, paginationPending));
   report.results.push(...evaluateReferencePrint(context, doc, evidence, layout, paginationPending));
   if (layout) {

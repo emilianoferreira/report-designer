@@ -6,6 +6,7 @@ import { CFE_FORMAT_SOURCE } from './fiscal-rule-catalogue';
 import { detectContentConflicts } from '../../../shared/utils/content-overlap';
 import { mmToPx, pxToMm } from './coordinate-utils';
 import { supportsFiscalBrowserRules } from './fiscal-context';
+import { isAdendaContent } from './receiver-adenda';
 
 /** Only explicit relative constraints. Logical zones never imply coordinates. */
 export function evaluateFiscalPlacement(template: ReportTemplate, context: ValidationContext, layout: LayoutEvidence,
@@ -92,8 +93,9 @@ export function evaluateFiscalPlacement(template: ReportTemplate, context: Valid
           'Hay roles de pie fuera de la última hoja. Confirmar contenido y asociación fiscal antes de declarar incumplimiento.', footer, 'p. 79, Impresión en varias hojas');
       }
     }
-    const adenda = layout.content.filter(c => c.page === number && c.zones.includes('adenda') && c.kind !== 'decoration' && usable(c));
-    const fiscal = layout.content.filter(c => c.page === number && c.zones.length && !c.zones.includes('adenda') && c.kind !== 'decoration' && usable(c));
+    const frames = layout.content.filter(c => c.page === number && c.kind === 'decoration' && c.roles.includes('adenda.boundary'));
+    const adenda = layout.content.filter(c => c.page === number && c.kind !== 'decoration' && usable(c) && isAdendaContent(c, frames));
+    const fiscal = layout.content.filter(c => c.page === number && c.zones.length && !isAdendaContent(c, frames) && c.kind !== 'decoration' && usable(c));
     if (adenda.length && template.compliance?.adendaPlacement === 'after-cfe' && fiscal.length) {
       const misplaced = adenda.filter(a => fiscal.some(f => a.bounds.y + a.bounds.height < f.bounds.y - 0.05));
       if (misplaced.length) add('POS-ADENDA-AFTER', 'Orden de adenda después del CFE', number, 'pending',
@@ -104,12 +106,13 @@ export function evaluateFiscalPlacement(template: ReportTemplate, context: Valid
         'La alternativa declarada es hoja separada; esta hoja contiene adenda y datos fiscales. Revisar las otras alternativas admitidas.', [...adenda, ...fiscal], 'p. 84, Adenda');
     }
     if (template.compliance?.adendaPlacement === 'within-body') {
-      const boundary = layout.content.filter(c => c.page === number && c.roles.includes('adenda.boundary') && c.kind === 'decoration' && usable(c));
+      const boundary = frames.filter(usable);
       if (boundary.length === 1) {
         const frame = boundary[0];
         const element = (['header', 'detail', 'footer'] as const).flatMap(s => template.sections[s].elements).find(e => e.id === frame.elementId);
         if (element?.type === 'rectangle' && element.shapeType === 'rectangle' && element.strokeColor && element.strokeWidth &&
-            fiscal.some(f => f.zones.includes('fiscal-footer') && verifiedValue(f) && f.bounds.y > frame.bounds.y + frame.bounds.height) &&
+            fiscal.some(f => f.bounds.y > frame.bounds.y + frame.bounds.height &&
+              f.roles.some(role => ['security.code', 'footer.cae', 'footer.cae-expiry'].includes(role) && verifiedValue({ ...f, roles: [role] }))) &&
             adenda.some(a => a.roles.includes('adenda.label') && textOf(a) === 'ADENDA') &&
             adenda.some(a => a.roles.includes('adenda.content')) &&
             adenda.every(a => a.bounds.x >= frame.bounds.x && a.bounds.y >= frame.bounds.y &&
@@ -120,8 +123,11 @@ export function evaluateFiscalPlacement(template: ReportTemplate, context: Valid
             const dy = Math.max(frame.bounds.y - ink.y - ink.height, ink.y - frame.bounds.y - frame.bounds.height, 0);
             return (dx === 0 || dy === 0) && Math.max(dx, dy) < margin - 0.05;
           }));
-          if (close.length) add('POS-ADENDA-MARGIN', 'Separación de adenda en el cuerpo', number, 'fail',
-            'Se midió tinta de datos fiscales a menos de 5 mm del recuadro de adenda identificado.', [frame, ...close], 'p. 84, Adenda');
+          const secrecy = context.facts.professionalSecrecy;
+          const review = secrecy.state === 'conflict' || (secrecy.state === 'known' && secrecy.value);
+          if (close.length) add('POS-ADENDA-MARGIN', 'Separación de adenda en el cuerpo', number, review ? 'pending' : 'fail',
+            'Se midió tinta de datos fiscales a menos de 5 mm del recuadro de adenda identificado.' +
+              (review ? ' Falta resolver la ubicación alternativa de la identificación del receptor.' : ''), [frame, ...close], 'p. 84, Adenda');
         }
       }
     }

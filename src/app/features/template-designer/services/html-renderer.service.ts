@@ -65,27 +65,27 @@ const DEFAULT_RENDER_OPTIONS: RenderOptions = {
 })
 export class HtmlRendererService {
   renderWithEvidence(template: ReportTemplate, data: InvoiceData, printSurface = false): RenderArtifact {
-    const evidence: RenderEvidence = { version: '1.0', elements: [], content: [], diagnostics: [] };
+    const evidence: RenderEvidence = { version: '1.0', printSurface, elements: [], content: [], diagnostics: [] };
     for (const key of ['header', 'detail', 'footer'] as const) {
       const section = template.sections[key];
       for (const element of section.elements) if (element.style.namedStyle) evidence.diagnostics.push({
         code: 'unsupported-feature', elementId: element.id, section: key,
         message: 'El renderer usa estilos directos; el estilo con nombre todavía no se aplica.' });
       if (!section.printOnEveryPage || !section.printOnFirstPage || !section.printOnLastPage) evidence.diagnostics.push({
-        code: 'unsupported-feature', section: key, message: 'Las opciones de repetición de sección requieren revisión manual.' });
+        code: 'unsupported-feature', section: key, coverageImpact: 'repetition', message: 'Las opciones de repetición de sección requieren revisión manual.' });
     }
     if (this.isTicketFormat(template)) for (const el of template.sections.detail.elements) {
       evidence.elements.push({ id: el.id, section: 'detail', emitted: false, roles: [...(el.fiscalRoles ?? [])] });
       evidence.diagnostics.push({ code: 'omitted-element', elementId: el.id, section: 'detail',
         message: 'El formato ticket usa detalle generado y omite el elemento posicionado.' });
     }
-    if (template.sections.footer.elements.length) evidence.diagnostics.push({ code: 'unsupported-feature', section: 'footer',
+    if (template.sections.footer.elements.length) evidence.diagnostics.push({ code: 'unsupported-feature', section: 'footer', coverageImpact: 'informational',
       message: 'El pie personalizado sustituye los subtotales automáticos, incluso si sus elementos resultan ocultos.' });
     for (const key of ['pageHeader', 'pageFooter'] as const) {
       if (template.sections[key]) evidence.diagnostics.push({ code: 'unsupported-feature', section: key,
         message: 'La sección repetida personalizada requiere revisión manual.' });
     }
-    if (template.page.dynamicHeight) evidence.diagnostics.push({ code: 'unsupported-feature',
+    if (template.page.dynamicHeight) evidence.diagnostics.push({ code: 'unsupported-feature', coverageImpact: 'physical-support',
       message: 'El navegador no permite declarar ancho fijo con longitud de papel automática; configurar el rollo en el controlador de impresión.' });
     let html = this.renderToHtml(template, data, { evidence, printSurface });
     // Controlled renderer output: annotate generated blocks without a DOM round trip.

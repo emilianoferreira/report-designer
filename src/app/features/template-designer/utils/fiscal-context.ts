@@ -1,6 +1,6 @@
 import {
   CFE_TYPES, FiscalContextDiagnostic, FiscalData, FiscalFacts, FiscalField, FiscalProfile,
-  FiscalSource, FISCAL_REGIMES, ValidationContext
+  FiscalSource, FISCAL_REGIMES, FISCAL_ROLE_LABELS, PrintSupport, ReceiverPrintRole, ValidationContext
 } from '../../../core/models/fiscal.model';
 import { InvoiceData } from '../../../core/models/template.model';
 
@@ -106,6 +106,24 @@ function readPath(data: unknown, path: string): unknown {
  * Conflicts retain every candidate and deliberately expose no selected value.
  * Diagnostics describe input problems, not normative findings or print restrictions.
  */
+function readPrintSupport(input: unknown): PrintSupport | undefined {
+  if (!object(input)) return undefined;
+  if (input['kind'] === 'blank' && Object.keys(input).length === 1) return { kind: 'blank' };
+  if (input['kind'] !== 'preprinted' || !Array.isArray(input['pages']) || !input['pages'].length) return undefined;
+  const pages: Extract<PrintSupport, { kind: 'preprinted' }>['pages'][number][] = [];
+  const seen = new Set<number>();
+  for (const entry of input['pages']) {
+    if (!object(entry)) return undefined;
+    const page = entry['page'], roles = entry['roles'];
+    if (typeof page !== 'number' || !Number.isSafeInteger(page) || page < 1 || seen.has(page) ||
+        !Array.isArray(roles) || !roles.every(role => typeof role === 'string' && role.startsWith('recipient.') &&
+          Object.prototype.hasOwnProperty.call(FISCAL_ROLE_LABELS, role))) return undefined;
+    seen.add(page);
+    pages.push({ page, roles: [...new Set(roles as ReceiverPrintRole[])] });
+  }
+  return { kind: 'preprinted', pages };
+}
+
 export function buildValidationContext(
   profile: FiscalProfile | undefined, data: InvoiceData, scenario?: FiscalData
 ): ValidationContext {
@@ -206,7 +224,7 @@ export function buildValidationContext(
   }
   return {
     profile: profile ? structuredClone(profile) : undefined,
-    facts,
+    facts, printSupport: readPrintSupport(data.printSupport),
     diagnostics, fieldFacts
   };
 }

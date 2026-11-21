@@ -170,9 +170,17 @@ export interface FiscalContextDiagnostic {
   path: string;
   message: string;
 }
+export type PrintSupport =
+  | { kind: 'blank' }
+  | { kind: 'preprinted'; pages: ReadonlyArray<{ page: number; roles: readonly ReceiverPrintRole[] }> };
+
+export type ReceiverPrintRole = Extract<FiscalRole, `recipient.${string}`>;
+
 export interface ValidationContext {
   /** Declared mold expectations, kept separate from document facts. */
   profile?: FiscalProfile;
+  /** Scenario declaration. Absence or malformed input leaves the support unknown. */
+  printSupport?: PrintSupport;
   facts: FiscalFacts;
   diagnostics: FiscalContextDiagnostic[];
   /** Canonical scalar paths, including collection index; optional for old callers.

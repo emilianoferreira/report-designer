@@ -20,8 +20,21 @@ describe('Printed fiscal obligation matrix', () => {
     expect(total.byType[181]).toBe('not-applicable');
     expect(total.byType[182]).toBe('not-applicable');
     const receiver = FISCAL_OBLIGATION_MATRIX.find(row => row.role === 'recipient.document')!;
-    expect(obligationForContext(receiver, buildValidationContext(undefined, data()))).toBe('conditional');
-    expect(receiver.effectiveFrom).toBe('2022-11-01');
+    expect(obligationForContext(receiver, buildValidationContext(undefined, data()))).toBe('pending');
+    expect(receiver.effectiveFrom).toBeUndefined();
+  });
+  it('uses the same buyer facts for the receiver matrix cell and the catalogue', () => {
+    const invoice = data();
+    Object.assign(invoice.fiscal, { finalConsumer: false, receiverDocumentType: 'RUC', receiverSectorException: false,
+      receiverNonResidentWithoutRut: false, professionalSecrecy: false });
+    const context = buildValidationContext(undefined, invoice);
+    const row = FISCAL_OBLIGATION_MATRIX.find(item => item.role === 'recipient.document')!;
+    const catalogue = FISCAL_FIELD_REQUIREMENTS.find(item => item.id === 'REC-01.identity')!;
+    expect(obligationForContext(row, context)).toBe('required');
+    expect(catalogue.applicability(context)).toBe('required');
+    context.facts.cfeType = { state: 'known', value: 101, candidates: [] };
+    expect(obligationForContext(row, context)).toBe('pending');
+    expect(catalogue.applicability(context)).toBe('pending');
   });
   it('agrees with the field catalogue on incompatible versions and output profiles', () => {
     for (const patch of [{ schemaVersion: 'future' }, { output: 'zureo' }, { jurisdiction: 'AR' }]) {

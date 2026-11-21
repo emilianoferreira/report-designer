@@ -1,5 +1,6 @@
 import { FiscalField, FiscalRole, ValidationContext } from '../../../core/models/fiscal.model';
 import { supportsFiscalBrowserRules } from './fiscal-context';
+import { receiverRequirements } from './receiver-requirements';
 
 export const CFE_FORMAT_SOURCE = 'https://www.efactura.dgi.gub.uy/files/formato_cfe_v25-2-pdf?es=';
 export interface FiscalFieldRequirement {
@@ -38,10 +39,9 @@ export const FISCAL_FIELD_REQUIREMENTS: readonly FiscalFieldRequirement[] = [
   requirement('REC-01.identity', ['recipient.name', 'recipient.document', 'recipient.address'], 'p. 81, Identificación del receptor',
     'Identificación en operaciones entre contribuyentes; secreto profesional admite traslado a adenda',
     ['finalConsumer', 'professionalSecrecy', 'receiverSectorException', 'receiverDocumentType', 'receiverNonResidentWithoutRut'], c => {
-      if (known(c, 'professionalSecrecy') !== false || known(c, 'finalConsumer') !== false || known(c, 'receiverSectorException') !== false ||
-          known(c, 'receiverNonResidentWithoutRut') !== false || !['RUC', 'RUT'].includes(String(known(c, 'receiverDocumentType')).toUpperCase())) return 'pending';
-      // Remitos and resguardos need their own receiver branches in the normative matrix.
-      return [111, 112, 113].includes(known(c, 'cfeType') as number) ? 'required' : 'pending';
+      const receiver = receiverRequirements(c);
+      const identity = receiver.fields.filter(field => ['recipient.name', 'recipient.document', 'recipient.address'].includes(field.role));
+      return identity.every(field => field.applicability === 'required') ? 'required' : 'pending';
     }),
   requirement('REG-01.exemption', ['issuer.regime-legend', 'issuer.exemption-basis'], 'p. 80, Identificación del emisor',
     'Contribuyente exonerado; exoneraciones parciales requieren evaluación específica', ['issuerRegime', 'partialExemption'], c => {

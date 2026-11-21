@@ -12,7 +12,7 @@ import { createElement } from './element-factory';
 
 describe('Receiver requirements and thresholds', () => {
   const base: FiscalData = { schemaVersion: '1.0', isCfe: true, cfeType: 101, professionalSecrecy: false,
-    receiverSectorException: false, exportOperation: false, receiverNonResidentWithoutRut: false, finalConsumer: true,
+    receiverSectorException: false, exportOperation: false, receiverNonResidentWithoutRut: false, finalConsumer: true, operationType: 'services',
     currency: 'UYU', issueDate: '2026-11-20', netAmount: '30000', uiValue: '6', uiValueDate: '2025-12-31',
     uiValueSource: 'Fixture oficial declarada', hasWithholdingsOrPerceptions: false };
   const context = (patch: Partial<FiscalData> = {}) => buildValidationContext(undefined,
@@ -44,26 +44,57 @@ describe('Receiver requirements and thresholds', () => {
     expect(field({ hasWithholdingsOrPerceptions: undefined }, 'recipient.document').applicability).toBe('pending');
   });
   it('selects explicit RUC, export and nonresident entity alternatives without inferring them from text or country', () => {
-    expect(field({ finalConsumer: false, receiverDocumentType: 'RUC' }, 'recipient.name').applicability).toBe('required');
-    expect(field({ finalConsumer: false, receiverDocumentType: 'RUC' }, 'recipient.label').expected).toBe('RUC COMPRADOR');
+    expect(field({ cfeType: 111, finalConsumer: false, receiverDocumentType: 'RUC' }, 'recipient.name').applicability).toBe('required');
+    expect(field({ cfeType: 111, finalConsumer: false, receiverDocumentType: 'RUC' }, 'recipient.label').expected).toBe('RUC COMPRADOR');
     expect(field({ exportOperation: true }, 'recipient.address').applicability).toBe('required');
-    expect(field({ exportOperation: true }, 'recipient.document').applicability).toBe('optional');
-    expect(field({ receiverNonResidentWithoutRut: true, receiverIsIndividual: false }, 'recipient.label').applicability).toBe('optional');
-    expect(field({ receiverNonResidentWithoutRut: true, receiverIsIndividual: false }, 'recipient.name').applicability).toBe('required');
+    expect(field({ exportOperation: true }, 'recipient.document').applicability).toBe('not-applicable');
+    expect(field({ exportOperation: true, operationType: undefined }, 'recipient.address').applicability).toBe('pending');
+    const nonresident = receiverRequirements(context({ receiverNonResidentWithoutRut: true, receiverIsIndividual: false }));
+    expect(nonresident.alternative?.anyOf).toEqual([['recipient.label', 'recipient.boundary'], ['recipient.name', 'recipient.address']]);
+    expect(nonresident.fields.find(row => row.role === 'recipient.name')!.applicability).toBe('pending');
     expect(field({ receiverCountry: 'US', receiverNonResidentWithoutRut: undefined }, 'recipient.name').applicability).toBe('pending');
     expect(field({ receiverNonResidentWithoutRut: true, receiverIsIndividual: undefined }, 'recipient.label').applicability).toBe('pending');
   });
   it('treats resguardo withholdings separately from fiscal credit and unknown recipient classes', () => {
     expect(field({ cfeType: 182, receiverIsIndividual: true, hasWithholdingsOrPerceptions: true }, 'recipient.name').applicability).toBe('required');
-    expect(field({ cfeType: 182, receiverIsIndividual: true, hasWithholdingsOrPerceptions: true }, 'recipient.label').applicability).toBe('optional');
+    expect(field({ cfeType: 182, receiverIsIndividual: true, hasWithholdingsOrPerceptions: true }, 'recipient.label').applicability).toBe('not-applicable');
     expect(field({ cfeType: 182, receiverIsIndividual: true, hasWithholdingsOrPerceptions: false, fiscalCreditAmount: '20' }, 'recipient.name').applicability).toBe('pending');
   });
   it('keeps exceptions and unknown or conflicting scenarios pending', () => {
     for (const patch of [{ receiverSectorException: true }, { receiverSectorException: undefined },
-      { professionalSecrecy: undefined }, { isCfe: false }, { cfeType: 999 }, { receiverNonResidentWithoutRut: true, finalConsumer: false }])
+      { cfeType: 999 }, { receiverNonResidentWithoutRut: true, finalConsumer: false }])
       expect(field(patch, 'recipient.document').applicability).toBe('pending');
+    expect(field({ isCfe: false }, 'recipient.document').applicability).toBe('not-applicable');
     const conflicting = context(); conflicting.facts.finalConsumer = { state: 'conflict', candidates: [] };
     expect(receiverRequirements(conflicting).fields.every(f => f.applicability === 'pending')).toBeTrue();
+  });
+  it('resolves grounds, locations, provenance and repetition for a buyer and an identified ticket', () => {
+    const buyer = { cfeType: 111, finalConsumer: false, receiverDocumentType: 'RUC', receiverDocumentNumber: '219876540012' };
+    const document = field(buyer, 'recipient.document');
+    expect(document).toEqual(jasmine.objectContaining({ applicability: 'required', expected: '219876540012',
+      locations: ['receiver-zone'], repetition: 'each-cfe-page' }));
+    expect(document.basis.reference).toBe('14º.8');
+    expect(document.facts.receiverDocumentNumber?.candidates[0].path).toBe('fiscal.receiverDocumentNumber');
+    expect(field(buyer, 'recipient.address').repetition).toBe('document');
+    expect(field({ ...buyer, professionalSecrecy: true }, 'recipient.document').locations).toEqual(['receiver-zone', 'adenda']);
+    expect(field({ ...buyer, professionalSecrecy: true }, 'recipient.document').repetition).toBe('pending');
+    expect(field({ netAmount: '30001' }, 'recipient.country').basis.effectiveFrom).toBe('2022-11-01');
+    expect(field({ netAmount: '30001' }, 'recipient.country').repetition).toBe('each-cfe-page');
+  });
+  it('does not generalize the buyer branch or ticket threshold to other CFE types', () => {
+    expect(field({ finalConsumer: false, receiverDocumentType: 'RUC' }, 'recipient.name').applicability).toBe('pending');
+    expect(field({ cfeType: 181, netAmount: '30001' }, 'recipient.country').applicability).toBe('pending');
+    expect(field({ cfeType: 182, receiverIsIndividual: false }, 'recipient.label').applicability).toBe('pending');
+    expect(field({ netAmount: undefined }, 'recipient.label').applicability).toBe('required');
+    expect(field({ netAmount: undefined }, 'recipient.document').applicability).toBe('pending');
+  });
+  it('reports a known obligation without producing an omission when there is no rendered evidence', () => {
+    const c = context({ netAmount: '30001' });
+    const report = inspectFiscalPrint(createDefaultTemplate(), c, undefined,
+      { version: '1.0', elements: [], diagnostics: [] }, false);
+    expect(report.receiverObligations?.fields.find(row => row.role === 'recipient.country')?.applicability).toBe('required');
+    expect(report.results.find(row => row.id === 'REC-FIELD.country')?.status).toBe('pending');
+    expect(decideBrowserPrint(c, report, 'same', 'same').state).toBe('allow');
   });
   it('does not relax identification of a RUC buyer merely because exportOperation is true', () => {
     expect(field({ cfeType: 111, finalConsumer: false, receiverDocumentType: 'RUC', exportOperation: true }, 'recipient.document').applicability).toBe('required');
@@ -73,8 +104,54 @@ describe('Receiver requirements and thresholds', () => {
     const patch = { issueDate: '2012-05-08', uiValueDate: '2011-12-31', netAmount: '60000.01' };
     expect(receiverThreshold(context(patch)).exceeded).toBeTrue();
     expect(receiverThreshold(context({ ...patch, issueDate: '2012-05-07' })).status).toBe('pending');
-    expect(receiverThreshold(context({ ...patch, cfeType: 181 })).status).toBe('pending');
+    expect(receiverThreshold(context({ ...patch, cfeType: 181 })).status).toBe('not-applicable');
     expect(field({ finalConsumer: true, receiverDocumentType: 'RUC' }, 'recipient.label').applicability).toBe('pending');
+  });
+
+  it('applies the threshold transition to tickets and their notes, independently of the buyer RUC rules', () => {
+    for (const cfeType of [101, 102, 103]) {
+      const patch = { cfeType, issueDate: '2022-10-31', uiValueDate: '2021-12-31', netAmount: '30001' };
+      expect(field(patch, 'recipient.document').applicability).toBe('optional');
+      expect(field({ ...patch, issueDate: '2022-11-01' }, 'recipient.document').applicability).toBe('required');
+    }
+    for (const cfeType of [111, 112, 113]) {
+      const buyer = { cfeType, finalConsumer: false, receiverDocumentType: 'RUC', netAmount: '1' };
+      expect(field(buyer, 'recipient.document').applicability).toBe('required');
+      expect(field({ ...buyer, netAmount: '99999999' }, 'recipient.country').applicability).toBe('optional');
+      expect(receiverThreshold(context(buyer)).status).toBe('not-applicable');
+    }
+  });
+  it('does not extend the 2886/014 branches before the documented publication boundary', () => {
+    const before = { issueDate: '2014-08-22', uiValueDate: '2013-12-31', hasWithholdingsOrPerceptions: true };
+    const after = { ...before, issueDate: '2014-08-23' };
+    expect(field(before, 'recipient.document').applicability).toBe('pending');
+    expect(field(after, 'recipient.document').applicability).toBe('required');
+    expect(field(after, 'recipient.document').basis.effectiveFrom).toBe('2014-08-23');
+    const branches: Array<[Partial<FiscalData>, string]> = [
+      [{ exportOperation: true }, 'export'],
+      [{ receiverNonResidentWithoutRut: true, receiverIsIndividual: false }, 'nonresident'],
+      [{ cfeType: 182, receiverIsIndividual: true }, 'withholding']
+    ];
+    for (const [patch, branch] of branches) {
+      expect(receiverRequirements(context({ ...before, ...patch })).branch).toBe('unresolved');
+      expect(receiverRequirements(context({ ...after, ...patch })).branch).toBe(branch);
+      expect(receiverRequirements(context({ ...after, ...patch, issueDate: undefined })).branch).toBe('unresolved');
+    }
+  });
+  it('separates a known obligation from secrecy, historical placement and repetition', () => {
+    const buyer = { cfeType: 111, finalConsumer: false, receiverDocumentType: 'RUC' };
+    const unknown = field({ ...buyer, professionalSecrecy: undefined }, 'recipient.document');
+    expect(unknown.applicability).toBe('required');
+    expect(unknown.locations).toEqual([]);
+    const secret = { ...buyer, professionalSecrecy: true };
+    expect(field({ ...secret, issueDate: '2019-03-19' }, 'recipient.document').locations).toEqual([]);
+    expect(field({ ...secret, issueDate: '2019-03-20' }, 'recipient.document').locationReference).toContain('780/019');
+    expect(field({ ...secret, issueDate: '2023-07-06' }, 'recipient.document').locationReference).toContain('1264/023');
+    expect(field({ ...buyer, issueDate: '2012-11-20' }, 'recipient.document').repetition).toBe('pending');
+    expect(field({ ...buyer, issueDate: '2012-11-21' }, 'recipient.document').repetition).toBe('each-cfe-page');
+    const earlyTicket = field({ issueDate: '2012-12-01', uiValueDate: '2011-12-31', netAmount: '60001' }, 'recipient.document');
+    expect(earlyTicket.applicability).toBe('required');
+    expect(earlyTicket.locations).toEqual([]);
   });
 
   describe('rendered receiver evidence', () => {

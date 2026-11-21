@@ -1,8 +1,9 @@
 import { CFE_TYPES, FiscalField, FiscalRole, FISCAL_ROLE_LABELS, ValidationContext } from '../../../core/models/fiscal.model';
 import { CFE_FORMAT_SOURCE } from './fiscal-rule-catalogue';
 import { supportsFiscalBrowserRules } from './fiscal-context';
+import { receiverRequirements } from './receiver-requirements';
 
-export const FISCAL_MATRIX_VERSION = '1.1';
+export const FISCAL_MATRIX_VERSION = '1.2';
 export type Obligation = 'required' | 'optional' | 'conditional' | 'not-applicable' | 'pending';
 export type SupportedCfeType = typeof CFE_TYPES[number]['value'];
 export interface ObligationCase {
@@ -115,7 +116,7 @@ const partial: FiscalRole[] = ['issuer.name', 'issuer.rut', 'document.type', 'do
 const fieldRows: FiscalObligation[] = specs.map(([role, reference, condition, dependencies, status = 'pending', applicable = types]) => ({
   id: `field:${role}`, role, title: FISCAL_ROLE_LABELS[role], scope: 'printed-cfe',
   source: reference.startsWith('Formato') ? CFE_FORMAT_SOURCE : resolution, reference,
-  reviewedOn: '2026-11-20', ...(role === 'recipient.document' ? { effectiveFrom: '2022-11-01' } : {}),
+  reviewedOn: '2026-11-20',
   condition, exceptions: role.startsWith('recipient.') ? [
     'Secreto profesional: identificación en adenda cuando se cumplen los supuestos legales.',
     'Exportación, entidades no residentes sin RUT y e-Resguardos tienen alternativas específicas; no inferirlas del país.',
@@ -175,7 +176,7 @@ for (const row of fieldRows) {
     { ...branch('Monto neto supera umbral vigente o documenta retenciones/percepciones, salvo excepción expresa.', 'required', '14º.12; 531/2022'), roles: ['recipient.document', 'recipient.country'] },
     { ...branch('Exportación: sustitución de requisitos de 11/12.', 'required', '14º, excepción a)'), roles: ['recipient.name', 'recipient.address'] },
     { ...branch('e-Resguardo a persona física o entidad exterior, salvo excepción expresa.', 'required', '14º, excepción b)'), roles: ['recipient.name', 'recipient.document'] },
-    { ...branch('Entidad no residente sin RUT: rótulo puede omitirse aportando nombre y domicilio.', 'optional', '14º, entidades no residentes'), roles: ['recipient.label'] },
+    { ...branch('Entidad no residente sin RUT: rótulo y recuadro, o nombre y domicilio.', 'conditional', '14º, entidades no residentes'), roles: ['recipient.label', 'recipient.boundary', 'recipient.name', 'recipient.address'] },
     branch('Secreto profesional amparado: identificación puede trasladarse a adenda; verificar allí.', 'conditional', '14º, secreto profesional')
   ];
   if (row.role === 'detail.quantity' || row.role === 'detail.unit-price') row.cases = [
@@ -208,10 +209,14 @@ for (const row of fieldRows) {
 }
 
 /** Select a normative cell without treating conditional as required or missing data as a failure. */
-export function obligationForContext(row: FiscalObligation, context: ValidationContext): Obligation {
+export function obligationForContext(row: FiscalObligation, context: ValidationContext,
+  receiver?: ReturnType<typeof receiverRequirements>): Obligation {
   const cfe = context.facts.isCfe, type = context.facts.cfeType;
   if (cfe.state === 'known' && !cfe.value) return 'not-applicable';
   if (!supportsFiscalBrowserRules(context) || type.state !== 'known') return 'pending';
+  if (row.role?.startsWith('recipient.')) {
+    return (receiver ?? receiverRequirements(context)).fields.find(field => field.role === row.role)?.applicability ?? 'pending';
+  }
   return row.byType[type.value as SupportedCfeType] ?? 'pending';
 }
 

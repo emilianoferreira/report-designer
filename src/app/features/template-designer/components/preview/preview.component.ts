@@ -35,6 +35,7 @@ import { RuleResult, RuleStatus } from '../../utils/static-fiscal-rules';
 import { inspectFiscalPrint, RenderedFiscalReport } from '../../utils/rendered-fiscal-rules';
 import { prepareBrowserPrint } from '../../utils/prepare-browser-print';
 import { decideBrowserPrint, isContentValidationFinding } from '../../utils/print-validation-policy';
+import { RECEIVER_OMISSION_RULE } from '../../utils/receiver-omissions';
 import { buildValidationFeedback, printFailureLabel, ValidationFeedback } from '../../utils/validation-feedback';
 import { ValidationFeedbackComponent } from '../validation-feedback/validation-feedback.component';
 import { FiscalAdviceComponent } from '../fiscal-advice/fiscal-advice.component';
@@ -57,6 +58,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   private injectionVersion = 0;
   private preparation?: Promise<Document | undefined>;
   private paginationPending?: string;
+  private preparedPages: Element[] = [];
   paginatedHtml = '';
   @Output() readonly showDesign = new EventEmitter<void>();
   fiscalSample = false;
@@ -68,6 +70,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   printMessage = '';
   readonly ruleLabels: Record<RuleStatus, string> = { pass: 'Cumple', fail: 'Incumple', pending: 'Pendiente', 'not-applicable': 'No aplica' };
   @ViewChild('previewFrame') previewFrame!: ElementRef<HTMLIFrameElement>;
+  @ViewChild('printValidation') private printValidation?: ElementRef<HTMLDetailsElement>;
 
   // ─── Render outputs (recomputed on each renderPreview) ───
   previewHtml = '';      // HTML with data resolved
@@ -112,7 +115,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(() => {
-        this.renderPreview();
+        if (!this.fiscalContext || this.renderInputSnapshot !== this.currentSnapshot()) this.renderPreview();
       });
     if (this.validation) {
       this.validation.scenario$.pipe(takeUntil(this.destroy$)).subscribe(mode => {
@@ -132,6 +135,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
 
   private invalidateReport(): void {
     this.injectionVersion++;
+    this.preparedPages = [];
     this.previewReady = false;
     this.renderedReport = undefined;
     this.feedback = undefined;
@@ -183,7 +187,9 @@ export class PreviewComponent implements OnInit, OnDestroy {
   private injectIframe(): void {
     const version = ++this.injectionVersion;
     const html = this.previewHtml;
-    const evidence = this.renderEvidence;
+    const evidence = this.renderEvidence && { ...this.renderEvidence,
+      diagnostics: this.renderEvidence.diagnostics.filter(diagnostic => diagnostic.code !== 'resource-error') };
+    this.renderEvidence = evidence;
     this.previewReady = false;
     this.reportPending = true;
     this.renderedReport = undefined;
@@ -219,6 +225,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
     if (!prepared) return undefined;
     this.previewReady = prepared.resourcesReady;
     this.paginationPending = prepared.paginationPending;
+    this.preparedPages = Array.from(doc.querySelectorAll('body > .page'));
     this.pageHeightPx = mmToPx(template.page.height) * prepared.pages;
     if (doc.querySelector('[data-render-page]')) this.paginatedHtml = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
     this.renderedReport = prepared.report;
@@ -240,6 +247,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   setViewMode(mode: PreviewViewMode): void {
     if (mode !== 'render') {
       this.injectionVersion++;
+      this.preparedPages = [];
       this.renderedReport = undefined; this.feedback = undefined;
       this.reportPending = false; this.previewReady = false;
     }
@@ -284,8 +292,13 @@ export class PreviewComponent implements OnInit, OnDestroy {
 
   private refreshFiscalReport(doc: Document): RenderedFiscalReport | undefined {
     if (this.renderInputSnapshot !== this.currentSnapshot() || !this.renderEvidence || !this.fiscalContext) return undefined;
+    const resourcesReady = this.previewReady && doc.fonts.status === 'loaded' &&
+      Array.from(doc.images).every(image => image.complete && image.naturalWidth > 0);
+    const pages = Array.from(doc.querySelectorAll('body > .page'));
+    const sequenceChanged = pages.length !== this.preparedPages.length || pages.some((page, index) => page !== this.preparedPages[index]);
+    const paginationPending = sequenceChanged ? 'Cambió la composición de hojas desde la preparación de la vista.' : this.paginationPending;
     const report = inspectFiscalPrint(this.templateState.getCurrentTemplate(), this.fiscalContext, doc,
-      this.renderEvidence, this.previewReady, this.paginationPending);
+      this.renderEvidence, resourcesReady, paginationPending);
     this.renderedReport = report;
     this.feedback = buildValidationFeedback(this.fiscalContext, report, this.renderInputSnapshot, this.currentSnapshot());
     this.reportPending = false;
@@ -325,6 +338,8 @@ export class PreviewComponent implements OnInit, OnDestroy {
       }
       if (decision.state === 'block') {
         this.printMessage = 'Impresión bloqueada. Revisá ' + decision.failures.map(printFailureLabel).join('; ') + '.';
+        if (this.printValidation && decision.failures.some(finding => finding.ruleId === RECEIVER_OMISSION_RULE))
+          this.printValidation.nativeElement.open = true;
         return;
       }
       doc.defaultView?.print();

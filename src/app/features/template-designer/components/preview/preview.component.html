@@ -64,7 +64,7 @@
   @if (reportPending) { <p class="renderer-context" role="status">Actualizando validación; los resultados anteriores ya no están vigentes.</p> }
   @if (!reportPending && viewMode !== 'render') { <p class="renderer-context">Volvé a Render para evaluar la salida de impresión.</p> }
   @if (renderedReport; as report) {
-    <details class="renderer-context">
+    <details #printValidation class="renderer-context">
       <summary>Validación de impresión · {{ report.status === 'violations' ? 'Hallazgos detectados' : 'Cobertura incompleta' }}</summary>
       <p>{{ validation?.scenario$?.value === 'json' ? 'Datos JSON importados en memoria.' : 'Escenario de ejemplo.' }} Se evalúa únicamente esta salida.</p>
       @if (feedback; as currentFeedback) {
