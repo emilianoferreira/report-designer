@@ -521,6 +521,21 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
   /**
    * Shortcut: apply on any field blur
    */
+  onGeometryChange(): void {
+    const element = this.selectedElement;
+    if (!element || element.locked) return;
+    if (![this.posX, this.posY, this.width, this.height].every(value => typeof value === 'number' && Number.isFinite(value)) ||
+        this.width <= 0 || this.height <= 0) {
+      this.loadElementProperties(element);
+      return;
+    }
+    if (this.posX === element.position.x && this.posY === element.position.y &&
+        this.width === element.size.width && this.height === element.size.height) return;
+    this.templateState.updateElement(this.activeSection, element.id, {
+      position: { x: this.posX, y: this.posY }, size: { width: this.width, height: this.height }
+    });
+  }
+
   onFieldChange(): void {
     this.applyChanges();
   }

@@ -1,3 +1,9 @@
+import { DesignerObservation, DesignerSurface, inspectDesignerSurface } from '../../utils/inspect-designer-surface';
+import { HtmlRendererService } from '../../services/html-renderer.service';
+import { prepareBrowserPrint } from '../../utils/prepare-browser-print';
+import { buildValidationContext } from '../../utils/fiscal-context';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { measureRenderSurface } from '../../utils/measure-render-surface';
 import { inject } from '@angular/core';
 import { ValidationSessionService } from '../../services/validation-session.service';
 /**
@@ -104,8 +110,72 @@ interface MarqueeState {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
-  private validation = inject(ValidationSessionService, { optional: true });
+  readonly validation = inject(ValidationSessionService, { optional: true });
   @ViewChild('canvasPage') canvasPage!: ElementRef<HTMLDivElement>;
+  @ViewChild('renderFrame') renderFrame?: ElementRef<HTMLIFrameElement>;
+  sectionBoxes: Partial<Record<string, { top: number; left: number; width: number; height: number }>> = {};
+  surfaceHtml: SafeHtml = '';
+  private sanitizer = inject(DomSanitizer);
+  surfaceReady = false;
+  comparing = false;
+  showGenerated = true;
+  observations: DesignerSurface = { pages: [], blocks: [], warnings: [] };
+  inspected?: DesignerObservation;
+
+  inspectObservation(observation: DesignerObservation): void {
+    this.inspected = observation;
+    const page = this.canvasPage.nativeElement.getBoundingClientRect();
+    const scroll = this.scrollArea.nativeElement;
+    scroll.scrollLeft += page.left + observation.x * this.zoom - scroll.getBoundingClientRect().left - 40;
+    scroll.scrollTop += page.top + observation.y * this.zoom - scroll.getBoundingClientRect().top - 40;
+    if (observation.generated) this.selectionService.clearSelection();
+    if (observation.elementId && observation.section) {
+      this.selectionService.select(observation.elementId, observation.section);
+    }
+    this.cdr.markForCheck();
+  }
+
+  get visibleBlocks(): DesignerObservation[] {
+    return this.observations.blocks.filter(block => block.primary || block.key === this.inspected?.key);
+  }
+  private surfaceVersion = 0;
+  private renderer = inject(HtmlRendererService);
+  private gestureBoxes?: typeof this.sectionBoxes;
+  private draftFrame?: HTMLIFrameElement;
+  private draftVersion = 0;
+  private interactionStarted = false;
+  private gesturePageOrigin?: { left: number; top: number };
+  private guideSection: SectionKey = 'header';
+  private localGuides: SnapLine[] = [];
+  gestureMessage = '';
+
+  async loadSurface(): Promise<void> {
+    if (this.dragState) return;
+    const version = ++this.surfaceVersion;
+    const doc = this.renderFrame?.nativeElement.contentDocument;
+    if (!doc) return;
+    await doc.fonts.ready;
+    await Promise.all(Array.from(doc.images).map(image => image.decode().catch(() => undefined)));
+    if (version !== this.surfaceVersion || !doc.body) return;
+    const pages = Array.from(doc.querySelectorAll<HTMLElement>('body > .page'));
+    if (!pages.length) return;
+    const origin = pages[0].getBoundingClientRect();
+    this.sectionBoxes = {};
+    for (const key of ['header', 'detail', 'footer']) {
+      const nodes = doc.querySelectorAll<HTMLElement>('.section-' + key);
+      const node = key === 'footer' ? nodes[nodes.length - 1] : nodes[0];
+      if (!node) continue;
+      const box = node.getBoundingClientRect();
+      this.sectionBoxes[key] = { top: box.top - origin.top, left: box.left - origin.left,
+        width: box.width, height: box.height };
+    }
+    this.pageHeightPx = measureRenderSurface(doc, mmToPx(this.template.page.height), this.template.page.dynamicHeight);
+    this.observations = inspectDesignerSurface(doc, this.template, this.validation?.pagination$.value?.resourcesReady ?? false);
+    this.inspected = undefined;
+    this.surfaceReady = true;
+    this.cdr.markForCheck();
+  }
+
   @ViewChild('scrollArea') scrollArea!: ElementRef<HTMLDivElement>;
 
   template!: ReportTemplate;
@@ -156,6 +226,8 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
   // Drag/resize state
   dragState: DragState | MultiDragState | null = null;
 
+  private moveResult?: { section: SectionKey; updates: Array<{ id: string; position: { x: number; y: number } }> };
+
   // Marquee selection state
   marqueeState: MarqueeState | null = null;
 
@@ -177,12 +249,28 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
   ) {}
 
   ngOnInit(): void {
+    this.validation?.pending$.pipe(takeUntil(this.destroy$)).subscribe(pending => {
+      if (pending && !this.gestureBoxes) {
+        ++this.surfaceVersion;
+        this.surfaceReady = false;
+        this.cdr.markForCheck();
+      }
+    });
+    this.validation?.surface$.pipe(takeUntil(this.destroy$)).subscribe(html => {
+      ++this.surfaceVersion;
+      // Only our controlled renderer output enters this sandboxed document.
+      this.surfaceHtml = this.sanitizer.bypassSecurityTrustHtml(html);
+      this.surfaceReady = false;
+      this.cdr.markForCheck();
+    });
     // Split subscriptions so high-frequency selection updates (during marquee)
     // don't re-run the page-dimension recompute. Each stream only drives the
     // state it actually owns, then calls markForCheck once.
     this.templateState.template$
       .pipe(takeUntil(this.destroy$))
       .subscribe(template => {
+        ++this.surfaceVersion;
+        this.surfaceReady = false;
         this.template = template;
         this.computeDimensions();
         this.cdr.markForCheck();
@@ -221,6 +309,9 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnDestroy(): void {
+    ++this.surfaceVersion;
+    ++this.draftVersion;
+    this.draftFrame?.remove();
     if (this.dragState) this.validation?.endInteraction();
     if (this.wheelHandler && this.scrollArea?.nativeElement) {
       this.scrollArea.nativeElement.removeEventListener('wheel', this.wheelHandler);
@@ -268,7 +359,8 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
   private processMouseMove(event: MouseEvent): void {
     // ─── Marquee drag ───
     if (this.marqueeState) {
-      const rect = this.marqueeState.sectionBodyRect;
+      const index = ['header', 'detail', 'footer'].indexOf(this.marqueeState.section);
+      const rect = this.canvasPage.nativeElement.querySelectorAll('.section-body')[index].getBoundingClientRect();
       this.marqueeState.currentXMm = pxToMm((event.clientX - rect.left) / this.zoom);
       this.marqueeState.currentYMm = pxToMm((event.clientY - rect.top) / this.zoom);
 
@@ -289,39 +381,20 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (!this.dragState) return;
 
+    if (!this.interactionStarted) {
+      this.interactionStarted = true;
+      this.validation?.beginInteraction();
+    }
+
     const dx = event.clientX - this.dragState.startMouseX;
     const dy = event.clientY - this.dragState.startMouseY;
 
-    if (this.dragState.type === 'move') {
-      const state = this.dragState as DragState;
-      const proposedX = state.startElX + pxToMm(dx / this.zoom);
-      const proposedY = state.startElY + pxToMm(dy / this.zoom);
-      const snap = computeSnap(
-        { x: proposedX, y: proposedY }, state.cachedSize,
-        state.snapCandidates, this.snapSettings.thresholdMm,
-        this.gridSizeMm, this.snapSettings.snapToGrid
-      );
-      this.activeSnapLines = snap.snapLines;
-      state.currentDx = mmToPx(snap.x - state.startElX) * this.zoom;
-      state.currentDy = mmToPx(snap.y - state.startElY) * this.zoom;
-    } else if (this.dragState.type === 'multi-move') {
-      const state = this.dragState;
-      state.currentDx = dx;
-      state.currentDy = dy;
-      const startPos = state.startPositions.get(state.anchorElementId);
-      if (startPos) {
-        const proposedX = startPos.x + pxToMm(dx / this.zoom);
-        const proposedY = startPos.y + pxToMm(dy / this.zoom);
-        const snap = computeSnap(
-          { x: proposedX, y: proposedY }, state.anchorSize,
-          state.snapCandidates, this.snapSettings.thresholdMm,
-          this.gridSizeMm, this.snapSettings.snapToGrid
-        );
-        this.activeSnapLines = snap.snapLines;
-      }
-    } else if (this.dragState.type === 'resize') {
+    if (this.dragState.type === 'resize') {
       this.applyResizeDelta(dx, dy);
+    } else {
+      this.previewMove(dx, dy);
     }
+    void this.previewRenderedElements();
 
     // Only trigger CD; no observable updates, so no need to enter the zone.
     this.cdr.markForCheck();
@@ -329,6 +402,10 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private onDocumentMouseUp(event: MouseEvent): void {
     if (!this.marqueeState && !this.dragState) return;
+
+    if (this.pendingMouseEvent) this.processMouseMove(this.pendingMouseEvent);
+    if (this.dragState && (Math.abs(event.clientX - this.dragState.startMouseX) >= 1 ||
+        Math.abs(event.clientY - this.dragState.startMouseY) >= 1)) this.processMouseMove(event);
 
     // Cancel any pending rAF tick to avoid stale state writes after teardown.
     if (this.rafHandle !== null) {
@@ -361,11 +438,36 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
         this.commitResize();
       }
 
+      ++this.draftVersion;
+      this.draftFrame?.remove();
+      this.draftFrame = undefined;
+      this.gestureBoxes = undefined;
       this.dragState = null;
+      this.moveResult = undefined;
       this.validation?.endInteraction();
+      this.interactionStarted = false;
       this.activeSnapLines = [];
       this.cdr.markForCheck();
     });
+  }
+
+  private cancelGesture(): void {
+    if (!this.dragState && !this.marqueeState) return;
+    const hadInteraction = this.interactionStarted;
+    ++this.draftVersion;
+    this.draftFrame?.remove();
+    this.draftFrame = undefined;
+    this.dragState = null;
+    this.moveResult = undefined;
+    this.gestureBoxes = undefined;
+    this.marqueeState = null;
+    this.activeSnapLines = [];
+    if (hadInteraction) {
+      this.surfaceReady = false;
+      this.validation?.endInteraction();
+    }
+    this.interactionStarted = false;
+    this.cdr.markForCheck();
   }
 
   // ─── Keyboard shortcuts ───
@@ -376,10 +478,17 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
     const tag = target.tagName.toLowerCase();
     const isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
 
+    if (!isInput && event.key === 'Escape' && (this.dragState || this.marqueeState)) {
+      event.preventDefault();
+      this.cancelGesture();
+      return;
+    }
+
     // Ctrl+Z / Cmd+Z → Undo
     if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
       if (!isInput) {
         event.preventDefault();
+        this.cancelGesture();
         this.templateState.undo();
         this.cdr.markForCheck();
         return;
@@ -394,6 +503,7 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
     ) {
       if (!isInput) {
         event.preventDefault();
+        this.cancelGesture();
         this.templateState.redo();
         this.cdr.markForCheck();
         return;
@@ -602,7 +712,11 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
   }): void {
     const el = this.templateState.getElement(event.section as any, event.elementId);
     if (!el || el.locked) return;
-    this.validation?.beginInteraction();
+    this.gesturePageOrigin = this.canvasPage.nativeElement.getBoundingClientRect();
+    this.gestureMessage = '';
+    this.gestureBoxes = structuredClone(this.sectionBoxes);
+    this.moveResult = undefined;
+    this.interactionStarted = false;
 
     const isResize = !!event.handle;
 
@@ -670,11 +784,11 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!this.dragState) return '';
     // Multi-move: same transform for all selected elements
     if (this.dragState.type === 'multi-move' && this.dragState.startPositions.has(elementId)) {
-      return `translate(${this.dragState.currentDx}px, ${this.dragState.currentDy}px)`;
+      return `translate(${this.dragState.currentDx / this.zoom}px, ${this.dragState.currentDy / this.zoom}px)`;
     }
     // Single move
     if (this.dragState.type === 'move' && (this.dragState as DragState).elementId === elementId) {
-      return `translate(${this.dragState.currentDx}px, ${this.dragState.currentDy}px)`;
+      return `translate(${this.dragState.currentDx / this.zoom}px, ${this.dragState.currentDy / this.zoom}px)`;
     }
     return '';
   }
@@ -707,253 +821,194 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
 
   // ─── Resize delta calculation ───
 
-  private applyResizeDelta(dx: number, dy: number): void {
-    if (!this.dragState || this.dragState.type !== 'resize') return;
-    const state = this.dragState as DragState;
-
-    const handle = state.resizeHandle || 'se';
-    const startW = mmToPx(state.startElWidth);
-    const startH = mmToPx(state.startElHeight);
-    const minSize = mmToPx(2); // minimum 2mm
-
-    // Compensate for zoom: mouse deltas are in screen pixels,
-    // but element dimensions are in canvas (unzoomed) pixels
-    const zoomedDx = dx / this.zoom;
-    const zoomedDy = dy / this.zoom;
-
-    let newW = startW;
-    let newH = startH;
-    let offsetDx = 0;
-    let offsetDy = 0;
-
-    // Right edge
-    if (handle.includes('e')) {
-      newW = Math.max(minSize, startW + zoomedDx);
-    }
-    // Left edge
-    if (handle.includes('w')) {
-      newW = Math.max(minSize, startW - zoomedDx);
-      offsetDx = startW - newW; // shift position
-    }
-    // Bottom edge
-    if (handle.includes('s')) {
-      newH = Math.max(minSize, startH + zoomedDy);
-    }
-    // Top edge
-    if (handle.includes('n')) {
-      newH = Math.max(minSize, startH - zoomedDy);
-      offsetDy = startH - newH;
-    }
-
-    state.currentWidth = newW;
-    state.currentHeight = newH;
-    state.currentDx = offsetDx;
-    state.currentDy = offsetDy;
+  private sectionBox(section: SectionKey): { top: number; left: number; width: number; height: number } {
+    return this.gestureBoxes?.[section] ?? this.sectionBoxes[section] ?? {
+      top: mmToPx(this.template.page.margins.top),
+      left: mmToPx(this.template.page.margins.left),
+      width: this.contentWidthPx, height: this.getSectionHeightPx(section)
+    };
   }
 
-  // ─── Section-offset helpers (for cross-section drag) ───
-
-  /**
-   * Vertical offset (in mm) of the top edge of a section measured from
-   * the top of the content stack (header.top = 0).
-   */
   private getSectionOffsetMm(section: SectionKey): number {
-    const s = this.template.sections;
-    switch (section) {
-      case 'header': return 0;
-      case 'detail': return s.header.height;
-      case 'footer': return s.header.height + s.detail.height;
+    return pxToMm(this.sectionBox(section).top);
+  }
+
+  private resolveTargetSection(pageY: number): { section: SectionKey; localY: number } {
+    const keys: SectionKey[] = ['header', 'detail', 'footer'];
+    let section: SectionKey = 'header';
+    for (const key of keys) {
+      if (pageY >= this.getSectionOffsetMm(key)) section = key;
+    }
+    return { section, localY: pageY - this.getSectionOffsetMm(section) };
+  }
+
+  private pageGuides(lines: SnapLine[], section: SectionKey): void {
+    this.guideSection = section;
+    this.localGuides = lines;
+    const box = this.sectionBox(section);
+    this.activeSnapLines = lines.map(line => ({ ...line, position: line.position +
+      pxToMm(line.orientation === 'horizontal' ? box.top : box.left) }));
+  }
+
+  private previewMove(screenDx: number, screenDy: number): void {
+    const state = this.dragState;
+    if (!state || state.type === 'resize') return;
+    const positions = state.type === 'multi-move' ? state.startPositions :
+      new Map([[state.elementId, { x: state.startElX, y: state.startElY }]]);
+    const anchorId = state.type === 'multi-move' ? state.anchorElementId : state.elementId;
+    const anchor = positions.get(anchorId)!;
+    const source = this.sectionBox(state.section);
+    const pageY = pxToMm(source.top) + anchor.y + pxToMm(screenDy / this.zoom);
+    const target = this.resolveTargetSection(pageY);
+    const destination = this.sectionBox(target.section);
+    const proposed = { x: anchor.x + pxToMm((source.left - destination.left) + screenDx / this.zoom),
+      y: target.localY };
+    const candidates = collectSnapCandidates(this.getSectionElements(target.section),
+      new Set(positions.keys()), this.snapSettings);
+    const element = this.templateState.getElement(state.section, anchorId)!;
+    const snapped = computeSnap(proposed, element.size, candidates, this.snapSettings.thresholdMm,
+      this.gridSizeMm, this.snapSettings.snapToGrid);
+    let dx = snapped.x - anchor.x;
+    let dy = snapped.y - anchor.y;
+    const elements = Array.from(positions, ([id, position]) => ({
+      id, position, size: this.templateState.getElement(state.section, id)!.size
+    }));
+    const minX = Math.min(...elements.map(el => el.position.x));
+    const minY = Math.min(...elements.map(el => el.position.y));
+    const maxX = Math.max(...elements.map(el => el.position.x + el.size.width));
+    const maxY = Math.max(...elements.map(el => el.position.y + el.size.height));
+    dx = Math.max(-minX, Math.min(dx, Math.max(0, pxToMm(destination.width) - maxX)));
+    dy = Math.max(-minY, Math.min(dy, Math.max(0, pxToMm(destination.height) - maxY)));
+    this.pageGuides(snapped.snapLines.filter(line => line.orientation === 'vertical' ?
+      dx === snapped.x - anchor.x : dy === snapped.y - anchor.y), target.section);
+    this.moveResult = { section: target.section, updates: elements.map(el => ({
+      id: el.id, position: { x: el.position.x + dx, y: el.position.y + dy }
+    })) };
+    state.currentDx = (destination.left - source.left + mmToPx(dx)) * this.zoom;
+    state.currentDy = (destination.top - source.top + mmToPx(dy)) * this.zoom;
+  }
+
+  private applyResizeDelta(screenDx: number, screenDy: number): void {
+    const state = this.dragState;
+    if (!state || state.type !== 'resize') return;
+    const handle = state.resizeHandle || 'se';
+    const box = this.sectionBox(state.section);
+    const startRight = state.startElX + state.startElWidth;
+    const startBottom = state.startElY + state.startElHeight;
+    let left = state.startElX, top = state.startElY;
+    let right = startRight, bottom = startBottom;
+    const movingX = handle.includes('w') ? left + pxToMm(screenDx / this.zoom) :
+      right + pxToMm(screenDx / this.zoom);
+    const movingY = handle.includes('n') ? top + pxToMm(screenDy / this.zoom) :
+      bottom + pxToMm(screenDy / this.zoom);
+    const snap = computeSnap({ x: movingX, y: movingY }, { width: 0, height: 0 },
+      state.snapCandidates, this.snapSettings.thresholdMm, this.gridSizeMm, this.snapSettings.snapToGrid);
+    if (handle.includes('w')) left = Math.max(0, Math.min(startRight - 2, snap.x));
+    if (handle.includes('e')) right = Math.max(left + 2, Math.min(pxToMm(box.width), snap.x));
+    if (handle.includes('n')) top = Math.max(0, Math.min(startBottom - 2, snap.y));
+    if (handle.includes('s')) bottom = Math.max(top + 2, Math.min(pxToMm(box.height), snap.y));
+    this.pageGuides(snap.snapLines.filter(line => line.orientation === 'vertical' ?
+      (handle.includes('w') || handle.includes('e')) && snap.x === (handle.includes('w') ? left : right) :
+      (handle.includes('n') || handle.includes('s')) && snap.y === (handle.includes('n') ? top : bottom)),
+      state.section);
+    state.currentWidth = mmToPx(right - left);
+    state.currentHeight = mmToPx(bottom - top);
+    state.currentDx = mmToPx(left - state.startElX);
+    state.currentDy = mmToPx(top - state.startElY);
+  }
+
+  /** Compose a transient template with the same renderer, including detail reflow and pagination. */
+  private async previewRenderedElements(): Promise<void> {
+    const state = this.dragState;
+    if (!state || !this.validation) return;
+    const version = ++this.draftVersion;
+    this.draftFrame?.remove();
+    const draft = structuredClone(this.template);
+    if (state.type === 'resize') {
+      const element = draft.sections[state.section].elements.find(el => el.id === state.elementId)!;
+      element.position = { x: state.startElX + pxToMm(state.currentDx), y: state.startElY + pxToMm(state.currentDy) };
+      element.size = { width: pxToMm(state.currentWidth), height: pxToMm(state.currentHeight) };
+    } else if (this.moveResult) {
+      for (const update of this.moveResult.updates) {
+        const source = draft.sections[state.section];
+        const element = source.elements.find(el => el.id === update.id)!;
+        element.position = update.position;
+        if (state.section !== this.moveResult.section) {
+          source.elements = source.elements.filter(el => el.id !== update.id);
+          draft.sections[this.moveResult.section].elements.push(element);
+        }
+      }
+    }
+    const data = this.validation.data(draft);
+    const artifact = this.renderer.renderWithEvidence(draft, data, true);
+    const frame = document.createElement('iframe');
+    frame.setAttribute('sandbox', 'allow-same-origin');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.cssText = 'position:fixed;left:-20000px;top:0;border:0;width:' + this.pageWidthPx + 'px;height:1000px';
+    document.body.append(frame);
+    this.draftFrame = frame;
+    try {
+      const doc = frame.contentDocument!;
+      doc.open(); doc.write(artifact.html); doc.close();
+      const prepared = await prepareBrowserPrint(doc, draft, buildValidationContext(draft.compliance, data),
+        artifact.evidence, () => version === this.draftVersion && this.dragState === state);
+      const visible = this.renderFrame?.nativeElement.contentDocument;
+      if (!prepared || !visible || version !== this.draftVersion) return;
+      visible.open(); visible.write('<!DOCTYPE html>\n' + doc.documentElement.outerHTML); visible.close();
+      const page = doc.querySelector<HTMLElement>('body > .page')!;
+      const origin = page.getBoundingClientRect();
+      const id = state.type === 'multi-move' ? state.anchorElementId : state.elementId;
+      const nodes = Array.from(doc.querySelectorAll<HTMLElement>('[data-render-element]'))
+        .filter(node => node.dataset['renderElement'] === id);
+      const targetSection = state.type === 'resize' ? state.section : this.moveResult?.section;
+      const node = targetSection === 'footer' ? nodes[nodes.length - 1] : nodes[0];
+      if (node && state.type !== 'resize') {
+        const original = this.template.sections[state.section].elements.find(el => el.id === id)!;
+        const box = node.getBoundingClientRect();
+        const source = this.sectionBox(state.section);
+        state.currentDx = (box.left - origin.left - source.left - mmToPx(original.position.x)) * this.zoom;
+        state.currentDy = (box.top - origin.top - source.top - mmToPx(original.position.y)) * this.zoom;
+      }
+      const sections = Array.from(doc.querySelectorAll<HTMLElement>('.section-' + this.guideSection));
+      const guideNode = this.guideSection === 'footer' ? sections[sections.length - 1] : sections[0];
+      if (guideNode) {
+        const guideBox = guideNode.getBoundingClientRect();
+        this.activeSnapLines = this.localGuides.map(line => ({ ...line,
+          position: line.position + pxToMm(line.orientation === 'horizontal' ?
+            guideBox.top - origin.top : guideBox.left - origin.left) }));
+      }
+      this.cdr.markForCheck();
+    } catch {
+      if (version === this.draftVersion) {
+        this.gestureMessage = 'No se pudo actualizar la composición durante el gesto.';
+        this.cdr.markForCheck();
+      }
+    } finally {
+      frame.remove();
+      if (this.draftFrame === frame) this.draftFrame = undefined;
     }
   }
 
-  /**
-   * Given an absolute Y (mm from the top of the content stack), return
-   * which section owns that Y and the Y rebased to that section's local
-   * origin. The absoluteY is clamped to [0, totalStackHeight) so an
-   * element dragged far above/below always lands in a valid section.
-   */
-  private resolveTargetSection(absoluteYmm: number): {
-    section: SectionKey;
-    localY: number;
-  } {
-    const s = this.template.sections;
-    const hH = s.header.height;
-    const hD = s.detail.height;
-    const hF = s.footer.height;
-    const total = hH + hD + hF;
+  private commitMove(): void { this.commitMovingElements(); }
 
-    // Clamp inside the full stack (epsilon keeps footer reachable)
-    const y = Math.max(0, Math.min(total - 0.001, absoluteYmm));
+  private commitMultiMove(): void { this.commitMovingElements(); }
 
-    if (y < hH) return { section: 'header', localY: y };
-    if (y < hH + hD) return { section: 'detail', localY: y - hH };
-    return { section: 'footer', localY: y - hH - hD };
+  private commitMovingElements(): void {
+    const state = this.dragState;
+    if (!state || !this.moveResult) return;
+    this.templateState.moveMultipleElementsToSection(state.section, this.moveResult.section, this.moveResult.updates);
+    this.selectionService.selectMultiple(this.moveResult.updates.map(update => update.id), this.moveResult.section);
   }
-
-  // ─── Commit move to state ───
-
-  private commitMove(): void {
-    if (!this.dragState || this.dragState.type !== 'move') return;
-    const state = this.dragState as DragState;
-
-    const dx = state.currentDx;
-    const dy = state.currentDy;
-
-    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return; // no meaningful move
-
-    const el = this.templateState.getElement(state.section as any, state.elementId);
-
-    // X: clamp to [0, pageWidth - elementWidth]
-    const pageW = this.template.page.width;
-    const elW = el?.size.width ?? 0;
-    const elH = el?.size.height ?? 0;
-    const maxX = Math.max(0, pageW - elW);
-    const proposedX = state.startElX + pxToMm(dx / this.zoom);
-    const newX = Math.max(0, Math.min(maxX, proposedX));
-
-    // Y: compute absolute page-Y, resolve target section, rebase.
-    const proposedLocalY = state.startElY + pxToMm(dy / this.zoom);
-    const absoluteY = this.getSectionOffsetMm(state.section) + proposedLocalY;
-    const { section: targetSection, localY } = this.resolveTargetSection(absoluteY);
-
-    // Clamp Y inside the destination section
-    const sectionH = this.template.sections[targetSection].height;
-    const maxLocalY = Math.max(0, sectionH - elH);
-    const newY = Math.max(0, Math.min(maxLocalY, localY));
-
-    if (targetSection === state.section) {
-      this.templateState.updateElement(
-        state.section as any,
-        state.elementId,
-        { position: { x: newX, y: newY } } as any
-      );
-    } else {
-      this.templateState.moveElementToSection(
-        state.section as any,
-        targetSection as any,
-        state.elementId,
-        { x: newX, y: newY }
-      );
-      // Re-select in the destination section so the Properties panel
-      // and active-section tracking stay in sync.
-      this.selectionService.select(state.elementId, targetSection);
-    }
-  }
-
-  // ─── Commit multi-move to state ───
-
-  private commitMultiMove(): void {
-    if (!this.dragState || this.dragState.type !== 'multi-move') return;
-
-    const dx = this.dragState.currentDx;
-    const dy = this.dragState.currentDy;
-    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
-
-    // Compute snap delta from anchor element (reuse candidates cached at drag start)
-    let snapDeltaX = 0;
-    let snapDeltaY = 0;
-    const startPos = this.dragState.startPositions.get(this.dragState.anchorElementId);
-    if (startPos) {
-      const proposedX = startPos.x + pxToMm(dx / this.zoom);
-      const proposedY = startPos.y + pxToMm(dy / this.zoom);
-      const snap = computeSnap(
-        { x: proposedX, y: proposedY }, this.dragState.anchorSize,
-        this.dragState.snapCandidates, this.snapSettings.thresholdMm,
-        this.gridSizeMm, this.snapSettings.snapToGrid
-      );
-      snapDeltaX = snap.x - proposedX;
-      snapDeltaY = snap.y - proposedY;
-    }
-
-    // Determine destination section from the anchor's absolute y
-    const anchorStart = this.dragState.startPositions.get(this.dragState.anchorElementId);
-    let targetSection: SectionKey = this.dragState.section;
-    let sectionDeltaMm = 0;
-    if (anchorStart) {
-      const anchorNewLocalY = anchorStart.y + pxToMm(dy / this.zoom) + snapDeltaY;
-      const anchorAbsY = this.getSectionOffsetMm(this.dragState.section) + anchorNewLocalY;
-      const resolved = this.resolveTargetSection(anchorAbsY);
-      targetSection = resolved.section;
-      // Offset to rebase every element's local y from origin→destination
-      sectionDeltaMm =
-        this.getSectionOffsetMm(this.dragState.section) -
-        this.getSectionOffsetMm(targetSection);
-    }
-
-    const pageW = this.template.page.width;
-    const targetH = this.template.sections[targetSection].height;
-    const updates: Array<{ id: string; position: { x: number; y: number } }> = [];
-
-    this.dragState.startPositions.forEach((sp, id) => {
-      const el = this.templateState.getElement(this.dragState!.section as any, id);
-      const elW = el?.size.width ?? 0;
-      const elH = el?.size.height ?? 0;
-
-      let newX = sp.x + pxToMm(dx / this.zoom) + snapDeltaX;
-      let newY = sp.y + pxToMm(dy / this.zoom) + snapDeltaY + sectionDeltaMm;
-
-      newX = Math.max(0, Math.min(Math.max(0, pageW - elW), newX));
-      newY = Math.max(0, Math.min(Math.max(0, targetH - elH), newY));
-      updates.push({ id, position: { x: newX, y: newY } });
-    });
-
-    this.templateState.moveMultipleElementsToSection(
-      this.dragState.section as any,
-      targetSection as any,
-      updates
-    );
-
-    if (targetSection !== this.dragState.section) {
-      this.selectionService.selectMultiple(
-        updates.map(u => u.id),
-        targetSection
-      );
-    }
-  }
-
-  // ─── Commit resize to state ───
 
   private commitResize(): void {
-    if (!this.dragState || this.dragState.type !== 'resize') return;
-    const state = this.dragState as DragState;
-
-    // currentWidth/Height and currentDx/Dy are already zoom-compensated
-    // (zoom was applied in applyResizeDelta), so convert px→mm directly
-    let newWidth = pxToMm(state.currentWidth);
-    let newHeight = pxToMm(state.currentHeight);
-    let newX = state.startElX + pxToMm(state.currentDx);
-    let newY = state.startElY + pxToMm(state.currentDy);
-
-    // Apply snap to the resulting edges (use cached candidates from drag start)
-    const candidates = state.snapCandidates;
-    const snap = computeSnap(
-      { x: newX, y: newY },
-      { width: newWidth, height: newHeight },
-      candidates, this.snapSettings.thresholdMm,
-      this.gridSizeMm, this.snapSettings.snapToGrid
-    );
-    newX = snap.x;
-    newY = snap.y;
-
-    // Also snap width/height to grid if grid snap is active
-    if (this.snapSettings.snapToGrid) {
-      newWidth = snapToGrid(newWidth, this.gridSizeMm);
-      newHeight = snapToGrid(newHeight, this.gridSizeMm);
-    }
-
-    newWidth = Math.max(2, newWidth);
-    newHeight = Math.max(2, newHeight);
-    newX = Math.max(0, newX);
-    newY = Math.max(0, newY);
-
-    this.templateState.updateElement(
-      state.section as any,
-      state.elementId,
-      {
-        position: { x: newX, y: newY },
-        size: { width: newWidth, height: newHeight }
-      } as any
-    );
+    const state = this.dragState;
+    if (!state || state.type !== 'resize') return;
+    if (state.currentDx === 0 && state.currentDy === 0 &&
+        state.currentWidth === mmToPx(state.startElWidth) && state.currentHeight === mmToPx(state.startElHeight)) return;
+    this.templateState.updateElement(state.section, state.elementId, {
+      position: { x: state.startElX + pxToMm(state.currentDx), y: state.startElY + pxToMm(state.currentDy) },
+      size: { width: pxToMm(state.currentWidth), height: pxToMm(state.currentHeight) }
+    });
   }
 
   // ─── Toolbox drop ───
@@ -1012,6 +1067,7 @@ export class DesignCanvasComponent implements OnInit, OnDestroy, AfterViewInit {
    * Zooms centered on the cursor position so the point under the cursor stays fixed.
    */
   private onWheel(e: WheelEvent): void {
+    if (this.dragState && e.ctrlKey) { e.preventDefault(); return; }
     // Only zoom when Ctrl/Meta is held (browser sends ctrlKey=true for pinch gestures too)
     if (!e.ctrlKey && !e.metaKey) return;
 

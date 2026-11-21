@@ -1,3 +1,4 @@
+import { measureRenderSurface } from '../../utils/measure-render-surface';
 import { inject } from '@angular/core';
 import { ValidationSessionService } from '../../services/validation-session.service';
 /**
@@ -226,7 +227,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
     this.previewReady = prepared.resourcesReady;
     this.paginationPending = prepared.paginationPending;
     this.preparedPages = Array.from(doc.querySelectorAll('body > .page'));
-    this.pageHeightPx = mmToPx(template.page.height) * prepared.pages;
+    this.pageHeightPx = measureRenderSurface(doc, mmToPx(template.page.height), template.page.dynamicHeight);
     if (doc.querySelector('[data-render-page]')) this.paginatedHtml = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
     this.renderedReport = prepared.report;
     this.feedback = buildValidationFeedback(context, prepared.report, snapshot, this.currentSnapshot());

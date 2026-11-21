@@ -1,3 +1,4 @@
+import { mmToPx } from '../utils/coordinate-utils';
 import { DOCUMENT } from '@angular/common';
 import { Inject, Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, combineLatest, Subscription } from 'rxjs';
@@ -20,6 +21,8 @@ export class ValidationSessionService implements OnDestroy {
   readonly scenario$ = new BehaviorSubject<ScenarioMode>('single');
   readonly report$ = new BehaviorSubject<RenderedFiscalReport | undefined>(undefined);
   readonly feedback$ = new BehaviorSubject<ValidationFeedback | undefined>(undefined);
+  readonly pagination$ = new BehaviorSubject<{ pages: number; pending?: string; resourcesReady: boolean } | undefined>(undefined);
+  readonly surface$ = new BehaviorSubject<string>('');
   readonly pending$ = new BehaviorSubject(true);
   private imported?: InvoiceData;
   get hasImportedScenario(): boolean { return this.imported !== undefined; }
@@ -78,7 +81,7 @@ export class ValidationSessionService implements OnDestroy {
     const artifact = this.renderer.renderWithEvidence(template, data, true);
     const frame = this.document.createElement('iframe');
     frame.setAttribute('sandbox', 'allow-same-origin'); frame.setAttribute('aria-hidden', 'true'); frame.tabIndex = -1;
-    frame.style.cssText = 'position:fixed;left:-20000px;top:0;width:1500px;height:1000px;border:0;pointer-events:none';
+    frame.style.cssText = 'position:fixed;left:-20000px;top:0;width:' + mmToPx(template.page.width) + 'px;height:1000px;border:0;pointer-events:none';
     this.document.body.append(frame); this.frame = frame;
     try {
       const doc = frame.contentDocument;
@@ -89,6 +92,8 @@ export class ValidationSessionService implements OnDestroy {
         () => version === this.generation && frame.isConnected && artifact.inputSnapshot ===
           JSON.stringify({ template: this.state.getCurrentTemplate(), data: this.data() }));
       if (prepared && version === this.generation) {
+        this.pagination$.next({ pages: prepared.pages, pending: prepared.paginationPending, resourcesReady: prepared.resourcesReady });
+        this.surface$.next('<!DOCTYPE html>\n' + doc.documentElement.outerHTML);
         this.report$.next(prepared.report);
         this.feedback$.next(buildValidationFeedback(context, prepared.report, artifact.inputSnapshot,
           JSON.stringify({ template: this.state.getCurrentTemplate(), data: this.data() })));
