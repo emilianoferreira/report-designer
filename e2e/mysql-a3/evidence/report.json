@@ -1,0 +1,60 @@
+{
+  "passed": true,
+  "reference": "c9cc53cbf523548a01976dacb3473e96d7144d0b",
+  "main": "0c9e5d64cfe298fa6bd92ec31328a9d20d82a009",
+  "database": "a3_c3a5d36e652647b2ad067f22eaefbcf6",
+  "image": "mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902",
+  "checks": [],
+  "postgres": "PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit",
+  "imageId": "sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902",
+  "provider": {
+    "passed": true,
+    "checks": [
+      "MySQL 8.4.13",
+      "TLS with verified CA",
+      "UUID through EF",
+      "decimal scale and negative amount through EF",
+      "UTC microseconds through EF",
+      "tags preserve duplicates order and null",
+      "SQL NULL remains distinct from empty array",
+      "empty array remains distinct from SQL NULL",
+      "comparison detects precision loss without double conversion",
+      "rollback from independent read",
+      "second independent connection actually blocks on row lock",
+      "same revision: exactly one write and one conflict",
+      "committed revision visible through EF",
+      "legacy unconditional write accepted",
+      "legacy unconditional write accepted",
+      "legacy updates advance revision without rejecting stale intent",
+      "TLS rejects unrelated trust anchor"
+    ],
+    "runtime": "10.0.14",
+    "provider": [
+      "System.Runtime, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+      "System.Text.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51",
+      "System.Collections, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+      "System.Runtime.Numerics, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+      "System.Data.Common, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+      "System.Linq.Expressions, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+      "Microsoft.EntityFrameworkCore, Version=10.0.12.0, Culture=neutral, PublicKeyToken=adb9793829ddae60",
+      "MySql.Data, Version=26.10.0.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d",
+      "System.Security.Cryptography, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+      "System.Linq, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+      "Microsoft.EntityFrameworkCore.Relational, Version=10.0.12.0, Culture=neutral, PublicKeyToken=adb9793829ddae60",
+      "System.Text.RegularExpressions, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
+      "MySql.EntityFrameworkCore, Version=26.10.0.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d",
+      "System.Console, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"
+    ]
+  },
+  "storage": {
+    "native": {
+      "requiredFailures": [
+        "exact-number"
+      ]
+    },
+    "text": {
+      "requiredFailures": []
+    }
+  },
+  "cleanup": "owned container and anonymous volumes removed; temporary PostgreSQL stopped and retained"
+}

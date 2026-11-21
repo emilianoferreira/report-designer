@@ -1,0 +1,514 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Report Designer — Label printing",
+    "version": "1.0.0",
+    "description": "Own API contract, not a Zureo API. Demo fixtures only until a documented real adapter exists. IDs are opaque strings. Company always comes from authenticated session."
+  },
+  "security": [
+    {
+      "session": []
+    }
+  ],
+  "paths": {
+    "/api/label-print/context": {
+      "get": {
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Context"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request/cursor. Binding errors use ASP.NET validation ProblemDetails; application errors use statusCode/code/message."
+          },
+          "401": {
+            "description": "Session missing, expired or revoked"
+          },
+          "403": {
+            "description": "Role or CSRF denied"
+          },
+          "404": {
+            "description": "List unavailable in authenticated company"
+          },
+          "503": {
+            "description": "Provider disabled/unavailable"
+          }
+        }
+      }
+    },
+    "/api/label-print/price-lists": {
+      "get": {
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request/cursor. Binding errors use ASP.NET validation ProblemDetails; application errors use statusCode/code/message."
+          },
+          "401": {
+            "description": "Session missing, expired or revoked"
+          },
+          "403": {
+            "description": "Role or CSRF denied"
+          },
+          "404": {
+            "description": "List unavailable in authenticated company"
+          },
+          "503": {
+            "description": "Provider disabled/unavailable"
+          }
+        }
+      }
+    },
+    "/api/label-print/articles": {
+      "get": {
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "priceListId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "minLength": 1
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArticlePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request/cursor. Binding errors use ASP.NET validation ProblemDetails; application errors use statusCode/code/message."
+          },
+          "401": {
+            "description": "Session missing, expired or revoked"
+          },
+          "403": {
+            "description": "Role or CSRF denied"
+          },
+          "404": {
+            "description": "List unavailable in authenticated company"
+          },
+          "503": {
+            "description": "Provider disabled/unavailable"
+          }
+        }
+      }
+    },
+    "/api/label-print/resolve": {
+      "post": {
+        "description": "Read-only batch resolution. Requires CSRF even for viewer. Never persists a print batch or changes templates.",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request/cursor. Binding errors use ASP.NET validation ProblemDetails; application errors use statusCode/code/message."
+          },
+          "401": {
+            "description": "Session missing, expired or revoked"
+          },
+          "403": {
+            "description": "Role or CSRF denied"
+          },
+          "404": {
+            "description": "List unavailable in authenticated company"
+          },
+          "413": {
+            "description": "Body exceeds 32768 bytes"
+          },
+          "503": {
+            "description": "Provider disabled/unavailable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "rd_session"
+      }
+    },
+    "schemas": {
+      "Company": {
+        "type": "object",
+        "required": [
+          "name",
+          "logo"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "logo": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Context": {
+        "type": "object",
+        "required": [
+          "mode",
+          "available",
+          "company"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "demo",
+              "disabled"
+            ]
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "company": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Company"
+              }
+            ],
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PriceList": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Article": {
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "barcode",
+          "image"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "barcode": {
+            "type": "string",
+            "nullable": true
+          },
+          "image": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Price": {
+        "type": "object",
+        "required": [
+          "status",
+          "amount",
+          "currencyCode",
+          "currencySymbol",
+          "taxTreatment"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "missing",
+              "invalid"
+            ]
+          },
+          "amount": {
+            "type": "string",
+            "nullable": true,
+            "description": "Canonical decimal text; null means absent, zero is valid."
+          },
+          "currencyCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "currencySymbol": {
+            "type": "string",
+            "nullable": true
+          },
+          "taxTreatment": {
+            "type": "string",
+            "enum": [
+              "included",
+              "excluded",
+              "exempt",
+              "unknown"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolvedArticle": {
+        "type": "object",
+        "required": [
+          "articleId",
+          "status",
+          "article",
+          "price"
+        ],
+        "properties": {
+          "articleId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable"
+            ]
+          },
+          "article": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Article"
+              }
+            ],
+            "type": "object"
+          },
+          "price": {
+            "$ref": "#/components/schemas/Price"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolveRequest": {
+        "type": "object",
+        "required": [
+          "priceListId",
+          "articleIds"
+        ],
+        "properties": {
+          "priceListId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "articleIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Snapshot": {
+        "type": "object",
+        "required": [
+          "mode",
+          "priceListId",
+          "resolvedAt",
+          "sourceRevision",
+          "company",
+          "items"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "demo"
+            ]
+          },
+          "priceListId": {
+            "type": "string"
+          },
+          "resolvedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sourceRevision": {
+            "type": "string",
+            "nullable": true
+          },
+          "company": {
+            "$ref": "#/components/schemas/Company"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResolvedArticle"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ListPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PriceList"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ArticlePage": {
+        "type": "object",
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResolvedArticle"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

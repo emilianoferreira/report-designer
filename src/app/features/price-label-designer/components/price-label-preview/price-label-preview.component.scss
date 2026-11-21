@@ -97,3 +97,7 @@ pre {
   font-size: 12px;
   line-height: 1.45;
 }
+
+.inactive-sheet { position: fixed; left: -100000px; visibility: hidden; pointer-events: none; }
+nav { display:flex; gap:12px; align-items:center; padding:8px; }
+section[aria-label="Diagnóstico del lote"] { max-height:220px; overflow:auto; padding:8px 16px; flex-shrink:0; }

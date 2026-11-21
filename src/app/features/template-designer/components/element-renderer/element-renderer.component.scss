@@ -277,3 +277,5 @@
 .element-wrapper:hover:not(.dragging) .element-tooltip {
   display: block;
 }
+
+.overlay-only > .element-content { visibility: hidden; }

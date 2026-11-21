@@ -127,11 +127,11 @@ const assert = require('node:assert/strict');
     await expect(page.locator('.fiscal-context')).toContainText('no es un CFE');
     await expect(page.getByRole('button', { name: 'Imprimir', exact: true })).toBeEnabled();
     await page.getByRole('button', { name: 'Render', exact: true }).click();
-    const frame = page.frameLocator('iframe');
+    const frame = page.frameLocator('iframe:not([aria-hidden="true"])');
     await expect(frame.locator('[data-render-element]').first()).toBeAttached();
     await expect(frame.locator('[data-render-source="invoiceLines.0"]')).toBeAttached();
     await expect(frame.locator('.element-rectangle')).toHaveCSS('position', 'absolute');
-    await expect(page.locator('.renderer-context summary')).toContainText('carga finalizada', { timeout: 10000 });
+    await expect(page.locator('[data-print-preparation] > summary')).toContainText('carga finalizada', { timeout: 10000 });
     // Small single-sheet fixture isolates QR checks from pagination and unrelated artwork.
     const qr = structuredClone(original.sections.header.elements.find(element => element.type === 'qrCode'));
     qr.position = { x: 6, y: 6 };
@@ -150,7 +150,7 @@ const assert = require('node:assert/strict');
       await expect(page.getByText('Validación de impresión', { exact: false })).toBeVisible();
       await page.evaluate(() => {
         window.printCalls = 0;
-        document.querySelector('iframe').contentWindow.print = () => { window.printCalls++; };
+        document.querySelector('iframe:not([aria-hidden="true"])').contentWindow.print = () => { window.printCalls++; };
       });
     };
     await openFiscalPreview();
@@ -200,7 +200,7 @@ const assert = require('node:assert/strict');
     await expect(frame.locator('[data-render-source]')).toHaveCount(5);
     await expect(sheets.nth(2)).toContainText('Cierre exclusivo');
     await expect(frame.getByText('Cierre exclusivo')).toHaveCount(1);
-    const printedHtml = await page.evaluate(() => document.querySelector('iframe').contentDocument.documentElement.outerHTML);
+    const printedHtml = await page.evaluate(() => document.querySelector('iframe:not([aria-hidden="true"])').contentDocument.documentElement.outerHTML);
     const pdfPage = await browser.newPage();
     await pdfPage.setContent(printedHtml);
     const pdf = await pdfPage.pdf({ preferCSSPageSize: true });
@@ -224,7 +224,81 @@ const assert = require('node:assert/strict');
       await page.getByText('Validación de impresión', { exact: false }).click();
       await expect(page.getByText('QR-03 · Contenido del QR · Cumple', { exact: true })).toBeVisible();
     }
+    // Designer feedback, exact selection, in-memory JSON and shared preview data.
+    const overlapA = structuredClone(footerText);
+    overlapA.id = 'layout-a'; overlapA.content = 'MMMM'; overlapA.position = { x: 5, y: 5 }; overlapA.size = { width: 40, height: 10 };
+    overlapA.style.font = { family: 'Arial', size: 16, weight: 'normal', style: 'normal', color: '#000000' };
+    const overlapB = { ...structuredClone(overlapA), id: 'layout-b' };
+    check.sections.header.elements = [overlapA, overlapB];
+    row.template_json.template = check;
+    await page.reload();
+    const panel = page.locator('app-design-validation');
+    await panel.getByLabel('Escenario de validación', { exact: true }).selectOption('fiscal-single');
+    await expect(panel).toContainText('Contenido superpuesto', { timeout: 15000 });
+    await expect(page.locator('[data-element-id="layout-a"]')).toHaveAttribute('data-validation', 'error');
+    await panel.getByRole('button', { name: 'Seleccionar layout-a', exact: true }).first().click();
+    await expect(page.locator('[data-element-id="layout-a"]')).toHaveClass(/selected/);
+    await panel.locator('input[type=file]').setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{}') });
+    await expect(panel.getByRole('alert')).toContainText('InvoiceData');
+    const imported = { invoice: {}, company: {}, invoiceLines: [], fiscal: { schemaVersion: '1.0', isCfe: true, cfeType: 182 } };
+    await panel.locator('input[type=file]').setInputFiles({ name: 'scenario.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(imported)) });
+    await expect(panel.getByLabel('Escenario de validación', { exact: true })).toHaveValue('json');
+    await expect(save).toBeDisabled();
+    await page.getByRole('button', { name: 'Vista Previa', exact: true }).click();
+    await page.getByText('Validación de impresión', { exact: false }).click();
+    await expect(page.getByText('Datos JSON importados en memoria.', { exact: false })).toBeVisible();
+    await page.getByRole('button', { name: 'Diseño', exact: true }).click();
+    await expect(page.locator('app-design-validation').getByLabel('Escenario de validación', { exact: true })).toHaveValue('json');
+    // Stage 7: real technical failures block only known fiscal browser output.
+    const stubPrint = async () => {
+      await expect(page.locator('.renderer-context summary').filter({ hasText: 'carga finalizada' })).toBeVisible();
+      await page.evaluate(() => {
+        window.printCalls = 0;
+        document.querySelector('iframe:not([aria-hidden="true"])').contentWindow.print = () => { window.printCalls++; };
+      });
+    };
+    await page.getByRole('button', { name: 'Vista Previa', exact: true }).click();
+    await stubPrint();
+    await print.click();
+    await expect(page.getByRole('alert')).toContainText('TEC-OVERLAP');
+    assert.equal(await page.evaluate(() => window.printCalls), 0);
+    // A browser finding never blocks export of unresolved Zureo directives.
+    const [exportedZureo] = await Promise.all([page.waitForEvent('download'),
+      page.getByRole('button', { name: 'HTML z-code', exact: true }).first().click()]);
+    assert.ok(exportedZureo.suggestedFilename().endsWith('template.html'));
+    for (const fiscalState of [undefined, false]) {
+      await page.getByRole('button', { name: 'Diseño', exact: true }).click();
+      const data = { invoice: {}, company: {}, invoiceLines: [], fiscal: { schemaVersion: '1.0', ...(fiscalState === undefined ? {} : { isCfe: fiscalState }) } };
+      await page.locator('app-design-validation input[type=file]').setInputFiles({ name: 'non-fiscal.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data)) });
+      await page.getByRole('button', { name: 'Vista Previa', exact: true }).click();
+      await stubPrint();
+      await print.click();
+      await expect.poll(() => page.evaluate(() => window.printCalls)).toBe(1);
+    }
+    // A clipped resolved text is a distinct confirmed technical failure.
+    const clipped = structuredClone(overlapA);
+    clipped.id = 'clipped-text'; clipped.size = { width: 2, height: 2 }; clipped.style.overflow = 'hidden';
+    check.sections.header.elements = [clipped];
+    row.template_json.template = check;
+    await openFiscalPreview();
+    await stubPrint();
+    await print.click();
+    await expect(page.getByRole('alert')).toContainText('TEC-CLIP');
+    assert.equal(await page.evaluate(() => window.printCalls), 0);
+    const potentialCover = structuredClone(original.sections.header.elements.find(element => element.type === 'rectangle'));
+    potentialCover.id = 'translucent-cover'; potentialCover.shapeType = 'rectangle';
+    potentialCover.position = { x: 5, y: 5 }; potentialCover.size = { width: 40, height: 10 };
+    potentialCover.fillColor = 'rgba(255,255,255,0.5)'; potentialCover.strokeColor = undefined; potentialCover.strokeWidth = 0; potentialCover.zIndex = 99;
+    check.sections.header.elements = [overlapA, potentialCover];
+    row.template_json.template = check;
+    await openFiscalPreview();
+    await stubPrint();
+    await page.getByText('Validación de impresión', { exact: false }).click();
+    await page.getByText('Controles pendientes', { exact: true }).click();
+    await expect(page.getByText('TEC-OVERLAP', { exact: false }).first()).toBeVisible();
+    await print.click();
+    await expect.poll(() => page.evaluate(() => window.printCalls)).toBe(1);
     assert.deepEqual(errors, []);
-    console.log('Fiscal browser regression passed: round trip, print gate, multipage PDF, remito and resguardo.');
+    console.log('Fiscal browser regression passed: round trip, scoped print gate, overlap/clip, JSON, Zureo export and multipage PDF.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

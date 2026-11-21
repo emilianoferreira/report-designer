@@ -306,6 +306,7 @@ export interface TemplateVariable {
 // ============================================================================
 
 export interface InvoiceData {
+  printSupport?: import('./fiscal.model').PrintSupport;
   /** Runtime-only facts: never persist these in ReportTemplate. */
   fiscal?: FiscalData;
   invoice: Record<string, any>;

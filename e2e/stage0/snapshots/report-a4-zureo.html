@@ -179,12 +179,14 @@
         margin: 0;
       }
     }
+ @media screen { .element-print-only { display: none !important; } }
+      @media print { .element-screen-only { display: none !important; } }
   </style>
 </head>
 <body>
   <div class="page">
     <div class="section section-header">
-      <div class="element element-rectangle" style="left: 207.87401574803152px; top: 83.1496062992126px; width: 56.69291338582678px; height: 37.795275590551185px; z-index: 0; border: 1.1338582677165354px solid #cccccc; position:relative;"></div>
+      <div class="element element-rectangle" style="left: 207.87401574803152px; top: 83.1496062992126px; width: 56.69291338582678px; height: 37.795275590551185px; z-index: 0; border: 1.1338582677165354px solid #cccccc;"></div>
       <div class="element element-text" style="left: 4.724409448818898px; top: 10.393700787401576px; width: 302.3622047244095px; height: 37.795275590551185px; z-index: 1; display: flex; align-items: flex-start;">Guardado report-a4 áé 1,25</div>
       <div class="element element-datafield" style="left: 3.7795275590551185px; top: 64.25196850393701px; width: 151.18110236220474px; height: 22.67716535433071px; z-index: 1;" z-code="true">company.Nombre</div>
       <div class="element element-formula" style="left: 3.7795275590551185px; top: 105.82677165354332px; width: 151.18110236220474px; height: 22.67716535433071px; z-index: 1;" z-code="true">Total + 0.25</div>

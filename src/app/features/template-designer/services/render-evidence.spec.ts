@@ -5,6 +5,22 @@ import { createElement } from '../utils/element-factory';
 import { SAMPLE_INVOICE_DATA } from '../data/sample-invoice';
 
 describe('Renderer evidence and fidelity', () => {
+  it('honors shape/image opacity and escapes imported quantity in sheets and tickets', () => {
+    const template = createDefaultTemplate();
+    const rectangle = createElement('rectangle'), image = createElement('image');
+    rectangle.style.opacity = 0.5; image.style.opacity = 0;
+    template.sections.header.elements = [rectangle, image];
+    const data = structuredClone(SAMPLE_INVOICE_DATA);
+    data.invoiceLines[0]['Cantidad'] = '<img src=x onerror=alert(1)>';
+    const renderer = TestBed.inject(HtmlRendererService);
+    for (const dynamic of [false, true]) {
+      template.page.dynamicHeight = dynamic;
+      const html = renderer.renderWithEvidence(template, data).html;
+      expect(html).toContain('opacity: 0.5'); expect(html).toContain('opacity: 0;');
+      expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+      expect(html).not.toContain('<img src=x onerror=alert(1)>');
+    }
+  });
   it('traces emitted, hidden and generated content without changing the input', () => {
     const t = createDefaultTemplate();
     const hidden = createElement('text'); hidden.visibility = { type: 'conditional', expression: 'false' };

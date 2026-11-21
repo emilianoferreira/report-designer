@@ -1,0 +1,8 @@
+{
+  "run": "mysql-a2-189a2633-542d-4343-8a94-652545ba5f1b",
+  "sqlComparisonsPassed": 16,
+  "failed": "Candidate vs authenticated API: Fecha offset +00:00 versus -03:00",
+  "cause": "Harness forced UTC while the unchanged endpoint used server session America/Montevideo",
+  "resolution": "Use SHOW TimeZone as default and add explicit UTC, America/Montevideo, Asia/Kathmandu cases",
+  "productChangedForFailure": false
+}

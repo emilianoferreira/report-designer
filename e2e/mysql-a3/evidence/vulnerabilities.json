@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "parameters": "--vulnerable --include-transitive",
+  "sources": [
+    "https://api.nuget.org/v3/index.json"
+  ],
+  "projects": [
+    {
+      "path": "C:/Users/emili/Documents/GitHub/report-designer/backend-dotnet/probes/MySqlStage3/MySqlStage3.csproj"
+    }
+  ]
+}

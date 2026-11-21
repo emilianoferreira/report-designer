@@ -70,6 +70,22 @@ for (const fixtureName of ['report-a4', 'report-ticket-80']) {
       expect(html).not.toContain('QR Error');
       expect(html).not.toContain('Barcode Error');
       expect(html).not.toContain('[Error:');
+      // These observations are part of the fiscal renderer, not snapshot noise.
+      await expect(preview.locator('[data-render-source]')).toHaveCount(5);
+      expect(await preview.locator('[data-render-source]').evaluateAll(nodes => nodes.map(n => n.getAttribute('data-render-source'))))
+        .toEqual(Array.from({ length: 5 }, (_, i) => `invoiceLines.${i}`));
+      for (const section of ['header', 'detail', 'footer']) {
+        await expect(preview.locator(`.section-${section}`)).toHaveAttribute('data-render-section', section);
+      }
+      expect(html).toContain('@media screen { .element-print-only { display: none !important; } }');
+      expect(html).toContain('@media print { .element-screen-only { display: none !important; } }');
+      if (fixtureName === 'report-a4') {
+        await expect(preview.locator('.element-rectangle')).toHaveCSS('position', 'absolute');
+        await expect(preview.locator('.element-qrcode svg')).toHaveAttribute('data-qr-quiet-modules', '4');
+        await expect(preview.locator('.element-qrcode svg')).toHaveAttribute('viewBox', '-4 -4 29 29');
+      } else {
+        expect(html).toContain('size: auto;');
+      }
       expect(html).toMatchSnapshot(`${fixtureName}-preview.html`);
       await reloaded.locator('.toolbar-group').filter({ hasText: 'Vista:' }).getByRole('button', { name: 'JSON', exact: true }).click();
       const exported = JSON.parse(await reloaded.locator('pre.raw-block').innerText());

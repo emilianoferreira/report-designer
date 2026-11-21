@@ -126,7 +126,7 @@ export type LabelElement =
 export interface PriceLabelArticle {
   id: string;
   name: string;
-  price: number;
+  price: number | string | null;
   barcode: string;
   [key: string]: any;
 }

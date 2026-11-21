@@ -23,6 +23,12 @@ export const routes: Routes = [
         .then(m => m.TemplateListComponent)
   },
   {
+    path: 'price-labels/print',
+    canActivate: [authenticated],
+    canDeactivate: [unsavedChangesGuard],
+    loadComponent: () => import('./features/price-label-print/label-print-page.component').then(m => m.LabelPrintPageComponent)
+  },
+  {
     path: 'price-labels',
     canDeactivate: [unsavedChangesGuard],
     canActivate: [authenticated],

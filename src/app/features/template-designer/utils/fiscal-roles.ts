@@ -7,6 +7,7 @@ const fieldRoles: Partial<Record<FiscalField, FiscalRole>> = {
   cfeType: 'document.type', series: 'document.series', number: 'document.number',
   issueDate: 'document.date', paymentMethod: 'document.payment', receiverName: 'recipient.name',
   receiverDocumentNumber: 'recipient.document', receiverCountry: 'recipient.country', receiverAddress: 'recipient.address',
+  receiverDocumentType: 'recipient.document-type',
   currency: 'totals.currency', totalAmount: 'totals.amount', totalPayable: 'totals.payable',
   nonBillableAmount: 'totals.non-billable', retainedAmount: 'totals.withholdings', fiscalCreditAmount: 'totals.fiscal-credit',
   qrPayload: 'security.qr', securityCode: 'security.code', caeNumber: 'footer.cae',

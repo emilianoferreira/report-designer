@@ -1,3 +1,4 @@
+using ReportDesigner.Infrastructure.LabelPrinting;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using ReportDesigner.Infrastructure;
@@ -24,6 +25,7 @@ builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.Strict;
 });
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddLabelPrinting(builder.Configuration, builder.Environment);
 builder.Services.AddScoped<LegacyApiExceptionFilter>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICompanyContext, CompanyContext>();

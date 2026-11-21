@@ -35,7 +35,7 @@
       <div class="toolbar-group">
         <span class="toolbar-label">Exportar:</span>
         <button class="toolbar-btn" (click)="exportHtmlRendered()" title="Descargar HTML con datos resueltos">HTML render</button>
-        <button class="toolbar-btn" (click)="exportHtmlTemplate()" title="Descargar HTML con directivas z-code para el motor PDF de Zureo">HTML z-code</button>
+        <button class="toolbar-btn" (click)="exportHtmlTemplate()" title="Exportar directivas. Los controles del navegador no validan la salida ejecutada por Zureo.">HTML z-code</button>
         <button class="toolbar-btn" (click)="exportJson()" title="Descargar la definición del template como JSON">JSON</button>
       </div>
 
@@ -60,13 +60,20 @@
 
   <!-- Preview content — switches by viewMode -->
   @if (printMessage) { <p class="renderer-context" role="alert">{{ printMessage }}</p> }
-  @if (fiscalSample && renderedReport; as report) {
-    <details class="renderer-context">
+  <p class="renderer-context">El informe corresponde a impresión desde el navegador. La salida de las directivas HTML z-code requiere validación en Zureo.</p>
+  @if (reportPending) { <p class="renderer-context" role="status">Actualizando validación; los resultados anteriores ya no están vigentes.</p> }
+  @if (!reportPending && viewMode !== 'render') { <p class="renderer-context">Volvé a Render para evaluar la salida de impresión.</p> }
+  @if (renderedReport; as report) {
+    <details #printValidation class="renderer-context">
       <summary>Validación de impresión · {{ report.status === 'violations' ? 'Hallazgos detectados' : 'Cobertura incompleta' }}</summary>
-      <p>Escenario ficticio. Se evalúa la salida de este ejemplo.</p>
+      <p>{{ validation?.scenario$?.value === 'json' ? 'Datos JSON importados en memoria.' : 'Escenario de ejemplo.' }} Se evalúa únicamente esta salida.</p>
+      @if (feedback; as currentFeedback) {
+        <app-validation-feedback [feedback]="currentFeedback" mode="preview" (locate)="locateFinding($event)" (preview)="showFindingPage($event)" />
+      }
       @for (result of report.results; track $index) {
-        @if (result.status !== 'pending') {
+        @if (!isContentFinding(result) && result.status !== 'pending') {
           <p><strong>{{ result.id }} · {{ result.title }} · {{ ruleLabels[result.status] }}</strong><br>
+            @if (result.category === 'technical') { <span>Diagnóstico técnico · </span> }
             {{ result.message }} {{ result.action }}
             @if (result.source) { <a [href]="result.source" target="_blank" rel="noopener noreferrer">{{ result.reference }}</a> }
             @for (element of result.elements; track $index) {
@@ -81,7 +88,7 @@
       <details>
         <summary>Controles pendientes</summary>
         @for (result of report.results; track $index) {
-          @if (result.status === 'pending') { <p>{{ result.id }} · {{ result.title }} · {{ result.message }}
+          @if (!isContentFinding(result) && result.status === 'pending') { <p>{{ result.id }} · {{ result.title }} · {{ result.message }}
             @if (result.source) { <a [href]="result.source" target="_blank" rel="noopener noreferrer">{{ result.reference }}</a> }
           </p>
             @if (result.category === 'normative') {
@@ -93,7 +100,7 @@
     </details>
   }
   @if (renderEvidence; as evidence) {
-    <details class="renderer-context">
+    <details class="renderer-context" data-print-preparation>
       <summary>Preparación de la vista previa · {{ previewReady ? 'carga finalizada' : 'carga pendiente' }}</summary>
       <p>Observaciones de generación y recursos. No constituyen una evaluación normativa.</p>
       @for (diagnostic of evidence.diagnostics; track $index) { <p>{{ diagnostic.message }}</p> }

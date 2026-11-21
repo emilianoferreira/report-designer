@@ -1,0 +1,12 @@
+{
+  "date": "2026-11-07",
+  "branch": "codex/mysql-migration",
+  "main": "0c9e5d64cfe298fa6bd92ec31328a9d20d82a009",
+  "restoreLockedMode": "exit 0",
+  "build": "exit 0, 0 warnings, 0 errors",
+  "runner": "exit 0, 17 provider checks, 24 JSON comparisons",
+  "nodeSyntax": "exit 0",
+  "originalArtifacts": "13 SHA256 hashes unchanged",
+  "baselineRegressions": "Not rerun: independent probe only; see A1 report",
+  "postRunRunnerChanges": "Only added time/environment metadata and defensive PostgreSQL cleanup; syntax checked"
+}

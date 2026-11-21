@@ -1,0 +1,121 @@
+[
+  {
+    "name": "seed-1",
+    "id": "f1000000-0000-0000-0000-000000000001",
+    "company": "c1000000-0000-0000-0000-000000000001",
+    "zone": "America/Montevideo",
+    "denied": false
+  },
+  {
+    "name": "seed-2",
+    "id": "f1000000-0000-0000-0000-000000000002",
+    "company": "c1000000-0000-0000-0000-000000000001",
+    "zone": "America/Montevideo",
+    "denied": false
+  },
+  {
+    "name": "seed-3",
+    "id": "f1000000-0000-0000-0000-000000000003",
+    "company": "c1000000-0000-0000-0000-000000000001",
+    "zone": "America/Montevideo",
+    "denied": false
+  },
+  {
+    "name": "seed-4",
+    "id": "f1000000-0000-0000-0000-000000000004",
+    "company": "c1000000-0000-0000-0000-000000000002",
+    "zone": "America/Montevideo",
+    "denied": false
+  },
+  {
+    "name": "seed-5",
+    "id": "f1000000-0000-0000-0000-000000000005",
+    "company": "c1000000-0000-0000-0000-000000000001",
+    "zone": "America/Montevideo",
+    "denied": false
+  },
+  {
+    "name": "empty",
+    "id": "dcabc315-11fc-49db-b42e-f9da086be56d",
+    "company": "c1000000-0000-0000-0000-000000000001",
+    "zone": "America/Montevideo",
+    "denied": false
+  },
+  {
+    "name": "nullable",
+    "id": "01b74ff4-5398-47fd-bc4e-c2b56af4c75a",
+    "company": "c1000000-0000-0000-0000-000000000001",
+    "zone": "America/Montevideo",
+    "denied": false
+  },
+  {
+    "name": "precision-unicode",
+    "id": "4824fdb6-ec38-4db9-8a10-066e38def428",
+    "company": "c1000000-0000-0000-0000-000000000001",
+    "zone": "America/Montevideo",
+    "denied": false
+  },
+  {
+    "name": "offset-utc",
+    "id": "4824fdb6-ec38-4db9-8a10-066e38def428",
+    "company": "c1000000-0000-0000-0000-000000000001",
+    "zone": "UTC",
+    "denied": false
+  },
+  {
+    "name": "offset-montevideo",
+    "id": "4824fdb6-ec38-4db9-8a10-066e38def428",
+    "company": "c1000000-0000-0000-0000-000000000001",
+    "zone": "America/Montevideo",
+    "denied": false
+  },
+  {
+    "name": "offset-kathmandu",
+    "id": "4824fdb6-ec38-4db9-8a10-066e38def428",
+    "company": "c1000000-0000-0000-0000-000000000001",
+    "zone": "Asia/Kathmandu",
+    "denied": false
+  },
+  {
+    "name": "zero-flags",
+    "id": "1ddbea8a-ddbd-421d-b454-f04f3d88d937",
+    "company": "c1000000-0000-0000-0000-000000000001",
+    "zone": "America/Montevideo",
+    "denied": false
+  },
+  {
+    "name": "foreign-company",
+    "id": "f1000000-0000-0000-0000-000000000002",
+    "company": "c1000000-0000-0000-0000-000000000002",
+    "zone": "UTC",
+    "denied": true
+  },
+  {
+    "name": "missing",
+    "id": "372b2421-fc00-458a-afaf-9d34b1fa066d",
+    "company": "c1000000-0000-0000-0000-000000000001",
+    "zone": "UTC",
+    "denied": true
+  },
+  {
+    "name": "foreign-contacts",
+    "id": "299749a6-9de8-4020-8c3a-179fd40a89d6",
+    "company": "c1000000-0000-0000-0000-000000000001",
+    "zone": "America/Montevideo",
+    "denied": true
+  },
+  {
+    "name": "foreign-branches",
+    "id": "0e2a88e8-97b3-420b-b4ba-3166fba6ac77",
+    "company": "c1000000-0000-0000-0000-000000000001",
+    "zone": "America/Montevideo",
+    "denied": true
+  },
+  {
+    "name": "foreign-invoice_types",
+    "id": "ca4083cd-2038-47a5-9ed5-070d016a725a",
+    "company": "c1000000-0000-0000-0000-000000000001",
+    "zone": "America/Montevideo",
+    "denied": true
+  }
+]

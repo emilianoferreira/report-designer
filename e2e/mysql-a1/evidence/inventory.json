@@ -1,0 +1,80 @@
+[
+  {
+    "path": "backend-dotnet\\probes\\MySqlProvider\\obj\\Debug\\net10.0\\.NETCoreApp,Version=v10.0.AssemblyAttributes.cs",
+    "bytes": 200,
+    "sha256": "93d67476196ebfc80d1d7d8844b91146cfd678d105f5ce635eb900ca40610c9b",
+    "classification": "generated artifact; retained without deletion"
+  },
+  {
+    "path": "backend-dotnet\\probes\\MySqlProvider\\obj\\Debug\\net10.0\\MySqlProvider.AssemblyInfo.cs",
+    "bytes": 1013,
+    "sha256": "e865a43b9930a12b2eb21e0546beed15f40ad5a23584a78b900759c2a8dfb5a9",
+    "classification": "generated artifact; retained without deletion"
+  },
+  {
+    "path": "backend-dotnet\\probes\\MySqlProvider\\obj\\Debug\\net10.0\\MySqlProvider.AssemblyInfoInputs.cache",
+    "bytes": 66,
+    "sha256": "46d7fe96ee09dab506ef0ecb199aeb5082d428ba9f57d654f85ed999954a22c8",
+    "classification": "generated artifact; retained without deletion"
+  },
+  {
+    "path": "backend-dotnet\\probes\\MySqlProvider\\obj\\Debug\\net10.0\\MySqlProvider.assets.cache",
+    "bytes": 19051,
+    "sha256": "488c83a89f090ddf88f48ec7cc39f1970d9085546ed0bf723a354a63a63d8269",
+    "classification": "generated artifact; retained without deletion"
+  },
+  {
+    "path": "backend-dotnet\\probes\\MySqlProvider\\obj\\Debug\\net10.0\\MySqlProvider.csproj.AssemblyReference.cache",
+    "bytes": 12583,
+    "sha256": "ba45b79d956163a4bb850d7ba4169cc5333a059594eb8589d25edf1dd96ab5ac",
+    "classification": "generated artifact; retained without deletion"
+  },
+  {
+    "path": "backend-dotnet\\probes\\MySqlProvider\\obj\\Debug\\net10.0\\MySqlProvider.GeneratedMSBuildEditorConfig.editorconfig",
+    "bytes": 871,
+    "sha256": "60fde5fe60058a8cabc3866fd3ca9367ee4a10abbac142162561bbfe1b485b00",
+    "classification": "generated artifact; retained without deletion"
+  },
+  {
+    "path": "backend-dotnet\\probes\\MySqlProvider\\obj\\Debug\\net10.0\\MySqlProvider.GlobalUsings.g.cs",
+    "bytes": 239,
+    "sha256": "a3c6048bb4d922b1799a9977f84362a3787b68810cac67aa86ac3aa23295f227",
+    "classification": "generated artifact; retained without deletion"
+  },
+  {
+    "path": "backend-dotnet\\probes\\MySqlProvider\\obj\\MySqlProvider.csproj.nuget.dgspec.json",
+    "bytes": 22421,
+    "sha256": "e9547193f27ef3e0bb9915a2f96210ad3b0307631589d961efaad58ade069786",
+    "classification": "generated artifact; retained without deletion"
+  },
+  {
+    "path": "backend-dotnet\\probes\\MySqlProvider\\obj\\MySqlProvider.csproj.nuget.g.props",
+    "bytes": 1510,
+    "sha256": "c3ad1417367b6eb847b5953c0d3fe61d3b2e2b400b0586645359813b865c592e",
+    "classification": "generated artifact; retained without deletion"
+  },
+  {
+    "path": "backend-dotnet\\probes\\MySqlProvider\\obj\\MySqlProvider.csproj.nuget.g.targets",
+    "bytes": 865,
+    "sha256": "7d794f97fab99136b4513a8c8a27dc80888df54f676fe6c6dfa5e23ad131e305",
+    "classification": "generated artifact; retained without deletion"
+  },
+  {
+    "path": "backend-dotnet\\probes\\MySqlProvider\\obj\\project.assets.json",
+    "bytes": 74832,
+    "sha256": "8bd6acd7d9b7724b51f7824986870c1c5b30dbdc180a438c8f4806677a7969f7",
+    "classification": "generated artifact; retained without deletion"
+  },
+  {
+    "path": "backend-dotnet\\probes\\MySqlProvider\\obj\\project.nuget.cache",
+    "bytes": 4396,
+    "sha256": "7c8f3111029326ae816e7d02a215d286170ecdf47f8f534864f2adcfcb7c4bdc",
+    "classification": "generated artifact; retained without deletion"
+  },
+  {
+    "path": "backend-dotnet\\probes\\MySqlProvider\\packages.lock.json",
+    "bytes": 8871,
+    "sha256": "9e809b5af591caa5931f318dd1fddd4bb9f6a80c35ae6d6fbebcaeb72545829b",
+    "classification": "dependency resolution evidence, not validated"
+  }
+]

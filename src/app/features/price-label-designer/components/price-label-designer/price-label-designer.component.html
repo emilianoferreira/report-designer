@@ -18,6 +18,7 @@
       <button class="mode-btn" [class.active]="viewMode === 'preview'" [attr.aria-pressed]="viewMode === 'preview'" (click)="setViewMode('preview')">Vista previa</button>
     </div>
     <div class="header-right">
+      <button class="header-btn" (click)="preparePrint()">Preparar impresión</button>
       <details class="template-menu" #templateMenu (keydown.escape)="templateMenu.open = false; templateSummary.focus()">
         <summary #templateSummary>Plantilla <span aria-hidden="true">▾</span></summary>
         <div class="menu-content">
@@ -174,6 +175,7 @@
     </div>
   } @else {
     <main class="preview-panel">
+      <p role="status">Demostración — artículos de ejemplo.</p>
       <app-price-label-preview [template]="template" [articles]="sampleArticles" [company]="sampleCompany" />
     </main>
   }

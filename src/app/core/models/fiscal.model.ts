@@ -30,6 +30,9 @@ export interface FiscalProfile {
   operationType?: FiscalOperation;
   medium?: 'sheet' | 'roll';
   printingMode?: 'blank-paper' | 'preprinted';
+  /** Declared alternative; never evidence that its legal conditions are met. */
+  distribution?: 'standard' | 'sequential';
+  adendaPlacement?: 'separate-page' | 'after-cfe' | 'within-body';
 }
 
 /** Base-10 strings preserve decimal precision. No tax calculations in stage 1. */
@@ -41,6 +44,8 @@ export interface FiscalAdjustment {
   billingIndicator?: number;
 }
 export interface FiscalTax {
+  /** Explicit origin classification; names and rates never infer tax kind. */
+  kind?: 'vat' | 'withholding' | 'perception' | 'other';
   code?: string;
   name?: string;
   rate?: FiscalDecimal;
@@ -49,6 +54,7 @@ export interface FiscalTax {
 }
 export interface FiscalLine {
   id?: string;
+  operationType?: FiscalOperation;
   description?: string;
   quantity?: FiscalDecimal;
   unitPrice?: FiscalDecimal;
@@ -60,8 +66,12 @@ export interface FiscalLine {
   mandatoryLegend?: string;
 }
 export interface FiscalReference {
+  id?: string;
+  documentDescription?: string;
   global?: boolean;
   cfeType?: number;
+  /** Optional supplied display name, checked against the referenced code before use. */
+  cfeTypeName?: string;
   series?: string;
   number?: string;
   reason?: string;
@@ -98,6 +108,16 @@ export interface FiscalData {
   receiverName?: string;
   receiverAddress?: string;
   finalConsumer?: boolean;
+  /** Explicit operation facts, never inferred from country, text or CFE type. */
+  exportOperation?: boolean;
+  receiverNonResidentWithoutRut?: boolean;
+  receiverIsIndividual?: boolean;
+  /** True means a particular receiver exception needs separate normative review.
+   * False explicitly declares that no such exception applies; absent is unknown. */
+  receiverSectorException?: boolean;
+  thirdPartyGoods?: boolean;
+  goodsOwnerName?: string;
+  goodsOwnerDocument?: string;
   series?: string;
   number?: string;
   issueDate?: string;
@@ -105,6 +125,9 @@ export interface FiscalData {
   paymentMethod?: 'cash' | 'credit';
   currency?: string;
   netAmount?: FiscalDecimal;
+  /** Rate to UYU supplied by the origin; never fetched or calculated implicitly. */
+  exchangeRate?: FiscalDecimal;
+  exchangeRateDate?: string;
   totalAmount?: FiscalDecimal;
   totalPayable?: FiscalDecimal;
   nonBillableAmount?: FiscalDecimal;
@@ -113,6 +136,7 @@ export interface FiscalData {
   hasWithholdingsOrPerceptions?: boolean;
   uiValue?: FiscalDecimal;
   uiValueDate?: string;
+  uiValueSource?: string;
   securityCode?: string;
   signatureHash?: string;
   qrPayload?: string;
@@ -128,6 +152,8 @@ export interface FiscalData {
   adjustments?: FiscalAdjustment[];
   taxes?: FiscalTax[];
   references?: FiscalReference[];
+  /** Explicit source claim about the supplied collection, never inferred from its length. */
+  referencesComplete?: boolean;
 }
 
 export type FiscalField = Exclude<keyof FiscalData, 'schemaVersion'>;
@@ -144,11 +170,22 @@ export interface FiscalContextDiagnostic {
   path: string;
   message: string;
 }
+export type PrintSupport =
+  | { kind: 'blank' }
+  | { kind: 'preprinted'; pages: ReadonlyArray<{ page: number; roles: readonly ReceiverPrintRole[] }> };
+
+export type ReceiverPrintRole = Extract<FiscalRole, `recipient.${string}`>;
+
 export interface ValidationContext {
   /** Declared mold expectations, kept separate from document facts. */
   profile?: FiscalProfile;
+  /** Scenario declaration. Absence or malformed input leaves the support unknown. */
+  printSupport?: PrintSupport;
   facts: FiscalFacts;
   diagnostics: FiscalContextDiagnostic[];
+  /** Canonical scalar paths, including collection index; optional for old callers.
+   * A valid sibling survives malformed collection data. Never proves collection completeness. */
+  fieldFacts?: Record<string, FiscalFact<unknown>>;
 }
 
 export const FISCAL_ROLE_LABELS = {
@@ -166,9 +203,11 @@ export const FISCAL_ROLE_LABELS = {
   'document.date': 'Fecha de emisión',
   'recipient.name': 'Nombre del receptor',
   'recipient.document': 'Documento del receptor',
+  'recipient.document-type': 'Tipo de documento del receptor',
   'recipient.country': 'País del documento del receptor',
   'recipient.address': 'Domicilio del receptor',
   'recipient.label': 'RUC COMPRADOR / CONSUMO FINAL',
+  'recipient.boundary': 'Recuadro de identificación del receptor',
   'detail.description': 'Descripción del ítem',
   'detail.quantity': 'Cantidad',
   'detail.unit-price': 'Precio unitario',
@@ -178,6 +217,7 @@ export const FISCAL_ROLE_LABELS = {
   'detail.sign': 'Signo del importe',
   'totals.currency': 'Moneda',
   'totals.tax': 'IVA discriminado',
+  'totals.net': 'Montos netos por tasa de IVA',
   'totals.amount': 'Total del comprobante',
   'totals.payable': 'Total a pagar',
   'totals.non-billable': 'Monto no facturable',
@@ -186,6 +226,15 @@ export const FISCAL_ROLE_LABELS = {
   'adjustments.description': 'Concepto del ajuste',
   'adjustments.amount': 'Importe del ajuste',
   'tax.name': 'Nombre de retención / percepción',
+  'tax.rate': 'Tasa del tributo',
+  'tax.taxable-amount': 'Base imponible del tributo',
+  'payment.description': 'Identificación del medio de pago',
+  'payment.amount': 'Importe del medio de pago',
+  'detail.mandatory-legend': 'Constancia obligatoria del ítem',
+  'document.collection-legend': 'Leyenda de cobranza',
+  'document.third-party-legend': 'Leyenda de pagos por cuenta de terceros',
+  'document.third-party-goods': 'Leyenda Bienes de Terceros',
+  'document.goods-owner': 'Identificación del propietario de los bienes',
   'tax.amount': 'Importe de retención / percepción',
   'reference.type': 'Tipo de documento referenciado',
   'reference.series': 'Serie referenciada',
@@ -194,6 +243,7 @@ export const FISCAL_ROLE_LABELS = {
   'reference.date': 'Fecha referenciada',
   'reference.amount': 'Importe referenciado',
   'reference.currency': 'Moneda referenciada',
+  'reference.description': 'Identificación de documento sin codificación',
   'security.qr': 'QR de consulta DGI',
   'security.code': 'Código de seguridad',
   'footer.cae': 'Número de CAE',
@@ -203,6 +253,7 @@ export const FISCAL_ROLE_LABELS = {
   'footer.verification': 'Leyenda y sitio de verificación',
   'footer.iva-legend': 'Leyenda de IVA',
   'adenda.label': 'Rótulo ADENDA',
+  'adenda.boundary': 'Recuadro delimitador de adenda',
   'adenda.content': 'Contenido de adenda',
   'adenda.mandatory': 'Constancia obligatoria'
 } as const;

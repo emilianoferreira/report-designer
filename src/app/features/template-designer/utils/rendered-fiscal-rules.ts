@@ -3,8 +3,26 @@ import { ReportTemplate } from '../../../core/models/template.model';
 import { RenderEvidence } from '../services/render-evidence';
 import { mmToPx } from './coordinate-utils';
 import { evaluateStaticFiscalRules, RuleResult, StaticFiscalReport } from './static-fiscal-rules';
+import { inspectRenderedLayout } from './rendered-layout-inspector';
+import { detectContentConflicts } from '../../../shared/utils/content-overlap';
+import { layoutRuleResults } from './layout-rule-results';
+import { LayoutEvidence } from '../../../core/models/layout-evidence.model';
+import { evaluateFiscalPlacement } from './fiscal-placement-rules';
+import { evaluateReceiverPrint } from './receiver-fiscal-rules';
+import { evaluateAmountPrint } from './amount-fiscal-rules';
+import { evaluateReferencePrint } from './reference-fiscal-rules';
+import { supportsFiscalBrowserRules } from './fiscal-context';
+import { hasPlainPrintedText } from './printed-field-observations';
+import { ReceiverPageCoverage } from './fiscal-field-evidence';
+import { inspectReceiverCoverage } from './receiver-page-coverage';
+import { evaluateReceiverOmissions } from './receiver-omissions';
+import { evaluateReceiverAdenda, verifiedCfeIdentity } from './receiver-adenda';
+import { evaluateReceiverAlternatives, verifiedReceiverPages } from './receiver-repetition';
 
-export type RenderedFiscalReport = Omit<StaticFiscalReport, 'scope'> & { scope: 'rendered-browser' };
+export type RenderedFiscalReport = Omit<StaticFiscalReport, 'scope'> & {
+  scope: 'rendered-browser';
+  receiverCoverage?: ReceiverPageCoverage[];
+};
 export const fiscalValue = <T>(fact: FiscalFact<T>): T | undefined => fact.state === 'known' ? fact.value : undefined;
 const normalize = (text: string) => text.normalize('NFC').replace(/\s+/g, ' ').trim().toLocaleUpperCase('es-UY');
 
@@ -32,24 +50,63 @@ export function inspectFiscalPrint(
   template: ReportTemplate, context: ValidationContext, doc: Document | undefined, evidence: RenderEvidence,
   resourcesReady: boolean, paginationPending?: string
 ): RenderedFiscalReport {
+  const layout = doc ? inspectRenderedLayout(doc, evidence, { resourcesReady, paginationPending,
+      pageWidthPx: mmToPx(template.page.width),
+      pageHeightPx: template.page.dynamicHeight || template.compliance?.medium === 'roll' ? undefined : mmToPx(template.page.height) }) : undefined;
+  const report = inspectFiscalDocument(template, context, doc, evidence, resourcesReady, paginationPending, layout);
+  const pageCount = doc?.querySelectorAll('body > .page').length ?? 0;
+  const adendaOnMultiplePages = pageCount > 1 && layout?.content.some(item => item.zones.includes('adenda'));
+  const cfeIdentity = report.receiverObligations && (adendaOnMultiplePages || report.receiverObligations.secrecy === true)
+    ? verifiedCfeIdentity(context, doc, evidence, layout, paginationPending) : [];
+  const pages = paginationPending || (template.compliance?.adendaPlacement === 'separate-page' && pageCount > 1)
+    ? [] : verifiedReceiverPages(doc, report.results, layout, cfeIdentity);
+  const receiverFindings = evaluateReceiverPrint(context, doc, evidence, layout, paginationPending, report.receiverObligations, pages);
+  const omittedRoles = new Set<string>();
+  if (report.receiverObligations) {
+    const coveragePending = paginationPending ?? (pageCount === 1 && layout?.ready && !pages.length
+      ? 'No se pudo verificar esta superficie como una hoja única del CFE.' : undefined);
+    report.receiverCoverage = inspectReceiverCoverage(context, report.receiverObligations, doc, evidence, layout, coveragePending);
+    const omissions = evaluateReceiverOmissions(context, report.receiverObligations, report.receiverCoverage,
+      pages, receiverFindings);
+    for (const finding of omissions) omittedRoles.add(`${finding.omission!.coverage.role}:${finding.page}`);
+    report.results.push(...omissions,
+      ...evaluateReceiverAlternatives(context, report.receiverObligations, report.receiverCoverage, pages, pageCount, receiverFindings, omissions, layout),
+      ...evaluateReceiverAdenda(template, report.receiverObligations, doc, layout, report.receiverCoverage, cfeIdentity, paginationPending));
+  }
+  report.results.push(...receiverFindings.filter(finding => !finding.ruleId.startsWith('REC-FIELD.') ||
+    !omittedRoles.has('recipient.' + finding.ruleId.slice('REC-FIELD.'.length) + ':' + finding.page)));
+  report.results.push(...evaluateAmountPrint(context, doc, evidence, layout, paginationPending));
+  report.results.push(...evaluateReferencePrint(context, doc, evidence, layout, paginationPending));
+  if (layout) {
+    report.results.push(...layoutRuleResults(layout, detectContentConflicts(layout)));
+    const verifiedQrIds = report.results.filter(r => r.id === 'QR-03' && r.status === 'pass').flatMap(r => r.elements.map(e => e.id));
+    if (doc) report.results.push(...evaluateFiscalPlacement(template, context, layout, doc, paginationPending, verifiedQrIds));
+    if (report.results.some(r => r.status === 'fail')) report.status = 'violations';
+  }
+  return report;
+}
+
+function inspectFiscalDocument(
+  template: ReportTemplate, context: ValidationContext, doc: Document | undefined, evidence: RenderEvidence,
+  resourcesReady: boolean, paginationPending?: string, layout?: LayoutEvidence
+): RenderedFiscalReport {
   const pages = Array.from(doc?.querySelectorAll('body > .page[data-render-page]') ?? []);
   if (pages.length < 2) return inspectFiscalPage(template, context, doc, evidence, resourcesReady,
-    doc?.querySelector('.page') ?? undefined, paginationPending);
-  const reports = pages.map(page => inspectFiscalPage(template, context, doc, evidence, resourcesReady, page));
+    doc?.querySelector('.page') ?? undefined, paginationPending, layout);
+  const reports = pages.map(page => inspectFiscalPage(template, context, doc, evidence, resourcesReady, page, paginationPending, layout));
   const report = reports[0];
-  report.results = report.results.map(result => {
-    const byPage = reports.map(r => r.results.find(candidate => candidate.id === result.id)!);
-    if (result.id === 'QR-04' || result.id.startsWith('CON-05.') || result.id.startsWith('REF-03.')) {
-      return byPage[byPage.length - 1];
+  const perPage = new Set(['EXT-03', 'QR-01', 'QR-02', 'QR-03', 'QR-04', 'TEC-04']);
+  report.results = report.results.flatMap(result => {
+    if (perPage.has(result.id)) return reports.map((r, index) => {
+      const finding = r.results.find(candidate => candidate.id === result.id)!;
+      return { ...finding, page: index + 1, findingId: finding.findingId + ':page:' + (index + 1),
+        message: 'Página ' + (index + 1) + ': ' + finding.message };
+    });
+    if (result.id.startsWith('CON-05.') || result.id.startsWith('REF-03.')) {
+      const finding = reports[reports.length - 1].results.find(candidate => candidate.id === result.id)!;
+      return [{ ...finding, page: pages.length }];
     }
-    if (!['EXT-03', 'QR-01', 'QR-02', 'QR-03', 'TEC-04'].includes(result.id)) return result;
-    const index = byPage.findIndex(candidate => candidate.status === 'fail');
-    if (index >= 0) return { ...byPage[index], message: `Página ${index + 1}: ${byPage[index].message}` };
-    if (byPage.every(candidate => candidate.status === 'pass')) return {
-      ...result, message: `${pages.length} páginas. ${result.message}`
-    };
-    const pending = byPage.findIndex(candidate => candidate.status === 'pending');
-    return { ...byPage[pending], message: `Página ${pending + 1}: ${byPage[pending].message}` };
+    return [result];
   });
   report.status = report.results.some(result => result.status === 'fail') ? 'violations' : 'incomplete';
   return report;
@@ -57,11 +114,10 @@ export function inspectFiscalPrint(
 
 function inspectFiscalPage(
   template: ReportTemplate, context: ValidationContext, doc: Document | undefined, evidence: RenderEvidence,
-  resourcesReady: boolean, page: Element | undefined, paginationPending?: string
+  resourcesReady: boolean, page: Element | undefined, paginationPending?: string, layout?: LayoutEvidence
 ): RenderedFiscalReport {
   const type = fiscalValue(context.facts.cfeType);
-  const applicable = fiscalValue(context.facts.isCfe) === true && CFE_TYPES.some(t => t.value === type)
-    && !context.diagnostics.length;
+  const applicable = supportsFiscalBrowserRules(context);
   const staticReport = evaluateStaticFiscalRules(template, context);
   const results = staticReport.results.map(result => {
     if (!applicable && result.category === 'normative' && result.status !== 'pending') {
@@ -71,7 +127,7 @@ function inspectFiscalPage(
   });
   const update = (id: string, status: RuleResult['status'], message: string, elements: RuleResult['elements'] = []) => {
     const result = results.find(r => r.id === id);
-    if (result) Object.assign(result, { status, message, elements });
+    if (result) Object.assign(result, { status, severity: status === 'fail' ? 'error' : 'info', message, elements });
   };
   const finish = (): RenderedFiscalReport => ({
     ...staticReport, scope: 'rendered-browser', results,
@@ -101,12 +157,14 @@ function inspectFiscalPage(
   const contained = (box: DOMRect, outer: DOMRect) => box.left >= outer.left - epsilon &&
     box.top >= outer.top - epsilon && box.right <= outer.right + epsilon && box.bottom <= outer.bottom + epsilon;
   const nodes = Array.from(page.querySelectorAll('[data-render-element], [data-render-generated]')).filter(visible);
-  const overlaps = (box: DOMRect, node: Element) => nodes.some(other => {
-    if (other === node || other.contains(node) || node.contains(other)) return false;
-    const b = other.getBoundingClientRect();
-    return b.left < box.right - epsilon && b.right > box.left + epsilon &&
-      b.top < box.bottom - epsilon && b.bottom > box.top + epsilon;
-  });
+  const conflicts = layout ? detectContentConflicts(layout) : [];
+  const pageNumber = Array.from(doc.querySelectorAll('body > .page')).indexOf(page) + 1;
+  const overlaps = (_box: DOMRect, node: Element) => {
+    const id = node.closest('[data-render-element]')?.getAttribute('data-render-element');
+    if (!id || !layout) return true;
+    return conflicts.some(conflict => conflict.kind === 'overlap' && conflict.page === pageNumber &&
+      conflict.contentIds.some(contentId => layout.content.some(content => content.instanceId === contentId && content.elementId === id)));
+  };
   const address = (node: Element): RuleResult['elements'] => {
     const owner = node.closest('[data-render-element]');
     const id = owner?.getAttribute('data-render-element');
@@ -126,7 +184,11 @@ function inspectFiscalPage(
   update('TEC-04', 'pass', 'Se inspeccionó la misma superficie que usa el botón Imprimir.');
 
   const readable = (node: Element) => {
-    if (!node.textContent?.trim()) return false;
+    if (!node.textContent?.trim() || !hasPlainPrintedText(node)) return false;
+    const id = node.getAttribute('data-render-element');
+    const measured = layout?.content.filter(c => c.elementId === id && c.page === pageNumber && c.kind === 'text') ?? [];
+    if (!measured.length || measured.some(c => c.certainty !== 'measured' || c.clipped) ||
+        evidence.elements.filter(e => e.id === id).length !== 1) return false;
     if (view.getComputedStyle(node).color === 'rgba(0, 0, 0, 0)') return false;
     const range = doc.createRange();
     range.selectNodeContents(node);
@@ -136,17 +198,19 @@ function inspectFiscalPage(
       !overlaps(b, node));
   };
   const textNodes = nodes.filter(node => node.matches('.element-text,.element-datafield,.element-formula') && readable(node));
-  const matchingText = (value: string | undefined) => value && textNodes.find(node => normalize(node.textContent ?? '') === normalize(value));
+  const matchingText = (value: string | undefined, role: string) => value && textNodes.find(node =>
+    evidence.elements.some(element => element.id === node.getAttribute('data-render-element') && element.roles.includes(role)) &&
+    normalize(node.textContent ?? '') === normalize(value));
   const label = page.querySelector('[data-render-page-label]');
   if (label?.textContent?.trim()) {
     update('EXT-03', 'pending', 'Se generó la hoja numerada. Falta confirmar la identificación repetida o el sello digital.');
   }
   const issuer = [context.facts.issuerName, context.facts.issuerTradeName, context.facts.issuerAddress]
-    .map(fact => matchingText(fiscalValue(fact)));
+    .map((fact, i) => matchingText(fiscalValue(fact), ['issuer.name', 'issuer.trade-name', 'issuer.address'][i]));
   if (issuer.every((node): node is Element => !!node)) update('ID-01', 'pass',
     'Razón social, nombre comercial y domicilio fiscal coinciden con el origen.', issuer.flatMap(address));
   const date = fiscalValue(context.facts.issueDate)?.slice(0, 10);
-  const printedDate = matchingText(date) || matchingText(date?.split('-').reverse().join('/'));
+  const printedDate = matchingText(date, 'document.date') || matchingText(date?.split('-').reverse().join('/'), 'document.date');
   if (printedDate) update('CON-01', 'pass', 'La fecha de emisión visible coincide con el origen.', address(printedDate));
   const regime = fiscalValue(context.facts.issuerRegime);
   const legends = [
@@ -159,24 +223,14 @@ function inspectFiscalPage(
     if (regime && regime !== legend.regime) {
       update(legend.id, 'not-applicable', 'El régimen del comprobante es otro.');
     } else if (regime === legend.regime) {
-      const label = matchingText(legend.text);
-      const basis = legend.id === 'REG-01' && matchingText(fiscalValue(context.facts.exemptionLegalReference));
-      if (label && (legend.id !== 'REG-01' || basis)) update(legend.id, 'pass',
+      const label = matchingText(legend.text, 'issuer.regime-legend');
+      const basis = legend.id === 'REG-01' && matchingText(fiscalValue(context.facts.exemptionLegalReference), 'issuer.exemption-basis');
+      if (label && (legend.id !== 'REG-01' || (basis && fiscalValue(context.facts.partialExemption) === false))) update(legend.id, 'pass',
         'Se encontró el texto visible exigido para el régimen.', [...address(label), ...(basis ? address(basis) : [])]);
     }
   }
-  const withRole = (node: Element, role: string) => evidence.elements.some(element =>
-    element.id === node.getAttribute('data-render-element') && element.roles.includes(role));
-  const nonBillable = fiscalValue(context.facts.nonBillableAmount);
-  const amountNode = textNodes.find(node => withRole(node, 'totals.non-billable') &&
-    node.textContent?.trim() === nonBillable);
-  if (amountNode && nonBillable !== undefined) update('CON-05.07', 'pass',
-    'El monto no facturable visible coincide con A.129 del origen.', address(amountNode));
-  const references = fiscalValue(context.facts.references);
-  const reason = references?.length === 1 ? references[0].reason : undefined;
-  const reasonNode = reason && textNodes.find(node => withRole(node, 'reference.reason') &&
-    normalize(node.textContent ?? '') === normalize(reason));
-  if (reasonNode) update('REF-03.02', 'pass', 'La razón visible de la única referencia coincide con F.6.', address(reasonNode));
+  update('CON-05.07', 'pending', 'AMT-FIELD informa la correspondencia del monto no facturable con su campo de origen.');
+  update('REF-03.02', 'pending', 'La correspondencia de cada razón se informa en REF-FIELD. La suficiencia y cobertura integral de referencias conserva su revisión específica.');
 
   const qrNodes = Array.from(page.querySelectorAll('svg[data-qr-modules]')).filter(visible);
   const otherGraphics = Array.from(page.querySelectorAll('img, canvas, object, svg:not([data-qr-modules])')).some(visible) ||
@@ -209,16 +263,16 @@ function inspectFiscalPage(
       fiscalValue(context.facts.receiverName), fiscalValue(context.facts.receiverDocumentNumber),
       CFE_TYPES.find(candidate => candidate.value === type)?.label,
       fiscalValue(context.facts.series), fiscalValue(context.facts.number)
-    ].map(matchingText);
+    ].map((value, i) => matchingText(value, ['issuer.name', 'issuer.rut', 'recipient.name', 'recipient.document', 'document.type', 'document.series', 'document.number'][i]));
     if (required.every((node): node is Element => !!node) &&
         !evidence.diagnostics.some(d => d.code === 'unsupported-feature' && /repetición/i.test(d.message))) {
-      update('EXT-03', 'pass', 'Se verificaron la identificación repetida, la numeración y el sello digital.', [
+      update('EXT-03', 'pending', 'Se identificaron datos repetidos y QR; falta verificar sello completo, numeración y excepciones por hoja.', [
         ...required.flatMap(address), ...target
       ]);
     }
   }
   const shortCode = fiscalValue(context.facts.signatureHash)?.slice(0, 6);
-  const printedCode = shortCode?.length === 6 ? matchingText(shortCode) : undefined;
+  const printedCode = shortCode?.length === 6 ? matchingText(shortCode, 'security.code') : undefined;
   if (printedCode && printedCode.getBoundingClientRect().top >= box.bottom - epsilon) {
     update('QR-04', 'pass', 'Los seis caracteres del hash se ven debajo del QR.', [...target, ...address(printedCode)]);
   }
@@ -240,6 +294,4 @@ function inspectFiscalPage(
   return finish();
 }
 
-export function confirmedPrintFailures(report: RenderedFiscalReport): RuleResult[] {
-  return report.results.filter(result => result.category === 'normative' && result.status === 'fail');
-}
+export { confirmedPrintFailures } from './print-validation-policy';

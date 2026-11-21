@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "directory": "C:\\Users\\emili\\Documents\\GitHub\\report-designer\\e2e\\test-results\\mysql-a5-33d3cdc3-6836-4db6-9c27-7fc72ef25a13",
+  "checks": [
+    "Angular real: create metadata edit duplicate reload delete on MySQL",
+    "Angular real: label create If-Match save reload preview",
+    "Angular A4 and ticket edit legacy save reload and sample preview; real invoice data renderer covered separately by A5",
+    "no browser page errors"
+  ],
+  "functional": {
+    "passed": true,
+    "checks": [
+      "Angular login via real API",
+      "company switch and viewer role",
+      "CSRF rotation",
+      "tenant templates endpoint responds 200",
+      "logout invalidates browser session"
+    ]
+  }
+}

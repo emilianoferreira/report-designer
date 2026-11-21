@@ -13,7 +13,7 @@ import { FiscalAdviceComponent } from '../fiscal-advice/fiscal-advice.component'
   template: `
     <section aria-labelledby="results-title">
       <h2 id="results-title">Análisis estático fiscal</h2>
-      <p>Diseño actual · Catálogo 0.2 · Impresión desde el navegador</p>
+      <p>Diseño actual · Catálogo 0.3 · Impresión desde el navegador</p>
       <p>Se analizan las dimensiones declaradas y la estructura del molde. El contenido impreso,
         la legibilidad y los datos de cada comprobante requieren evidencia adicional.</p>
       @if (report$ | async; as report) {

@@ -1,3 +1,5 @@
+import { inject } from '@angular/core';
+import { ValidationSessionService } from '../../services/validation-session.service';
 /**
  * Element Renderer Component
  * Renders a single TemplateElement on the canvas based on its type.
@@ -37,8 +39,10 @@ import JsBarcode from 'jsbarcode';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ElementRendererComponent implements OnChanges {
+  readonly validation = inject(ValidationSessionService, { optional: true });
   @Input() element!: TemplateElement;
   @Input() selected = false;
+  @Input() overlayOnly = false;
   @Input() sectionKey: 'header' | 'detail' | 'footer' = 'header';
 
   /** Visual overrides during drag/resize (from canvas) */
@@ -67,7 +71,7 @@ export class ElementRendererComponent implements OnChanges {
   contentStyles: Record<string, string> = {};
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['element'] || changes['selected'] || changes['dragWidth'] || changes['dragHeight'] || changes['dragTransform'] || changes['resizeTransform']) {
+    if (changes['overlayOnly'] || changes['element'] || changes['selected'] || changes['dragWidth'] || changes['dragHeight'] || changes['dragTransform'] || changes['resizeTransform']) {
       this.computeStyles();
     }
     if (changes['element']) {
@@ -101,7 +105,7 @@ export class ElementRendererComponent implements OnChanges {
       'left': `${left}px`,
       'top': `${top}px`,
       'width': `${width}px`,
-      'height': el.type === 'line' ? '2px' : `${height}px`,
+      'height': el.type === 'line' && !this.overlayOnly ? '2px' : `${height}px`,
       'z-index': `${this.isDragging ? 9999 : el.zIndex}`,
       'opacity': `${el.style.opacity ?? 1}`,
       'pointer-events': 'auto',

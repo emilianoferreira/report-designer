@@ -1,0 +1,9 @@
+A2 evidence: C:\Users\emili\Documents\GitHub\report-designer\e2e\test-results\mysql-a2-7f934450-3574-4e19-b518-133d127c5911
+Postgres ready
+Database connected
+Schema ready
+Users ready
+APIs ready; running security and concurrency checks.
+A2 comparison: 17 cases, passed=True
+PASS: both APIs, real isolated PostgreSQL, concurrent revision checks and existing security regressions.
+Stopping isolated services

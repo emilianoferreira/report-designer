@@ -1,0 +1,17 @@
+{
+  "date": "2026-11-07",
+  "branch": "codex/mysql-migration",
+  "main": "0c9e5d64cfe298fa6bd92ec31328a9d20d82a009",
+  "apiBuild": "exit 0; 0 warnings; 0 errors",
+  "adminBuild": "exit 0; 0 warnings; 0 errors",
+  "angularBuild": "exit 0; existing jsbarcode/qrcode CommonJS warnings",
+  "lockedRestore": "API, administrator and A2 passed; A2 forced locked restore also passed",
+  "mysql": "45 checks and real Angular authentication passed",
+  "postgres": "345 requests across NestJS and .NET passed after final shared-code change",
+  "originalArtifacts": "13 hashes unchanged",
+  "schemaFormat": "Removed only final empty line after run; original input retained locally as executed-schema.sql",
+  "executedSchemaSha256": "4255d6fd85fde5a57e01d70af0b995cc920ad927d978c46b872abd21acdb20a9",
+  "finalSchemaSha256": "89fba2c77b15bfecca0847e332f9688cfba9b2aa4d39196e143e75d0ee566f18",
+  "notRun": "Full Docker stage8 and 389 Angular unit tests; no frontend source changes",
+  "noAdvance": "A5 not started"
+}

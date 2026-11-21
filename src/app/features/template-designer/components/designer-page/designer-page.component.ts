@@ -1,3 +1,5 @@
+import { ValidationSessionService } from '../../services/validation-session.service';
+import { DesignValidationComponent } from '../design-validation/design-validation.component';
 /**
  * Designer Page Component
  * Main layout that composes the toolbox, canvas, properties panel, and preview.
@@ -25,7 +27,9 @@ type ViewMode = 'design' | 'preview' | 'fiscal' | 'results';
 @Component({
   selector: 'app-designer-page',
   standalone: true,
+  providers: [ValidationSessionService],
   imports: [
+    DesignValidationComponent,
     CommonModule,
     DesignCanvasComponent,
     ToolboxComponent,

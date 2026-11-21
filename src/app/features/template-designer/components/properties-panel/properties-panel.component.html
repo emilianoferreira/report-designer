@@ -44,7 +44,7 @@
               [(ngModel)]="width"
               (blur)="onMultiFieldChange('width')"
               [placeholder]="mixedFields.has('width') ? '— Varios —' : ''"
-              step="0.5"
+              step="0.1"
               min="1"
             />
           </div>
@@ -57,7 +57,7 @@
               [(ngModel)]="height"
               (blur)="onMultiFieldChange('height')"
               [placeholder]="mixedFields.has('height') ? '— Varios —' : ''"
-              step="0.5"
+              step="0.1"
               min="1"
             />
           </div>
@@ -232,23 +232,23 @@
         <!-- Position -->
         <div class="field-row">
           <div class="field-group half">
-            <label class="field-label">X (mm)</label>
+            <label class="field-label" for="element-x">X (mm)</label>
             <input
               type="number"
               class="field-input"
-              [(ngModel)]="posX"
-              (blur)="onFieldChange()"
-              step="0.5"
+              id="element-x" [disabled]="locked" [(ngModel)]="posX"
+              (blur)="onGeometryChange()"
+              step="0.1"
             />
           </div>
           <div class="field-group half">
-            <label class="field-label">Y (mm)</label>
+            <label class="field-label" for="element-y">Y (mm)</label>
             <input
               type="number"
               class="field-input"
-              [(ngModel)]="posY"
-              (blur)="onFieldChange()"
-              step="0.5"
+              id="element-y" [disabled]="locked" [(ngModel)]="posY"
+              (blur)="onGeometryChange()"
+              step="0.1"
             />
           </div>
         </div>
@@ -260,9 +260,9 @@
             <input
               type="number"
               class="field-input"
-              [(ngModel)]="width"
-              (blur)="onFieldChange()"
-              step="0.5"
+              [disabled]="locked" [(ngModel)]="width"
+              (blur)="onGeometryChange()"
+              step="0.1"
               min="1"
             />
           </div>
@@ -271,9 +271,9 @@
             <input
               type="number"
               class="field-input"
-              [(ngModel)]="height"
-              (blur)="onFieldChange()"
-              step="0.5"
+              [disabled]="locked" [(ngModel)]="height"
+              (blur)="onGeometryChange()"
+              step="0.1"
               min="1"
             />
           </div>
