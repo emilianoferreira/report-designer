@@ -220,8 +220,9 @@
       <div class="tab-content">
         <!-- Name -->
         <div class="field-group">
-          <label class="field-label">Nombre</label>
+          <label class="field-label" for="report-element-name">Nombre</label>
           <input
+            id="report-element-name"
             type="text"
             class="field-input"
             [(ngModel)]="name"
@@ -256,8 +257,9 @@
         <!-- Size -->
         <div class="field-row">
           <div class="field-group half">
-            <label class="field-label">Ancho (mm)</label>
+            <label class="field-label" for="report-element-width">Ancho (mm)</label>
             <input
+              id="report-element-width"
               type="number"
               class="field-input"
               [disabled]="locked" [(ngModel)]="width"
@@ -267,8 +269,9 @@
             />
           </div>
           <div class="field-group half">
-            <label class="field-label">Alto (mm)</label>
+            <label class="field-label" for="report-element-height">Alto (mm)</label>
             <input
+              id="report-element-height"
               type="number"
               class="field-input"
               [disabled]="locked" [(ngModel)]="height"
@@ -281,9 +284,10 @@
 
         <!-- Z-Index & Layer -->
         <div class="field-group">
-          <label class="field-label">Capa (Z-Index)</label>
+          <label class="field-label" for="report-element-layer">Capa (Z-Index)</label>
           <div class="field-row compact">
             <input
+              id="report-element-layer"
               type="number"
               class="field-input"
               [(ngModel)]="zIndex"
@@ -479,8 +483,9 @@
         <app-fiscal-roles [element]="selectedElement" [section]="activeSection" />
         @if (selectedElement.type === 'text') {
           <div class="field-group">
-            <label class="field-label">Contenido</label>
+            <label class="field-label" for="report-text-content">Contenido</label>
             <textarea
+              id="report-text-content"
               class="field-input field-textarea"
               [(ngModel)]="textContent"
               (blur)="onFieldChange()"
@@ -491,14 +496,19 @@
 
         @if (selectedElement.type === 'dataField') {
           <div class="field-group">
-            <label class="field-label">Origen de datos</label>
+            <label class="field-label" for="report-field-search">Buscar campo</label>
+            <input id="report-field-search" class="field-input" type="search" [(ngModel)]="fieldQuery" />
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="report-field-source">Origen de datos</label>
             <select
+              id="report-field-source"
               class="field-input"
               [(ngModel)]="bindingSource"
               (change)="onFieldChange()"
             >
               <option value="" disabled>— Seleccionar campo —</option>
-              @for (cat of bindingCategories; track cat.label) {
+              @for (cat of filteredBindings; track cat.label) {
                 <optgroup [label]="cat.label">
                   @for (field of cat.fields; track field.path) {
                     <option [value]="field.path">{{ field.description }}</option>
@@ -509,16 +519,32 @@
           </div>
 
           <div class="field-group">
-            <label class="field-label">Ruta del campo</label>
+            <label class="field-label" for="report-field-format">Formato</label>
+            <select id="report-field-format" class="field-input" [ngModel]="bindingFormat?.type ?? ''"
+              (ngModelChange)="setBindingFormat($event)">
+              <option value="">Tal como llega</option>
+              <option value="text">Texto</option>
+              <option value="date">Fecha</option>
+              <option value="number">Número</option>
+              <option value="currency">Importe</option>
+              <option value="percentage">Porcentaje</option>
+            </select>
+            <label class="field-label" for="report-field-fallback">Texto si falta el dato</label>
+            <input id="report-field-fallback" class="field-input" [(ngModel)]="bindingFallback" (blur)="onFieldChange()" />
+            <p class="field-hint">Ejemplo: {{ bindingExample || 'Sin valor en este escenario' }}</p>
+          </div>
+          <details class="field-group">
+            <summary>Ruta avanzada</summary>
+            <label class="field-label" for="report-field-path">Ruta del campo</label>
             <input
+              id="report-field-path"
               type="text"
               class="field-input mono"
               [(ngModel)]="bindingSource"
               (blur)="onFieldChange()"
               placeholder="ej: invoice.Empresa.Parametros.EFA_Emisor_Nombre"
             />
-            <span class="field-hint">Seleccioná de la lista o escribí la ruta manualmente</span>
-          </div>
+          </details>
         }
 
         @if (selectedElement.type === 'formula') {

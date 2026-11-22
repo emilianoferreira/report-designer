@@ -60,6 +60,12 @@ const fs = require('node:fs');
      createdMolds.set(copy.id, copy);
      return route.fulfill({status:201,json:copy});
    }
+   if (method === 'PUT' && p.endsWith('/design')) {
+     assert.equal(route.request().headers()['if-match'], JSON.stringify(String(mold.version)));
+     const updated = { ...mold, ...route.request().postDataJSON(), version: mold.version + 1 };
+     createdMolds.set(moldId, updated);
+     return route.fulfill({json:updated});
+   }
    if(method === 'DELETE') {
      if (route.request().headers()['if-match'] !== JSON.stringify(String(mold.version))) return route.fulfill({status:409,json:{}});
      createdMolds.delete(moldId);
@@ -205,9 +211,8 @@ const fs = require('node:fs');
  editor = true;
  disabled = false;
  await page.setViewportSize({ width: 1280, height: 720 });
- await page.goto('http://review.test/templates');
- await page.getByRole('button', { name: '+ Nuevo molde', exact: true }).click();
- await page.getByRole('link', { name: 'Etiqueta', exact: true }).click();
+ await page.goto('http://review.test/templates/labels');
+ await page.getByRole('link', { name: '+ Nuevo molde', exact: true }).click();
  const moldName = 'Tirada completa A4 y térmica';
  await page.getByLabel('Nombre del molde').fill(moldName);
  await page.getByRole('combobox', { name: /^Tamaño de la etiqueta/ }).selectOption('custom');
@@ -229,7 +234,7 @@ const fs = require('node:fs');
  await expect(frame.locator('.page')).toHaveCount(4);
  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
  await expect(page).toHaveURL(/\/price-labels\/created-1\/edit$/);
- const saved = createdMolds.get('created-1').template_json;
+ let saved = createdMolds.get('created-1').template_json;
  assert.equal(saved.printProfiles.thermal.width, 55);
  assert.equal(saved.printProfiles.thermal.height, 33);
  assert.equal(saved.printProfiles.defaultProfile, 'thermal');
@@ -263,6 +268,38 @@ const fs = require('node:fs');
  await expect(page.getByLabel('Cantidad de Artículo 2', { exact: true })).toHaveValue('3');
  await expect(frame.locator('.label-price').first()).toContainText('80,50');
  await expect(frame.locator('.label-price').last()).toContainText('0,00');
+ await page.getByLabel('Perfil de impresión').selectOption('sheet');
+ await page.getByRole('button', { name: 'Abrir molde', exact: true }).click();
+ await expect(page).toHaveURL(/\/price-labels\/created-1\/edit\?batch=\d+$/);
+ const elementPicker = page.getByRole('combobox', { name: /^Elemento del molde/ });
+ const priceIndex = await elementPicker.locator('option').evaluateAll(options =>
+   options.findIndex(option => option.textContent.trim() === 'Precio'));
+ assert.ok(priceIndex > 0);
+ await tabTo(elementPicker);
+ await page.keyboard.press('Home');
+ for (let index = 0; index < priceIndex; index++) await page.keyboard.press('ArrowDown');
+ await page.locator('app-price-label-properties').getByRole('button', { name: 'Datos', exact: true }).click();
+ await page.getByLabel('Prefijo', { exact: true }).fill('@');
+ await page.getByLabel('Prefijo', { exact: true }).press('Tab');
+ const beforeResume = resolves;
+ await page.getByRole('button', { name: 'Guardar y volver al lote', exact: true }).click();
+ await expect(page.getByText('Lote recuperado.', { exact: false })).toBeVisible();
+ await expect(page.getByLabel('Molde guardado')).toHaveValue('created-1');
+ await expect(page.getByLabel('Perfil de impresión')).toHaveValue('sheet');
+ await expect(page.getByLabel('Lista de precios')).toHaveValue('b');
+ await expect(page.getByLabel('Cantidad de Artículo 1', { exact: true })).toHaveValue('2');
+ await expect(page.getByLabel('Cantidad de Artículo 2', { exact: true })).toHaveValue('3');
+ await expect(frame.locator('.label-price').first()).toContainText('@$ 80,50');
+ assert.ok(resolves > beforeResume);
+ saved = createdMolds.get('created-1').template_json;
+ assert.equal(saved.elements.find(element => element.type === 'price').prefix, '@');
+
+ await page.getByRole('button', { name: 'Abrir molde', exact: true }).click();
+ await expect(page.getByRole('button', { name: 'Volver al lote', exact: true })).toBeVisible();
+ await page.goBack();
+ await expect(page.getByLabel('Cantidad de Artículo 2', { exact: true })).toHaveValue('3');
+ await expect(frame.locator('.label-price').first()).toContainText('@$ 80,50');
+
  const expectedItems = ['Artículo 1', 'Artículo 1', 'Artículo 2', 'Artículo 2', 'Artículo 2'];
  for (const [profile, pages, pageSize] of [['thermal', 5, '55mm 33mm'], ['sheet', 2, '210mm 297mm']]) {
    await page.getByLabel('Perfil de impresión').selectOption(profile);
@@ -277,18 +314,27 @@ const fs = require('node:fs');
      assert.deepEqual(await output.locator('.label-text').allTextContents(), expectedItems);
      await expect(output.locator('.label-barcode svg')).toHaveCount(5);
      await expect(output.locator('.label-image img')).toHaveCount(5);
-     await expect(output.locator('.label-price').first()).toContainText('80,50');
+     await expect(output.locator('.label-price').first()).toContainText('@$ 80,50');
      await expect(output.locator('.label-price').last()).toContainText('0,00');
      const physicalPages = (await output.pdf({ preferCSSPageSize: true })).toString('latin1');
      assert.equal((physicalPages.match(/\/Type \/Page\b/g) || []).length, pages);
+     const expectedSize = pageSize.split(' ').map(value => Number.parseFloat(value));
+     const boxes = [...physicalPages.matchAll(/\/MediaBox\s*\[0 0 ([\d.]+) ([\d.]+)\]/g)];
+     assert.equal(boxes.length, pages);
+     for (const box of boxes) {
+       box.slice(1).forEach((points, index) => assert.ok(Math.abs(Number(points) * 25.4 / 72 - expectedSize[index]) < 0.65));
+     }
    } finally { await output.close(); }
  }
- console.log('PASS: new label from library, configure both profiles, save, reopen, prepare batch, switch prices, and export the same ordered batch as A4 and thermal HTML/PDF.');
+ console.log('PASS: resume batch after editing or browser Back, resolve the same price list, and verify the updated mold in A4 and thermal HTML/PDF.');
  page.once('dialog', dialog => dialog.accept());
- await page.getByRole('link', { name: '← Mis moldes', exact: true }).click();
+ await page.getByRole('link', { name: '← Moldes de etiquetas', exact: true }).click();
  const original = page.getByRole('article').filter({ has: page.getByRole('heading', { name: moldName, exact: true }) });
  await expect(original).toContainText('Hoja A4 · Rollo térmico');
  await original.getByRole('button', { name: 'Duplicar etiqueta', exact: true }).click();
+ await expect(page).toHaveURL(/\/price-labels\/created-copy\/edit$/);
+ await expect(page.getByLabel('Nombre de la plantilla')).toHaveValue(moldName + ' (copia)');
+ await page.getByRole('button', { name: 'Volver a documentos', exact: true }).click();
  const copy = page.getByRole('article').filter({ has: page.getByRole('heading', { name: moldName + ' (copia)', exact: true }) });
  await expect(copy).toBeVisible();
  assert.deepEqual(createdMolds.get('created-copy').template_json, saved);
@@ -309,8 +355,7 @@ const fs = require('node:fs');
  await expect(original).toBeVisible();
  console.log('PASS: library profile metadata, duplicate label and revision-checked deletion with keyboard confirmation.');
 
- await page.getByRole('button', { name: '+ Nuevo molde', exact: true }).click();
- await page.getByRole('link', { name: 'Etiqueta', exact: true }).click();
+ await page.getByRole('link', { name: '+ Nuevo molde', exact: true }).click();
  await page.getByLabel('Nombre del molde').fill('Plancha desde el alta guiada');
  await page.getByRole('combobox', { name: /^Tamaño de la etiqueta/ }).selectOption('40x25');
  await page.getByRole('radio', { name: 'Hoja A4', exact: true }).check();
@@ -347,10 +392,8 @@ const fs = require('node:fs');
  for (const [width, height, useThermal] of [[1280, 720, true], [1600, 900, false]]) {
    await page.setViewportSize({ width, height });
    page.once('dialog', dialog => dialog.accept());
-   await page.goto('http://review.test/templates');
-   await tabTo(page.getByRole('button', { name: '+ Nuevo molde', exact: true }));
-   await page.keyboard.press('Enter');
-   await tabTo(page.getByRole('link', { name: 'Etiqueta', exact: true }));
+   await page.goto('http://review.test/templates/labels');
+   await tabTo(page.getByRole('link', { name: '+ Nuevo molde', exact: true }));
    await page.keyboard.press('Enter');
    const guidedName = page.getByLabel('Nombre del molde', { exact: true });
    await expect(guidedName).toBeFocused();

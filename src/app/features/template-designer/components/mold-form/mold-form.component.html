@@ -1,11 +1,15 @@
-<div class="mold-form-overlay" (click)="onCancel()">
-  <div class="mold-form-modal" (click)="$event.stopPropagation()">
-    <h2 class="form-title">{{ title }}</h2>
+<dialog #dialog class="mold-form-modal" aria-labelledby="mold-form-title"
+  (cancel)="$event.preventDefault(); onCancel()" (click)="onBackdropClick($event)">
+  <form (ngSubmit)="onSubmit()">
+    <h2 id="mold-form-title" class="form-title">{{ title }}</h2>
 
     <div class="form-group">
-      <label class="form-label">Nombre <span class="required">*</span></label>
+      <label class="form-label" for="report-name">Nombre <span class="required" aria-hidden="true">*</span></label>
       <input
         type="text"
+        id="report-name"
+        name="name"
+        required
         class="form-input"
         [(ngModel)]="name"
         placeholder="Ej: Factura Contado - Empresa"
@@ -15,17 +19,31 @@
     </div>
 
     <div class="form-group">
-      <label class="form-label">Tipo de comprobante</label>
-      <select class="form-input" [(ngModel)]="documentType">
+      <label class="form-label" for="report-document-type">Tipo de comprobante</label>
+      <select id="report-document-type" name="documentType" class="form-input" [(ngModel)]="documentType">
         @for (dt of documentTypes; track dt.value) {
           <option [value]="dt.value">{{ dt.label }}</option>
         }
       </select>
     </div>
 
+    @if (!isEdit) {
+      <div class="form-group">
+        <label class="form-label" for="report-start">Punto de partida</label>
+        <select id="report-start" name="startingPoint" class="form-input" [(ngModel)]="startingPoint">
+          <option value="a4">A4 en blanco</option>
+          <option value="ticket-80">Ticket 80 mm en blanco</option>
+          <option value="ticket-58">Ticket 58 mm en blanco</option>
+          <option value="example">Ejemplo de factura A4</option>
+        </select>
+      </div>
+    }
+
     <div class="form-group">
-      <label class="form-label">Descripción</label>
+      <label class="form-label" for="report-description">Descripción</label>
       <textarea
+        id="report-description"
+        name="description"
         class="form-input form-textarea"
         [(ngModel)]="description"
         placeholder="Descripción opcional del molde"
@@ -34,15 +52,16 @@
       ></textarea>
     </div>
 
+    @if (error) { <p role="alert">{{ error }}</p> }
     <div class="form-actions">
-      <button class="form-btn cancel" (click)="onCancel()">Cancelar</button>
+      <button type="button" class="form-btn cancel" [disabled]="pending" (click)="onCancel()">Cancelar</button>
       <button
+        type="submit"
         class="form-btn primary"
-        (click)="onSubmit()"
-        [disabled]="!isValid"
+        [disabled]="!isValid || pending"
       >
         {{ isEdit ? 'Guardar cambios' : 'Crear molde' }}
       </button>
     </div>
-  </div>
-</div>
+  </form>
+</dialog>

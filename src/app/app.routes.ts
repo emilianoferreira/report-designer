@@ -7,7 +7,11 @@ import { TemplateStorageService } from './features/template-designer/services/te
 
 const authenticated: CanActivateFn = () => inject(AuthService).session ? true : inject(Router).createUrlTree(['/login']);
 const reportLoaded: CanActivateFn = () => inject(TemplateStorageService).ready.then(() => true);
-const canOpenLabelDesigner: CanActivateFn = route => route.paramMap.has('id') || inject(AuthService).session?.role === 'editor' || inject(Router).createUrlTree(['/templates']);
+const canOpenLabelDesigner: CanActivateFn = route => route.paramMap.has('id') || inject(AuthService).session?.role === 'editor' || inject(Router).createUrlTree(['/templates/labels']);
+const legacyCatalogFilter: CanActivateFn = route => route.queryParamMap.get('type') !== 'price-label' ||
+  inject(Router).createUrlTree(['/templates/labels']);
+const loadCatalog = () => import('./features/template-designer/components/template-list/template-list.component')
+  .then(m => m.TemplateListComponent);
 const labelDesignerRoute: UrlMatcher = segments => {
   if (segments[0]?.path !== 'price-labels') return null;
   if (segments.length === 2 && segments[1].path === 'new') return { consumed: segments };
@@ -25,11 +29,16 @@ export const routes: Routes = [
     pathMatch: 'full'
   },
   {
-    path: 'templates',
+    path: 'templates/labels',
     canActivate: [authenticated],
-    loadComponent: () =>
-      import('./features/template-designer/components/template-list/template-list.component')
-        .then(m => m.TemplateListComponent)
+    data: { catalog: 'labels' },
+    loadComponent: loadCatalog
+  },
+  {
+    path: 'templates',
+    canActivate: [authenticated, legacyCatalogFilter],
+    runGuardsAndResolvers: 'paramsOrQueryParamsChange',
+    loadComponent: loadCatalog
   },
   {
     path: 'price-labels/print',

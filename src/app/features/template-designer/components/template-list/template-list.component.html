@@ -6,22 +6,28 @@
     <div class="header-left">
       <span class="app-logo">Diseñador</span>
       <span class="header-separator">|</span>
-      <h1 class="page-title">Mis moldes</h1>
+      <h1 class="page-title">{{ isLabelCatalog ? 'Moldes de etiquetas' : 'Moldes de reportes' }}</h1>
     </div>
     <div class="header-right">
-      <a class="btn-secondary" routerLink="/price-labels/print">Preparar impresión</a>
+      @if (isLabelCatalog) {
+        <a class="btn-secondary" routerLink="/price-labels/print">Preparar impresión</a>
+      }
       @if (canEdit) {
-        <button class="btn-new" (click)="choosingType = !choosingType" [attr.aria-expanded]="choosingType" aria-controls="mold-type">+ Nuevo molde</button>
+        @if (isLabelCatalog) {
+          <a class="btn-new" routerLink="/price-labels/new">+ Nuevo molde</a>
+        } @else {
+          <button class="btn-new" (click)="openNewForm()" [disabled]="catalogPending">+ Nuevo molde</button>
+        }
       }
     </div>
   </header>
 
   <!-- Content -->
   <div class="list-content">
-    @if (choosingType && canEdit) {
-      <div id="mold-type" class="catalog-actions" role="group" aria-label="Tipo de molde nuevo">
-        <button class="btn-secondary" (click)="openNewForm()">Comprobante</button>
-        <a class="btn-secondary" routerLink="/price-labels/new">Etiqueta</a>
+    <nav class="catalog-actions" aria-label="Catálogos de moldes">
+      <a class="btn-secondary" routerLink="/templates" [attr.aria-current]="isLabelCatalog ? null : 'page'">Reportes</a>
+      <a class="btn-secondary" routerLink="/templates/labels" [attr.aria-current]="isLabelCatalog ? 'page' : null">Etiquetas</a>
+      @if (isLabelCatalog && canEdit) {
         <details>
           <summary class="btn-secondary">Calibración</summary>
           <div class="catalog-actions" role="group" aria-label="Moldes de calibración">
@@ -30,28 +36,21 @@
             }
           </div>
         </details>
-      </div>
-    }
-    <nav class="catalog-actions" aria-label="Tipos de molde">
-      @for (option of filters; track option.value) {
-        <a class="btn-secondary" routerLink="/templates" [queryParams]="{ type: option.value }"
-          [attr.aria-current]="filter === option.value ? 'page' : null">{{ option.label }}</a>
       }
     </nav>
-    @let reportError = storage.error$ | async;
-    @let labelError = labelStorage.error$ | async;
+    @let loadError = (isLabelCatalog ? labelStorage.error$ : storage.error$) | async;
+    @if (catalogError && !showForm) { <p role="alert">{{ catalogError }}</p> }
     @if (labelActionError) { <p role="alert">{{ labelActionError }}</p> }
     @if (loading) {
       <p role="status">Cargando moldes…</p>
-    } @else if (reportError || labelError) {
+    } @else if (loadError) {
       <div role="alert">
-        @if (reportError) { <p>{{ reportError }}</p> }
-        @if (labelError) { <p>No se pudieron cargar los moldes de etiquetas.</p> }
+        <p>{{ loadError }}</p>
         <button class="btn-secondary" (click)="retryCatalog()">Reintentar carga</button>
       </div>
     } @else if (!visibleReports.length && !visibleLabels.length) {
       <div class="empty-state">
-        <h2 class="empty-title">{{ filter === 'all' ? 'No hay moldes guardados' : 'No hay moldes de este tipo' }}</h2>
+        <h2 class="empty-title">No hay moldes guardados en este catálogo</h2>
       </div>
     }
     @if (visibleReports.length || visibleLabels.length) {
@@ -61,13 +60,13 @@
             <div class="card-header">
               <span class="card-doctype">{{ getDocTypeLabel(mold.documentType) }}</span>
               @if (canEdit) { <div class="card-menu">
-                <button class="card-action" title="Editar metadatos" (click)="openEditForm(mold); $event.stopPropagation()">
+                <button class="card-action" title="Editar metadatos" aria-label="Editar metadatos del reporte" (click)="openEditForm(mold); $event.stopPropagation()">
                   ✏️
                 </button>
-                <button class="card-action" title="Duplicar" (click)="duplicateMold(mold); $event.stopPropagation()">
+                <button class="card-action" title="Duplicar" aria-label="Duplicar reporte" [disabled]="catalogPending" (click)="duplicateMold(mold); $event.stopPropagation()">
                   📋
                 </button>
-                <button class="card-action delete" title="Eliminar" (click)="requestDelete(mold); $event.stopPropagation()">
+                <button class="card-action delete" title="Eliminar" aria-label="Eliminar reporte" (click)="requestDelete(mold); $event.stopPropagation()">
                   🗑️
                 </button>
               </div> }
@@ -122,6 +121,8 @@
   @if (showForm) {
     <app-mold-form
       [mold]="editingMold"
+      [pending]="catalogPending"
+      [error]="catalogError"
       (saved)="onFormSaved($event)"
       (cancelled)="onFormCancelled()"
     />

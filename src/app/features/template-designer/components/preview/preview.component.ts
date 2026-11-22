@@ -24,7 +24,7 @@ import { CommonModule } from '@angular/common';
 import { Subject, takeUntil, debounceTime, skip, tap } from 'rxjs';
 import { TemplateStateService } from '../../services/template-state.service';
 import { HtmlRendererService } from '../../services/html-renderer.service';
-import { SAMPLE_INVOICE_DATA, SAMPLE_INVOICE_MULTILINE } from '../../data/sample-invoice';
+import { SAMPLE_INVOICE_DATA, SAMPLE_INVOICE_FIFTEEN, SAMPLE_INVOICE_MULTILINE } from '../../data/sample-invoice';
 import { InvoiceData } from '../../../../core/models/template.model';
 import { mmToPx } from '../../utils/coordinate-utils';
 import { ValidationContext } from '../../../../core/models/fiscal.model';
@@ -58,7 +58,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   previewReady = false;
   private injectionVersion = 0;
   private preparation?: Promise<Document | undefined>;
-  private paginationPending?: string;
+  paginationPending?: string;
   private preparedPages: Element[] = [];
   paginatedHtml = '';
   @Output() readonly showDesign = new EventEmitter<void>();
@@ -87,7 +87,17 @@ export class PreviewComponent implements OnInit, OnDestroy {
 
   // ─── View state ───
   viewMode: PreviewViewMode = 'render';
-  sampleDataMode: 'single' | 'multi' = 'single';
+  sampleDataMode: 'single' | 'multi' | 'fifteen' = 'single';
+  currentPage = 1;
+  sampleSize = 0;
+  get pageCount(): number { return this.preparedPages.length; }
+
+  showPage(index: number): void {
+    const page = this.preparedPages[index - 1];
+    if (!page) return;
+    this.currentPage = index;
+    page.scrollIntoView({ block: 'start' });
+  }
   zoom = 0.75; // Preview starts at 75% zoom to fit
   pageWidthPx = mmToPx(210);  // Updated from template on each render
   pageHeightPx = mmToPx(297);
@@ -121,7 +131,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
     if (this.validation) {
       this.validation.scenario$.pipe(takeUntil(this.destroy$)).subscribe(mode => {
         this.fiscalSample = mode.startsWith('fiscal');
-        this.sampleDataMode = mode.endsWith('multi') ? 'multi' : 'single';
+        this.sampleDataMode = mode === 'fifteen' ? mode : mode.endsWith('multi') ? 'multi' : 'single';
         this.renderPreview();
       });
     } else this.renderPreview();
@@ -137,6 +147,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   private invalidateReport(): void {
     this.injectionVersion++;
     this.preparedPages = [];
+    this.currentPage = 1;
     this.previewReady = false;
     this.renderedReport = undefined;
     this.feedback = undefined;
@@ -163,6 +174,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
     this.printMessage = '';
     const template = this.templateState.getCurrentTemplate();
     const data = this.getActiveData();
+    this.sampleSize = data.invoiceLines?.length ?? 0;
     this.fiscalContext = buildValidationContext(template.compliance, data);
     this.showFiscalContext = template.compliance !== undefined || data.fiscal !== undefined;
 
@@ -228,13 +240,14 @@ export class PreviewComponent implements OnInit, OnDestroy {
     this.paginationPending = prepared.paginationPending;
     this.preparedPages = Array.from(doc.querySelectorAll('body > .page'));
     this.pageHeightPx = measureRenderSurface(doc, mmToPx(template.page.height), template.page.dynamicHeight);
-    if (doc.querySelector('[data-render-page]')) this.paginatedHtml = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+    if (doc.querySelector('[data-render-page], [data-roll-paper-size]')) {
+      this.paginatedHtml = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+    }
     this.renderedReport = prepared.report;
     this.feedback = buildValidationFeedback(context, prepared.report, snapshot, this.currentSnapshot());
     this.reportPending = false;
     if (this.validation?.requestedPage) {
-      const page = doc.querySelectorAll('body > .page')[this.validation.requestedPage - 1];
-      page?.scrollIntoView({ block: 'nearest' });
+      this.showPage(this.validation.requestedPage);
       this.validation.requestedPage = undefined;
     }
     this.cdr.markForCheck();
@@ -266,6 +279,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   private getActiveData(): InvoiceData {
     if (this.validation) return this.validation.data();
     if (this.fiscalSample) return sampleFiscalInvoice(this.templateState.getCurrentTemplate().compliance, this.sampleDataMode === 'multi');
+    if (this.sampleDataMode === 'fifteen') return SAMPLE_INVOICE_FIFTEEN;
     return this.sampleDataMode === 'single'
       ? SAMPLE_INVOICE_DATA
       : SAMPLE_INVOICE_MULTILINE;
@@ -274,6 +288,13 @@ export class PreviewComponent implements OnInit, OnDestroy {
   toggleSampleData(): void {
     this.sampleDataMode = this.sampleDataMode === 'single' ? 'multi' : 'single';
     if (this.validation) this.validation.select(this.fiscalSample ? (this.sampleDataMode === 'multi' ? 'fiscal-multi' : 'fiscal-single') : this.sampleDataMode);
+    else this.renderPreview();
+  }
+
+  showFifteenArticles(): void {
+    this.sampleDataMode = 'fifteen';
+    this.fiscalSample = false;
+    if (this.validation) this.validation.select('fifteen');
     else this.renderPreview();
   }
 
@@ -312,7 +333,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   }
 
   showFindingPage(finding: RuleResult): void {
-    if (finding.page) this.previewFrame?.nativeElement.contentDocument?.querySelectorAll('body > .page')[finding.page - 1]?.scrollIntoView({ block: 'nearest' });
+    if (finding.page) this.showPage(finding.page);
   }
 
   async printPreview(): Promise<void> {

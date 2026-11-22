@@ -5,6 +5,7 @@ import { AuthService, Session } from '../../core/auth/auth.service';
 import { PriceLabelArticle, PriceLabelCompany } from '../../core/models/price-label-template.model';
 import { LabelPrintSessionService, expandLabelBatch } from './label-print-session.service';
 import { LabelPrintApiService, PrintContext, PriceList, PrintSnapshot, ResolvedArticle } from './label-print-api.service';
+import type { LabelPrintDraft } from './label-print-draft.service';
 @Injectable()
 export class LabelPrintWorkflowService extends LabelPrintSessionService implements OnDestroy {
   context?:PrintContext; lists:PriceList[]=[]; listCursor:string|null=null; listId=''; query='';
@@ -22,7 +23,29 @@ export class LabelPrintWorkflowService extends LabelPrintSessionService implemen
   }
   initialize():void {
     this.initRequest.unsubscribe(); this.loading=true; this.error='';
-    this.initRequest=this.api.contextInfo().subscribe({next:context=>{if(!context.available){this.clear();this.error='';}this.context=context;this.loading=false;if(context.available)this.loadLists();},error:e=>{this.loading=false;this.fail(e);}});
+    this.initRequest=this.api.contextInfo().subscribe({
+      next: context => {
+        if (!context.available) {
+          this.clear();
+          this.error = '';
+        }
+        this.context = context;
+        this.loading = false;
+        if (!context.available) return;
+        this.loadLists();
+        if (this.lines.length && !this.snapshot) {
+          this.resolve();
+          this.search();
+        }
+      },
+      error: e => { this.loading = false; this.fail(e); }
+    });
+  }
+  restoreDraft(draft: LabelPrintDraft): void {
+    this.listId = draft.listId;
+    this.query = draft.query;
+    this.lines = draft.lines;
+    this.lists = draft.selectedList ? [draft.selectedList] : [];
   }
   loadLists():void {
     if(this.listing)return; this.listing=true; this.error='';

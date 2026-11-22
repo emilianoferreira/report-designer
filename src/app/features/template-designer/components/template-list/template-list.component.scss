@@ -97,7 +97,7 @@
   }
 }
 
-a.btn-secondary, a.btn-open {
+a.btn-new, a.btn-secondary, a.btn-open {
   text-decoration: none;
 }
 
@@ -204,7 +204,8 @@ a.btn-secondary, a.btn-open {
   opacity: 0;
   transition: opacity 0.15s;
 
-  .mold-card:hover & {
+  .mold-card:hover &,
+  .mold-card:focus-within & {
     opacity: 1;
   }
 }

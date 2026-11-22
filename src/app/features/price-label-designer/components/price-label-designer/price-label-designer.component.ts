@@ -30,6 +30,7 @@ import { PriceLabelStorageService } from '../../services/price-label-storage.ser
 
 import { defaultLabelPrintProfile, labelSheetName, resolveLabelLayout } from '../../utils/label-layout';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { LabelPrintDraftService } from '../../../price-label-print/label-print-draft.service';
 
 type ViewMode = 'design' | 'preview';
 
@@ -110,7 +111,8 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
     private router: Router,
     private route: ActivatedRoute,
     private auth: AuthService,
-    private injector: Injector
+    private injector: Injector,
+    private printDrafts: LabelPrintDraftService
   ) {}
 
   ngOnInit(): void {
@@ -196,15 +198,34 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
     return this.canEdit && (this.serverVersion === undefined || this.hasUnsavedChanges());
   }
 
+  private get batchToken(): string | null {
+    const token = this.route.snapshot.queryParamMap.get('batch');
+    return this.printDrafts.canResume(token, this.route.snapshot.paramMap.get('id')) ? token : null;
+  }
+
+  get hasBatchToResume(): boolean { return this.batchToken !== null; }
+
   async preparePrint(): Promise<void> {
     if (this.saving) return;
     if (this.needsSaveForPrint) await this.saveTemplate(false, false);
     if (this.destroyed || this.serverVersion === undefined || this.hasUnsavedChanges() || this.conflict) return;
-    await this.router.navigate(['/price-labels/print'], { queryParams: { templateId: this.template.id } });
+    await this.navigateToPrint(this.template.id);
   }
 
   goToDocuments(): void {
-    this.router.navigate(['/templates']);
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id && this.hasBatchToResume) {
+      void this.navigateToPrint(id);
+      return;
+    }
+    this.router.navigate(['/templates/labels']);
+  }
+
+  private navigateToPrint(templateId: string): Promise<boolean> {
+    const batch = this.batchToken;
+    return this.router.navigate(['/price-labels/print'], {
+      queryParams: { templateId, batch }, replaceUrl: batch !== null
+    });
   }
 
   setViewMode(mode: ViewMode): void {

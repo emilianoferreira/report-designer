@@ -59,3 +59,15 @@ input, select { width: 100%; min-width: 0; border: 1px solid #d0d0d0; border-rad
 .layout-error { margin: 0; padding: 10px 14px; background: #fff3cd; color: #664d03; }
 @media (max-width: 1000px) { .app-logo, .header-separator { display: none; } .mode-btn { padding: 6px 12px; } .designer-header { gap: 8px; padding: 0 8px; } }
 @media (max-width: 700px) { .designer-header { flex-wrap: wrap; padding: 8px; } .header-left { flex-basis: 100%; } .header-right { flex: initial; } .left-panel { width: 120px; } .right-panel { width: 220px; } .print-settings { grid-template-columns: 1fr; } .sheet-summary { display: none; } }
+.element-picker {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--designer-text);
+
+  select {
+    width: 100%;
+    min-width: 0;
+  }
+}

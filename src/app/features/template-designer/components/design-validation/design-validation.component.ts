@@ -13,6 +13,7 @@ import { ValidationFeedbackComponent } from '../validation-feedback/validation-f
     <details open><summary>Validaciones del diseño</summary>
       <label>Escenario <select aria-label="Escenario de validación" [value]="session.scenario$ | async" (change)="select($any($event.target).value)">
         <option value="single">Ejemplo histórico: 1 artículo</option><option value="multi">Ejemplo histórico: 5 artículos</option>
+        <option value="fifteen">Ejemplo histórico: 15 artículos</option>
         <option value="fiscal-single">CFE ficticio: 1 artículo</option><option value="fiscal-multi">CFE ficticio: 5 artículos</option>
         <option value="json" [disabled]="!session.hasImportedScenario">JSON importado</option>
       </select></label>

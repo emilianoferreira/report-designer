@@ -4,6 +4,7 @@ import { BehaviorSubject, firstValueFrom } from 'rxjs';
 import { TemplateMold, CompanyDocumentType, ReportTemplate } from '../../../core/models/template.model';
 import { AuthService } from '../../../core/auth/auth.service';
 import { createDefaultTemplate } from '../data/default-template';
+import { createReportStartingPoint, ReportStartingPoint } from '../data/blank-report';
 
 @Injectable({ providedIn: 'root' })
 export class TemplateStorageService {
@@ -22,8 +23,8 @@ export class TemplateStorageService {
   }
   getAll(): TemplateMold[] { return this.moldsSubject.value; }
   getById(id: string): TemplateMold | undefined { return this.getAll().find(m => m.id === id); }
-  async create(name: string, documentType: CompanyDocumentType, description = '', companyId?: string): Promise<TemplateMold> {
-    const template = createDefaultTemplate();
+  async create(name: string, documentType: CompanyDocumentType, description = '', startingPoint: ReportStartingPoint = 'example'): Promise<TemplateMold> {
+    const template = createReportStartingPoint(startingPoint);
     template.metadata.name = name;
     template.metadata.companyId = this.auth.session!.company_id;
     const row = await firstValueFrom(this.http.post<any>('/api/templates', {

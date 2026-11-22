@@ -52,10 +52,11 @@ export class PriceLabelStorageService {
     this.metadata.delete(id);
     this.templatesSubject.next(this.getAll().filter(t => t.id !== id));
   }
-  async duplicate(id: string): Promise<void> {
+  async duplicate(id: string): Promise<LabelTemplate> {
     const row = await firstValueFrom(this.http.post<any>('/api/templates/' + encodeURIComponent(id) + '/duplicate', {}, this.options()));
     const copy = this.apiToTemplate(row);
     this.templatesSubject.next([...this.getAll().filter(template => template.id !== copy.id), copy]);
+    return copy;
   }
   private apiToTemplate(row: any): LabelTemplate {
     this.metadata.set(row.id, { revision: row.version ?? 0, updatedAt: row.updated_at ?? undefined });

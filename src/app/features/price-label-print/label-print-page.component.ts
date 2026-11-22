@@ -1,8 +1,8 @@
 import { LabelDiagnostic } from '../price-label-designer/utils/label-diagnostics';
 import { AfterViewInit, Component, ElementRef, HostListener, Injector, OnDestroy, OnInit, QueryList, ViewChild, ViewChildren, afterNextRender } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { LabelPrintProfileId, LabelTemplate } from '../../core/models/price-label-template.model';
 import { AuthService } from '../../core/auth/auth.service';
@@ -11,6 +11,7 @@ import { PriceLabelPreviewComponent } from '../price-label-designer/components/p
 import { templateErrors } from '../price-label-designer/utils/label-validation';
 import { defaultLabelPrintProfile, labelSheetName } from '../price-label-designer/utils/label-layout';
 import { LabelPrintWorkflowService } from './label-print-workflow.service';
+import { LabelPrintDraftService } from './label-print-draft.service';
 @Component({
  standalone:true,imports:[CommonModule,FormsModule,RouterLink,PriceLabelPreviewComponent],providers:[LabelPrintWorkflowService],
  templateUrl:'./label-print-page.component.html',
@@ -30,6 +31,9 @@ export class LabelPrintPageComponent implements OnInit, AfterViewInit, OnDestroy
  private requestedTemplateId = '';
  private templateRequest = 0;
  private routeSubscription?: Subscription;
+ private editorUrl?: string;
+ private restoredProfile?: LabelPrintProfileId;
+ resumedBatch = false;
  renderIssues:LabelDiagnostic[]=[];
  rowDiagnostics(id:string):string[] {
    const row=this.state.row(id);
@@ -40,19 +44,56 @@ export class LabelPrintPageComponent implements OnInit, AfterViewInit, OnDestroy
    if(row.price.taxTreatment==='unknown')messages.push('Tratamiento tributario no informado; no se presume IVA incluido.');
    return messages;
  }
- constructor(public storage:PriceLabelStorageService,public state:LabelPrintWorkflowService,private auth:AuthService,private route:ActivatedRoute,private injector:Injector){}
+ constructor(public storage:PriceLabelStorageService,public state:LabelPrintWorkflowService,private auth:AuthService,
+   private route:ActivatedRoute,private injector:Injector,private router:Router,private location:Location,
+   private drafts:LabelPrintDraftService){}
  ngOnInit(): void {
-   this.state.initialize();
    this.routeSubscription = this.route.queryParamMap.subscribe(params => {
      this.requestedTemplateId = params.get('templateId') ?? '';
+     const draft = this.drafts.take(params.get('batch'), this.requestedTemplateId);
+     if (draft) {
+       this.state.restoreDraft(draft);
+       this.resumedBatch = true;
+       this.restoredProfile = draft.profile;
+     }
      void this.loadRequestedTemplate(this.storage.ready);
    });
+   this.state.initialize();
  }
  ngAfterViewInit(): void { this.pageTitle.nativeElement.focus(); }
 
  goToBatch(): void { this.focusSection(this.batchTitle.nativeElement); }
  goToReview(): void {
    if (this.reviewTitle) this.focusSection(this.reviewTitle.nativeElement);
+ }
+
+ async openMold(): Promise<void> {
+   if (!this.template || this.editorUrl) return;
+   const id = this.template.id;
+   const token = this.drafts.stage({
+     templateId: id, profile: this.profile, listId: this.state.listId, lines: this.state.lines,
+     selectedList: this.state.lists.find(list => list.id === this.state.listId), query: this.state.query
+   });
+   const editor = this.router.createUrlTree(['/price-labels', id, 'edit'], {
+     queryParams: token ? { batch: token } : undefined
+   });
+   this.editorUrl = this.router.serializeUrl(editor);
+   const previousUrl = this.location.path();
+   const previousState = this.location.getState();
+   if (token) {
+     const back = this.router.createUrlTree(['/price-labels/print'], { queryParams: { templateId: id, batch: token } });
+     this.location.replaceState(this.router.serializeUrl(back), '', previousState);
+   }
+   let opened = false;
+   try {
+     opened = await this.router.navigateByUrl(editor);
+   } finally {
+     this.editorUrl = undefined;
+     if (!opened && token) {
+       this.drafts.discard(token);
+       this.location.replaceState(previousUrl, '', previousState);
+     }
+   }
  }
 
  private focusSection(heading: HTMLHeadingElement): void {
@@ -100,6 +141,7 @@ export class LabelPrintPageComponent implements OnInit, AfterViewInit, OnDestroy
  selectTemplate(id: string): void {
    this.requestedTemplateId = id;
    this.templateLoadFailed = false;
+   this.restoredProfile = undefined;
    this.applyTemplate(this.storage.getById(id));
  }
  private applyTemplate(saved: LabelTemplate | undefined): void {
@@ -107,7 +149,14 @@ export class LabelPrintPageComponent implements OnInit, AfterViewInit, OnDestroy
    this.templateError = saved?.calibration ? 'Abrí el molde de calibración desde Mis moldes para imprimir su patrón.'
      : saved ? templateErrors(saved).join(' ') : this.requestedTemplateId ? 'No se encontró el molde de etiqueta.' : '';
    this.template = saved && !this.templateError ? structuredClone(saved) : undefined;
-   this.profile = this.template ? defaultLabelPrintProfile(this.template) : 'sheet';
+   if (this.template) {
+     const profile = this.restoredProfile;
+     this.profile = profile === 'sheet' || (profile === 'thermal' && this.template.printProfiles?.thermal)
+       ? profile : defaultLabelPrintProfile(this.template);
+     this.restoredProfile = undefined;
+   } else {
+     this.profile = 'sheet';
+   }
  }
  editQuantity(id: string, event: Event): void {
    const line = this.state.lines.find(item => item.article.id === id);
@@ -116,6 +165,8 @@ export class LabelPrintPageComponent implements OnInit, AfterViewInit, OnDestroy
    this.state.quantity(id, input.valueAsNumber);
    input.value = String(this.state.lines.find(item => item.article.id === id)?.quantity ?? line.quantity);
  }
- hasUnsavedChanges():boolean{return !this.auth.leavingSession&&this.state.lines.length>0;}
+ hasUnsavedChanges(nextUrl?: string):boolean {
+   return !this.auth.leavingSession && this.state.lines.length > 0 && (!this.editorUrl || this.editorUrl !== nextUrl);
+ }
  @HostListener('window:beforeunload',['$event']) beforeUnload(event:BeforeUnloadEvent):void{if(this.hasUnsavedChanges()){event.preventDefault();event.returnValue='';}}
 }

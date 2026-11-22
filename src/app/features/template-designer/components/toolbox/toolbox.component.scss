@@ -14,6 +14,27 @@
   padding: 8px;
 }
 
+.structure {
+  font-size: 12px;
+  margin-bottom: 16px;
+
+  label { display: block; }
+  input, select {
+    box-sizing: border-box;
+    width: 100%;
+    margin: 4px 0 8px;
+    min-height: 28px;
+  }
+  .inline-option {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 8px;
+
+    input { width: auto; min-height: 0; margin: 0; }
+  }
+}
+
 .toolbox-title {
   font-size: 13px;
   font-weight: 600;
@@ -38,6 +59,9 @@
 }
 
 .category-toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -84,6 +108,11 @@
   cursor: grab;
   user-select: none;
   transition: all 0.15s;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
 
   &:hover {
     background: #F3E5F5;

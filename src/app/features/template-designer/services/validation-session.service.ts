@@ -5,7 +5,7 @@ import { BehaviorSubject, combineLatest, Subscription } from 'rxjs';
 import { InvoiceData, ReportTemplate } from '../../../core/models/template.model';
 import { TemplateStateService } from './template-state.service';
 import { HtmlRendererService } from './html-renderer.service';
-import { SAMPLE_INVOICE_DATA, SAMPLE_INVOICE_MULTILINE } from '../data/sample-invoice';
+import { SAMPLE_INVOICE_DATA, SAMPLE_INVOICE_FIFTEEN, SAMPLE_INVOICE_MULTILINE } from '../data/sample-invoice';
 import { sampleFiscalInvoice } from '../data/sample-fiscal-invoice';
 import { buildValidationContext } from '../utils/fiscal-context';
 import { RenderedFiscalReport } from '../utils/rendered-fiscal-rules';
@@ -13,7 +13,7 @@ import { prepareBrowserPrint } from '../utils/prepare-browser-print';
 import { buildValidationFeedback, ValidationFeedback } from '../utils/validation-feedback';
 import { confirmedPrintFailures } from '../utils/print-validation-policy';
 
-export type ScenarioMode = 'single' | 'multi' | 'fiscal-single' | 'fiscal-multi' | 'json';
+export type ScenarioMode = 'single' | 'multi' | 'fifteen' | 'fiscal-single' | 'fiscal-multi' | 'json';
 /** Scoped to one designer page. Data and results never enter the persisted template. */
 @Injectable()
 export class ValidationSessionService implements OnDestroy {
@@ -47,6 +47,7 @@ export class ValidationSessionService implements OnDestroy {
     const mode = this.scenario$.value;
     if (mode === 'json' && this.imported) return this.imported;
     if (mode.startsWith('fiscal')) return sampleFiscalInvoice(template.compliance, mode.endsWith('multi'));
+    if (mode === 'fifteen') return SAMPLE_INVOICE_FIFTEEN;
     return mode === 'multi' ? SAMPLE_INVOICE_MULTILINE : SAMPLE_INVOICE_DATA;
   }
   select(mode: ScenarioMode): void { if (mode !== 'json' || this.imported) this.scenario$.next(mode); }

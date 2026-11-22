@@ -15,6 +15,7 @@ import { ToolboxComponent } from '../toolbox/toolbox.component';
 import { PropertiesPanelComponent } from '../properties-panel/properties-panel.component';
 import { PreviewComponent } from '../preview/preview.component';
 import { TemplateStateService } from '../../services/template-state.service';
+import { SelectionService } from '../../services/selection.service';
 import { TemplateStorageService } from '../../services/template-storage.service';
 import { TemplateMold } from '../../../../core/models/template.model';
 import { HasUnsavedChanges } from '../../guards/unsaved-changes.guard';
@@ -83,6 +84,7 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
   constructor(
     private auth: AuthService,
     private templateState: TemplateStateService,
+    private selection: SelectionService,
     private templateStorage: TemplateStorageService,
     private route: ActivatedRoute,
     private router: Router,
@@ -90,6 +92,7 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
   ) {}
 
   ngOnInit(): void {
+    this.selection.selectMultiple([], 'header');
     const moldId = this.route.snapshot.paramMap.get('id');
     if (moldId) {
       const mold = this.templateStorage.getById(moldId);

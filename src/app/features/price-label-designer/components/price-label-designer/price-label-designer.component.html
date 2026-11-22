@@ -4,7 +4,7 @@
   } @else if (openError) {
     <p role="alert">{{ openError }}</p>
     <div class="header-left">
-      <button class="header-btn" (click)="goToDocuments()">Volver a Mis moldes</button>
+      <button class="header-btn" (click)="goToDocuments()">{{ hasBatchToResume ? 'Volver al lote' : 'Volver a Mis moldes' }}</button>
       <button class="header-btn" (click)="retryOpen()">Reintentar</button>
     </div>
   } @else if (showSetup) {
@@ -19,7 +19,7 @@
   }
   <header class="designer-header">
     <div class="header-left">
-      <button class="back-btn" (click)="goToDocuments()" title="Volver a documentos" aria-label="Volver a documentos">←</button>
+      <button class="back-btn" (click)="goToDocuments()" [attr.aria-label]="hasBatchToResume ? 'Salir del editor y volver al lote' : 'Volver a documentos'">←</button>
       <span class="app-logo">Diseñador</span><span class="header-separator">|</span>
       <input class="template-name-input" aria-label="Nombre de la plantilla" [readOnly]="!canEdit" [ngModel]="template.name" (blur)="canEdit && updateName($any($event.target).value)" />
       @if (hasUnsavedChanges()) { <span class="dirty-indicator" title="Cambios sin guardar" aria-label="Cambios sin guardar">●</span> }
@@ -32,7 +32,13 @@
     }
     <div class="header-right">
       @if (!template.calibration) {
-        <button class="header-btn" [disabled]="!!layoutError" [attr.aria-disabled]="saving ? true : null" (click)="preparePrint()">{{ needsSaveForPrint ? 'Guardar y preparar impresión' : 'Preparar impresión' }}</button>
+        <button class="header-btn" [disabled]="!!layoutError" [attr.aria-disabled]="saving ? true : null" (click)="preparePrint()">
+          @if (hasBatchToResume) {
+            {{ needsSaveForPrint ? 'Guardar y volver al lote' : 'Volver al lote' }}
+          } @else {
+            {{ needsSaveForPrint ? 'Guardar y preparar impresión' : 'Preparar impresión' }}
+          }
+        </button>
       }
       @if (canEdit) {
       <details class="template-menu" #templateMenu (keydown.escape)="templateMenu.open = false; templateSummary.focus()">
@@ -193,6 +199,17 @@
       <aside class="left-panel" [class.collapsed]="leftPanelCollapsed" aria-label="Herramientas">
         <div class="panel-content" [hidden]="leftPanelCollapsed">
           <h2 class="panel-title">Herramientas</h2>
+          @if (template.elements.length) {
+            <label class="element-picker">
+              Elemento del molde
+              <select [ngModel]="selectedElementId ?? ''" (ngModelChange)="selectElement($event || null)">
+                <option value="">Seleccionar elemento</option>
+                @for (element of template.elements; track element.id) {
+                  <option [value]="element.id">{{ element.name }}</option>
+                }
+              </select>
+            </label>
+          }
           <p class="category-label">Elementos</p>
           <div class="tool-list">
             @for (tool of tools; track tool.type) {

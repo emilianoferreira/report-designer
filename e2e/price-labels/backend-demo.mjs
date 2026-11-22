@@ -54,9 +54,8 @@ await runIsolatedApi({verify: async ({urls,users}) => {
       const name=target.pathname.split('/').pop(),asset=/^[\w.-]+\.(js|css|ico)$/.test(name)?name:'index.html';
       return route.fulfill({body:readFileSync('dist/zureo-report-designer/browser/'+asset),contentType:asset.endsWith('.js')?'application/javascript':asset.endsWith('.css')?'text/css':'text/html'});
     });
-    await ui.goto('http://review.test/templates');
-    await ui.getByRole('button', { name: '+ Nuevo molde', exact: true }).click();
-    await ui.getByRole('link', { name: 'Etiqueta', exact: true }).click();
+    await ui.goto('http://review.test/templates/labels');
+    await ui.getByRole('link', { name: '+ Nuevo molde', exact: true }).click();
     const name = 'Lote con catálogo de demostración';
     await ui.getByLabel('Nombre del molde').fill(name);
     await ui.getByRole('combobox', { name: /^Tamaño de la etiqueta/ }).selectOption('60x40');
