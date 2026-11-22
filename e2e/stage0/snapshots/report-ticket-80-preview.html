@@ -173,26 +173,28 @@
         box-shadow: none;
       }
       @page {
-        size: 80mm 200mm;
+        size: auto;
         margin: 0;
       }
     }
+ @media screen { .element-print-only { display: none !important; } }
+      @media print { .element-screen-only { display: none !important; } }
   </style>
 </head>
 <body>
   <div class="page">
-    <div class="section section-header">
-      <div class="element element-text" style="left: 4.724409448818898px; top: 10.393700787401576px; width: 264.5669291338583px; height: 37.795275590551185px; z-index: 1; display: flex; align-items: flex-start;">Guardado report-ticket-80 áé 1,25</div>
-      <div class="element element-datafield" style="left: 3.7795275590551185px; top: 64.25196850393701px; width: 151.18110236220474px; height: 22.67716535433071px; z-index: 1;">Mi Empresa S.A.</div>
-      <div class="element element-formula" style="left: 3.7795275590551185px; top: 105.82677165354332px; width: 151.18110236220474px; height: 22.67716535433071px; z-index: 1;">9.520,25</div>
+    <div class="section section-header" data-render-section="header">
+      <div data-render-element="e0000000-0000-4000-8000-000000000002" data-render-section="header" class="element element-text" style="left: 4.724409448818898px; top: 10.393700787401576px; width: 264.5669291338583px; height: 37.795275590551185px; z-index: 1; display: flex; align-items: flex-start;">Guardado report-ticket-80 áé 1,25</div>
+      <div data-render-element="e0000000-0000-4000-8000-000000000003" data-render-section="header" class="element element-datafield" style="left: 3.7795275590551185px; top: 64.25196850393701px; width: 151.18110236220474px; height: 22.67716535433071px; z-index: 1;">Mi Empresa S.A.</div>
+      <div data-render-element="e0000000-0000-4000-8000-000000000004" data-render-section="header" class="element element-formula" style="left: 3.7795275590551185px; top: 105.82677165354332px; width: 151.18110236220474px; height: 22.67716535433071px; z-index: 1;">9.520,25</div>
 
     </div>
-    <div class="section section-detail">
+    <div class="section section-detail" data-render-section="detail">
       <div class="ticket-detail-header">
         <span>DESCRIPCIÓN</span>
         <span>SUBTOTAL</span>
       </div>
-      <div class="ticket-item">
+      <div data-render-generated="generated-0" class="ticket-item" data-render-source="invoiceLines.0">
         <div class="ticket-item-name">(ART001) Producto Alpha</div>
         <div class="ticket-item-date">09/08/2025</div>
         <div class="ticket-item-qty-row">
@@ -200,7 +202,7 @@
           <span class="ticket-item-subtotal">300,00</span>
         </div>
       </div>
-      <div class="ticket-item">
+      <div data-render-generated="generated-1" class="ticket-item" data-render-source="invoiceLines.1">
         <div class="ticket-item-name">(ART002) Producto Beta</div>
         <div class="ticket-item-date">04/09/2025</div>
         <div class="ticket-item-qty-row">
@@ -208,7 +210,7 @@
           <span class="ticket-item-subtotal">360,00</span>
         </div>
       </div>
-      <div class="ticket-item">
+      <div data-render-generated="generated-2" class="ticket-item" data-render-source="invoiceLines.2">
         <div class="ticket-item-name">(ART003) Servicio Consultoría</div>
         <div class="ticket-item-date">16/09/2025</div>
         <div class="ticket-item-qty-row">
@@ -216,7 +218,7 @@
           <span class="ticket-item-subtotal">2.500,00</span>
         </div>
       </div>
-      <div class="ticket-item">
+      <div data-render-generated="generated-3" class="ticket-item" data-render-source="invoiceLines.3">
         <div class="ticket-item-name">(ART004) Licencia Software Anual</div>
         <div class="ticket-item-date">30/09/2025</div>
         <div class="ticket-item-qty-row">
@@ -224,7 +226,7 @@
           <span class="ticket-item-subtotal">4.560,00</span>
         </div>
       </div>
-      <div class="ticket-item">
+      <div data-render-generated="generated-4" class="ticket-item" data-render-source="invoiceLines.4">
         <div class="ticket-item-name">(ART005) Soporte Técnico Mensual</div>
         <div class="ticket-item-date">14/10/2025</div>
         <div class="ticket-item-qty-row">
@@ -234,8 +236,8 @@
       </div>
 
     </div>
-    <div class="section section-footer">
-      <div class="element element-datafield" style="left: 37.795275590551185px; top: 18.897637795275593px; width: 151.18110236220474px; height: 22.67716535433071px; z-index: 1;">$ 9.520,00</div>
+    <div class="section section-footer" data-render-section="footer">
+      <div data-render-element="e0000000-0000-4000-8000-000000000010" data-render-section="footer" class="element element-datafield" style="left: 37.795275590551185px; top: 18.897637795275593px; width: 151.18110236220474px; height: 22.67716535433071px; z-index: 1;">$ 9.520,00</div>
 
     </div>
   </div>

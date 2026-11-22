@@ -1,0 +1,20 @@
+{
+  "commit": "f505924467849afbfa111f103dfe37beecc4baf4",
+  "rendererSha256": "93ef5a542da6f9a76806cc2de952e3d6a6c8a88789b236382a83e745500aa9ae",
+  "before": {
+    "a4TextCanvasMm": [
+      1.249,
+      2.749
+    ],
+    "a4TextPreviewMm": [
+      11.245,
+      12.745
+    ],
+    "detail8mmFooterOneArticleYmm": 102.811,
+    "detail8mmFooterFiveArticlesYmm": 126.095
+  },
+  "exports": {
+    "historical-a4": "a410eef0978aed02f06975428525e7412a6f488fa2d04794449f1b67975f527f",
+    "historical-ticket-80": "45b0ee861844fea5d55163d40bd21f9634258d9525cf221aadd810539753c444"
+  }
+}

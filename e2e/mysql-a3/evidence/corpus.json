@@ -1,0 +1,87 @@
+[
+  {
+    "name": "report-a4",
+    "required": true,
+    "postgresAccepted": true,
+    "sha256": "bed084015ae29bddf393a6874bb5c4b882fc770796d5bed25bf34d0a28472295",
+    "bytes": 7133
+  },
+  {
+    "name": "report-ticket-80",
+    "required": true,
+    "postgresAccepted": true,
+    "sha256": "9b1160f4a74c4b15b709fc7d4bd6a11ff85a0eb85393ba55f171f9852e070948",
+    "bytes": 5320
+  },
+  {
+    "name": "price-label",
+    "required": true,
+    "postgresAccepted": true,
+    "sha256": "abe9a9722385b1b47ded6100d0445fcf61ed7f74534346a5fe1a4d4152a1ab98",
+    "bytes": 1698
+  },
+  {
+    "name": "open-document",
+    "required": true,
+    "postgresAccepted": true,
+    "sha256": "cba934cedc973a2e9db9bf537bc31bb58dd36a9e8013e3b83ac739f2de1e2320",
+    "bytes": 102
+  },
+  {
+    "name": "exact-number",
+    "required": true,
+    "postgresAccepted": true,
+    "sha256": "ec93080b918ef4f3bb91af3f74d66f3343e9334aefdaaa09f4df9f1890b10c9e",
+    "bytes": 83
+  },
+  {
+    "name": "duplicate-key",
+    "required": true,
+    "postgresAccepted": true,
+    "sha256": "8c697e1042ad2aa25c8323ce141c938d03f62c0d7230d237ab08f5353e023247",
+    "bytes": 33
+  },
+  {
+    "name": "numeric-notation",
+    "required": true,
+    "postgresAccepted": true,
+    "sha256": "1c3c233a24623d73a685c02ba1dd938781c956b54ec74f18e6974c47d8f7cbfc",
+    "bytes": 28
+  },
+  {
+    "name": "json-null",
+    "required": true,
+    "postgresAccepted": true,
+    "sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "bytes": 4
+  },
+  {
+    "name": "large-1mb",
+    "required": true,
+    "postgresAccepted": true,
+    "sha256": "4b838dde1243636b7e506c9f862acfd4b92f9e75f9434ae81b808440ef27c23b",
+    "bytes": 1048592
+  },
+  {
+    "name": "near-http-limit",
+    "required": true,
+    "postgresAccepted": true,
+    "sha256": "233cc9f29f5884d2086624327d0b48513aaac573f46d6bfabd3881b0c7b16629",
+    "bytes": 32505872
+  },
+  {
+    "name": "huge-exponent",
+    "required": false,
+    "postgresAccepted": true,
+    "sha256": "c3481b4e0f5fa4a1c11f5d5f510a0a0da26a5b1bca5894159a6ce18f2c99331c",
+    "bytes": 15
+  },
+  {
+    "name": "invalid-json",
+    "required": true,
+    "postgresAccepted": false,
+    "postgresError": "22P02",
+    "sha256": "cbdf3b1f91ae32fe1ea292ac6cccf19222f97929f531523f0d15d885052c00c4",
+    "bytes": 10
+  }
+]

@@ -122,6 +122,8 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
     return this.template.elements.find(el => el.id === this.selectedElementId) || null;
   }
 
+  preparePrint(): void { this.router.navigate(['/price-labels/print']); }
+
   goToDocuments(): void {
     this.router.navigate(['/templates']);
   }

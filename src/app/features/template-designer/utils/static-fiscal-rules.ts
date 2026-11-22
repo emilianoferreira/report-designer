@@ -1,8 +1,15 @@
 import { ReportTemplate } from '../../../core/models/template.model';
 import { CFE_TYPES, ValidationContext } from '../../../core/models/fiscal.model';
+import { ValidationFinding } from '../../../core/models/validation.model';
+import { CFE_FORMAT_SOURCE, FISCAL_FIELD_REQUIREMENTS } from './fiscal-rule-catalogue';
+import { FISCAL_OBLIGATION_MATRIX, FISCAL_MATRIX_VERSION, Obligation, obligationForContext } from './fiscal-obligation-matrix';
+import { receiverRequirements } from './receiver-requirements';
+import type { ReceiverRequirement, ReceiverRequirements } from './receiver-requirements';
+import type { ReceiverPageCoverage } from './fiscal-field-evidence';
 
 export type RuleStatus = 'pass' | 'fail' | 'not-applicable' | 'pending';
-export interface RuleResult {
+export interface RuleResult extends ValidationFinding {
+  omission?: { coverage: ReceiverPageCoverage; requirement: ReceiverRequirement };
   id: string;
   title: string;
   status: RuleStatus;
@@ -14,55 +21,58 @@ export interface RuleResult {
   elements: Array<{ id: string; section: 'header' | 'detail' | 'footer' }>;
 }
 export interface StaticFiscalReport {
-  catalogueVersion: 'stage-0.2';
+  receiverObligations?: ReceiverRequirements;
+  obligationMatrix?: { version: string; cells: Array<{ id: string; obligation: Obligation }> };
+  fieldRequirements?: Array<{ id: string; applicability: 'required' | 'optional' | 'pending' | 'not-applicable' }>;
+  catalogueVersion: 'stage-0.3';
   scope: 'static-browser';
   status: 'violations' | 'incomplete' | 'no-detected-failures';
   results: RuleResult[];
 }
-const source = 'https://www.efactura.dgi.gub.uy/files/formato_cfe_v25-2-pdf?es';
+const source = CFE_FORMAT_SOURCE;
 /** The agreed catalogue remains visible even where static evidence cannot decide.
  * No role, binding or font size is accepted as proof of printed contents.
  */
 const deferred: Array<[string, string, string, string]> = [
-  ['LEG-01', 'Borde sin letras de 5 mm', 'p. 80', 'Requiere medir las letras impresas; la caja del elemento no prueba sus límites.'],
-  ['LEG-02', 'Altura de caracteres', 'pp. 80–85', 'Revisión manual de altura real; los puntos CSS no prueban milímetros de caracteres.'],
-  ['LEG-03', 'Interlineado simple', 'p. 80', 'Revisión manual del interlineado efectivo.'],
-  ['LEG-04', 'Color negro y legibilidad', 'pp. 79–80', 'Requiere contenido y estilos efectivos; se admiten las excepciones de logo y fondo.'],
-  ['DIS-01', 'Distribución y secuencia de bloques', 'pp. 80–84', 'Requiere identificar bloques efectivos; la alternativa secuencial también es admisible.'],
-  ['DIS-02', 'Dimensión del logo', 'p. 80', 'Revisión manual del límite de un quinto, sin imponer una interpretación geométrica.'],
-  ['ID-01', 'Identificación del emisor', 'p. 81', 'Requiere datos y contenido efectivamente impreso.'],
-  ['ID-02', 'Tipo, RUT, serie, número y pago', 'p. 81', 'Requiere denominación y datos impresos; el código CFE aislado no prueba su denominación.'],
-  ['ID-03', 'Datos preimpresos', 'p. 81', 'Requiere evidencia del soporte preimpreso declarado.'],
-  ['REC-01', 'Identificación del receptor de e-Factura', 'p. 82', 'Requiere condición del receptor y datos efectivos.'],
-  ['REC-02', 'Recuadro CONSUMO FINAL', 'p. 82', 'Requiere contenido, recuadro y condición del documento.'],
-  ['REC-03', 'Identificación por umbral en UI', 'pp. 82 y 90', 'El umbral es mayor a 5.000 UI netas; requiere UI del cierre del año anterior y excepciones del receptor.'],
-  ['REC-04', 'Identificación por retenciones/percepciones', 'pp. 82 y 90', 'Requiere conocer retenciones/percepciones e identificación, cualquiera sea el importe.'],
-  ['REG-01', 'Exoneración y norma legal', 'p. 81', 'Requiere régimen y norma de exoneración efectivos.'],
-  ['REG-02', 'Leyenda IVA mínimo', 'p. 81', 'Requiere régimen y leyenda efectiva.'],
-  ['REG-03', 'Leyenda monotributo', 'p. 81', 'Requiere régimen y leyenda efectiva.'],
-  ['REG-04', 'Leyenda monotributo social MIDES', 'p. 81', 'Requiere régimen y leyenda efectiva.'],
-  ['REG-05', 'Recuadro y ubicación del régimen', 'p. 81', 'Requiere recuadro impreso de 40 × 10 mm, ubicación y caracteres de 3 mm.'],
-  ['REG-06', 'Menciones de IVA mínimo y excepciones', 'p. 83', 'Requiere conocer las excepciones de la operación y su contenido.'],
-  ['REG-07', 'Menciones de IVA en monotributo', 'p. 83', 'Requiere régimen y contenido efectivo.'],
-  ['CON-01', 'Fecha de emisión', 'p. 83', 'Requiere fecha del documento y contenido efectivo.'],
-  ['CON-02', 'Detalle de bienes y servicios', 'p. 83', 'Los servicios pueden omitir cantidad y precio unitario; requiere detalle efectivo.'],
-  ['CON-03', 'Totales e IVA por tasa', 'p. 83', 'Requiere importes, tasas y excepciones por tipo y régimen.'],
-  ['CON-04', 'Moneda y total a pagar', 'pp. 83–84', 'Si total y total a pagar coinciden puede imprimirse un solo importe; requiere datos efectivos.'],
-  ['REF-01', 'Necesidad de referencias', 'pp. 65 y 83', 'Requiere tipo y operación: notas, cobranza propia y otros supuestos condicionados.'],
+  ['LEG-01', 'Borde sin letras de 5 mm', 'p. 79', 'Requiere medir las letras impresas; la caja del elemento no prueba sus límites.'],
+  ['LEG-02', 'Altura de caracteres', 'pp. 79–84', 'Revisión manual de altura real; los puntos CSS no prueban milímetros de caracteres.'],
+  ['LEG-03', 'Interlineado simple', 'p. 79', 'Revisión manual del interlineado efectivo.'],
+  ['LEG-04', 'Color negro y legibilidad', 'pp. 78–79', 'Requiere contenido y estilos efectivos; se admiten las excepciones de logo y fondo.'],
+  ['DIS-01', 'Distribución y secuencia de bloques', 'pp. 79–83', 'Requiere identificar bloques efectivos; la alternativa secuencial también es admisible.'],
+  ['DIS-02', 'Dimensión del logo', 'p. 79', 'Revisión manual del límite de un quinto, sin imponer una interpretación geométrica.'],
+  ['ID-01', 'Identificación del emisor', 'p. 80', 'Requiere datos y contenido efectivamente impreso.'],
+  ['ID-02', 'Tipo, RUT, serie, número y pago', 'p. 80', 'Requiere denominación y datos impresos; el código CFE aislado no prueba su denominación.'],
+  ['ID-03', 'Datos preimpresos', 'p. 80', 'Requiere evidencia del soporte preimpreso declarado.'],
+  ['REC-01', 'Identificación del receptor de e-Factura', 'p. 81', 'Requiere condición del receptor y datos efectivos.'],
+  ['REC-02', 'Recuadro CONSUMO FINAL', 'p. 81', 'Requiere contenido, recuadro y condición del documento.'],
+  ['REC-03', 'Identificación por umbral en UI', 'pp. 81 y 89', 'El umbral es mayor a 5.000 UI netas; requiere UI del cierre del año anterior y excepciones del receptor.'],
+  ['REC-04', 'Identificación por retenciones/percepciones', 'pp. 81 y 89', 'Requiere conocer retenciones/percepciones e identificación, cualquiera sea el importe.'],
+  ['REG-01', 'Exoneración y norma legal', 'p. 80', 'Requiere régimen y norma de exoneración efectivos.'],
+  ['REG-02', 'Leyenda IVA mínimo', 'p. 80', 'Requiere régimen y leyenda efectiva.'],
+  ['REG-03', 'Leyenda monotributo', 'p. 80', 'Requiere régimen y leyenda efectiva.'],
+  ['REG-04', 'Leyenda monotributo social MIDES', 'p. 80', 'Requiere régimen y leyenda efectiva.'],
+  ['REG-05', 'Recuadro y ubicación del régimen', 'p. 80', 'Requiere recuadro impreso de 40 × 10 mm, ubicación y caracteres de 3 mm.'],
+  ['REG-06', 'Menciones de IVA mínimo y excepciones', 'p. 82', 'Requiere conocer las excepciones de la operación y su contenido.'],
+  ['REG-07', 'Menciones de IVA en monotributo', 'p. 82', 'Requiere régimen y contenido efectivo.'],
+  ['CON-01', 'Fecha de emisión', 'p. 82', 'Requiere fecha del documento y contenido efectivo.'],
+  ['CON-02', 'Detalle de bienes y servicios', 'p. 82', 'Los servicios pueden omitir cantidad y precio unitario; requiere detalle efectivo.'],
+  ['CON-03', 'Totales e IVA por tasa', 'p. 82', 'Requiere importes, tasas y excepciones por tipo y régimen.'],
+  ['CON-04', 'Moneda y total a pagar', 'pp. 82–83', 'Si total y total a pagar coinciden puede imprimirse un solo importe; requiere datos efectivos.'],
+  ['REF-01', 'Necesidad de referencias', 'pp. 65 y 82', 'Requiere tipo y operación: notas, cobranza propia y otros supuestos condicionados.'],
   ['REF-02', 'Referencia global y razón', 'p. 65', 'Requiere razón cuando no pueden identificarse documentos; no sustituye el límite de referencias.'],
-  ['QR-01', 'QR de consulta', 'p. 84', 'Un rol o un elemento QR no prueba la presencia de un símbolo válido impreso.'],
-  ['QR-02', 'Dimensiones y margen del QR', 'p. 84', 'Requiere medir símbolo y margen por separado; no interpolar entre los extremos normativos.'],
-  ['QR-03', 'Contenido del QR', 'p. 84', 'Requiere tipo, importe aplicable, fecha de firma y hash completo; no derivarlos del código de seguridad.'],
-  ['QR-04', 'Código de seguridad', 'p. 84', 'Requiere los seis primeros caracteres del hash y su impresión debajo del QR.'],
-  ['PIE-01', 'Ingreso y sitio de verificación', 'p. 84', 'Requiere ingreso o resolución aplicable y sitio según el tipo CFE.'],
-  ['PIE-02', 'CAE, rango y vencimiento', 'p. 84', 'Requiere datos efectivos, recuadro y ubicación del vencimiento.'],
-  ['PIE-03', 'Leyenda de IVA', 'p. 84', 'Requiere conocer su aplicabilidad e impresión.'],
-  ['ADE-01', 'Separación de ADENDA', 'p. 85', 'Requiere contenido, rótulo y separación impresa; se admiten las alternativas del catálogo.'],
-  ['ADE-02', 'Constancias obligatorias', 'p. 85', 'Requiere conocer las constancias y ubicaciones especiales de la operación.'],
-  ['EXC-01', 'Secreto profesional', 'p. 82', 'Requiere declaración y tratamiento de la identificación en adenda.'],
-  ['EXT-01', 'Papel, gramaje y resolución', 'p. 79', 'Verificación externa del papel e impresora.'],
-  ['EXT-02', 'Papel térmico y disponibilidad web', 'p. 79', 'Verificación externa según tipo CFE y plazo aplicable.'],
-  ['EXT-03', 'Multipágina', 'p. 80', 'Requiere comprobar los saltos, la numeración y los datos repetidos en la salida.']
+  ['QR-01', 'QR de consulta', 'p. 83', 'Un rol o un elemento QR no prueba la presencia de un símbolo válido impreso.'],
+  ['QR-02', 'Dimensiones y margen del QR', 'p. 83', 'Requiere medir símbolo y margen por separado; no interpolar entre los extremos normativos.'],
+  ['QR-03', 'Contenido del QR', 'p. 83', 'Requiere tipo, importe aplicable, fecha de firma y hash completo; no derivarlos del código de seguridad.'],
+  ['QR-04', 'Código de seguridad', 'p. 83', 'Requiere los seis primeros caracteres del hash y su impresión debajo del QR.'],
+  ['PIE-01', 'Ingreso y sitio de verificación', 'p. 83', 'Requiere ingreso o resolución aplicable y sitio según el tipo CFE.'],
+  ['PIE-02', 'CAE, rango y vencimiento', 'p. 83', 'Requiere datos efectivos, recuadro y ubicación del vencimiento.'],
+  ['PIE-03', 'Leyenda de IVA', 'p. 83', 'Requiere conocer su aplicabilidad e impresión.'],
+  ['ADE-01', 'Separación de ADENDA', 'p. 84', 'Requiere contenido, rótulo y separación impresa; se admiten las alternativas del catálogo.'],
+  ['ADE-02', 'Constancias obligatorias', 'p. 84', 'Requiere conocer las constancias y ubicaciones especiales de la operación.'],
+  ['EXC-01', 'Secreto profesional', 'p. 81', 'Requiere declaración y tratamiento de la identificación en adenda.'],
+  ['EXT-01', 'Papel, gramaje y resolución', 'p. 78', 'Verificación externa del papel e impresora.'],
+  ['EXT-02', 'Papel térmico y disponibilidad web', 'p. 78', 'Verificación externa según tipo CFE y plazo aplicable.'],
+  ['EXT-03', 'Multipágina', 'p. 79', 'Requiere comprobar los saltos, la numeración y los datos repetidos en la salida.']
 ];
 const adjustments = [
   'Descuento del ítem: B.13; porcentaje solo no sustituye importe',
@@ -87,7 +97,7 @@ const references = [
   'F.1, F.2 y F.10 no son universalmente obligatorios en la impresión',
   'Conservar y asociar todas las referencias informadas sin mezclar ni recortar'
 ];
-for (const [prefix, titles, ref] of [['CON-05', adjustments, 'pp. 44–61 y 83'], ['REF-03', references, 'p. 65']] as const) {
+for (const [prefix, titles, ref] of [['CON-05', adjustments, 'pp. 44–61 y 82'], ['REF-03', references, 'p. 65']] as const) {
   titles.forEach((title, i) => deferred.push([`${prefix}.${String(i + 1).padStart(2, '0')}`, title, ref,
     'Requiere datos completos y evidencia impresa. Ausencia en el origen se diagnostica por separado; no demuestra una omisión del molde.']));
 }
@@ -96,7 +106,8 @@ export function evaluateStaticFiscalRules(template: ReportTemplate, context: Val
   const results: RuleResult[] = [];
   const add = (id: string, title: string, status: RuleStatus, message: string, reference: string,
     action = 'Completar el contexto o revisar la evidencia indicada.', category: RuleResult['category'] = 'normative',
-    elements: RuleResult['elements'] = []) => results.push({ id, title, status, message, reference, action, category, elements,
+    elements: RuleResult['elements'] = []) => results.push({ id, ruleId: id, findingId: `${id}:${results.filter(r => r.id === id).length}`,
+      severity: status === 'fail' ? 'error' : 'info', output: 'browser', evidenceIds: [], title, status, message, reference, action, category, elements,
       source: category === 'normative' ? source : '' });
   const p = template.compliance;
   const compatible = p?.schemaVersion === '1.0' && p.jurisdiction === 'UY' && p.output === 'browser';
@@ -104,7 +115,7 @@ export function evaluateStaticFiscalRules(template: ReportTemplate, context: Val
   const contextProblem = context.diagnostics.length > 0;
   add('COB-01', 'Cobertura del análisis', 'pending', supported ?
     'Análisis estático del diseño. La evidencia impresa y las verificaciones manuales todavía no están disponibles.' :
-    'Definí un perfil compatible y un tipo CFE del MVP para evaluar las dimensiones normativas.', 'Catálogo 0.2',
+    'Definí un perfil compatible y un tipo CFE del MVP para evaluar las dimensiones normativas.', 'Catálogo 0.3',
     'Completar el perfil y las verificaciones pendientes.', 'technical');
   const w = template.page.width, h = template.page.height;
   const validSize = Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0;
@@ -112,14 +123,14 @@ export function evaluateStaticFiscalRules(template: ReportTemplate, context: Val
     const id = medium === 'sheet' ? 'PAP-01' : 'PAP-02';
     const title = medium === 'sheet' ? 'Dimensiones de hoja' : 'Ancho de rollo';
     if (!supported || !p?.medium || !['sheet', 'roll'].includes(p.medium) || contextProblem || !validSize) {
-      add(id, title, 'pending', 'Falta contexto inequívoco o dimensiones válidas para determinar la aplicación.', 'p. 79');
-    } else if (p.medium !== medium) add(id, title, 'not-applicable', 'El soporte declarado es otro.', 'p. 79');
+      add(id, title, 'pending', 'Falta contexto inequívoco o dimensiones válidas para determinar la aplicación.', 'p. 78');
+    } else if (p.medium !== medium) add(id, title, 'not-applicable', 'El soporte declarado es otro.', 'p. 78');
     else {
       const short = Math.min(w, h), long = Math.max(w, h);
       const fits = medium === 'roll' ? w >= 57 : short >= 57 && long >= 150 && short <= 216 && long <= 356;
       add(id, title, fits ? 'pass' : 'fail', `${w} × ${h} mm declarados. ` + (medium === 'roll' ?
         'Ancho mínimo de rollo: 57 mm; no se impone un largo máximo.' :
-        'Hoja entre 150 × 57 y 356 × 216 mm, admitiendo ambas orientaciones.'), 'p. 79',
+        'Hoja entre 150 × 57 y 356 × 216 mm, admitiendo ambas orientaciones.'), 'p. 78',
         'Revisar el tamaño del papel en Diseño. La medida física se verificará al imprimir.');
     }
   }
@@ -140,6 +151,9 @@ export function evaluateStaticFiscalRules(template: ReportTemplate, context: Val
       'Revisar el identificador del elemento en el molde.', 'technical', [{ id: el.id, section }]);
     ids.add(el.id);
   }
-  return { catalogueVersion: 'stage-0.2', scope: 'static-browser',
+  const receiver = receiverRequirements(context);
+  return { catalogueVersion: 'stage-0.3', scope: 'static-browser', receiverObligations: receiver,
+    obligationMatrix: { version: FISCAL_MATRIX_VERSION, cells: FISCAL_OBLIGATION_MATRIX.map(row => ({ id: row.id, obligation: obligationForContext(row, context, receiver) })) },
+    fieldRequirements: FISCAL_FIELD_REQUIREMENTS.map(rule => ({ id: rule.id, applicability: rule.applicability(context) })),
     status: results.some(r => r.status === 'fail') ? 'violations' : results.some(r => r.status === 'pending') ? 'incomplete' : 'no-detected-failures', results };
 }

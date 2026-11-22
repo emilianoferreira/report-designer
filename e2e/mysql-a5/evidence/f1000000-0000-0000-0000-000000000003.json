@@ -1,0 +1,300 @@
+{
+  "postgres": {
+    "CFE": {
+      "Adenda": "",
+      "CodSeguridad": "",
+      "TipoComprobanteFiscal": {
+        "Nombre": ""
+      }
+    },
+    "Total": 22900,
+    "isCFE": false,
+    "Moneda": {
+      "ISO4217": "UYU",
+      "Simbolo": "$"
+    },
+    "company": {
+      "RUT": "21-654321-0001",
+      "Ciudad": "Montevideo",
+      "Nombre": "Soluciones Tech S.A.",
+      "logoUrl": "",
+      "Direccion": "Bulevar Artigas 1250",
+      "NombreComercial": "SolTech"
+    },
+    "invoice": {
+      "Tipo": {
+        "Nombre": "Venta Contado",
+        "Clasificacion": {
+          "OperaContado": true
+        }
+      },
+      "Fecha": "2026-03-20T09:00:00-03:00",
+      "Numero": {
+        "Serie": "A",
+        "Numero": "3",
+        "CAEDesde": "",
+        "CAEHasta": "",
+        "CAEFechaVto": "",
+        "CAEIdentificador": ""
+      },
+      "Empresa": {
+        "Parametros": {
+          "EFA_Emisor_RUT": "21-654321-0001",
+          "EFA_Resolucion": "Res. DGI 1234/2025",
+          "EFA_Emisor_Ciudad": "Montevideo",
+          "EFA_Emisor_Nombre": "Soluciones Tech S.A.",
+          "EFA_Emisor_Direccion": "Bulevar Artigas 1250",
+          "EFA_Emisor_NComercial": "SolTech"
+        }
+      },
+      "Sucursal": {
+        "Direccion": "Av. Brasil 2890"
+      },
+      "Comentario": "Consultoría Q1 2026 - Proyecto migración cloud",
+      "TipoCambio": 1,
+      "DireccionFactura": {
+        "Domicilio": "Ruta 5 km 510"
+      },
+      "PorcentajeDescGlobal": 5
+    },
+    "Contacto": {
+      "GuardarComo": "Importadora Norte"
+    },
+    "QRBase64": "",
+    "Redondeo": 0,
+    "Subtotal": 19836.07,
+    "Articulos": [
+      {
+        "Articulo": {
+          "Codigo": "SV-001",
+          "Nombre": "Servicio Consultoría (hora)"
+        },
+        "Cantidad": 4,
+        "SubTotal": 14000,
+        "Descuento": 0,
+        "PrecioUnitario": 3500,
+        "PrecioUnitarioNeto": 2868.85
+      },
+      {
+        "Articulo": {
+          "Codigo": "LI-001",
+          "Nombre": "Licencia Software Anual"
+        },
+        "Cantidad": 1,
+        "SubTotal": 9600,
+        "Descuento": 0,
+        "PrecioUnitario": 9600,
+        "PrecioUnitarioNeto": 7868.85
+      },
+      {
+        "Articulo": {
+          "Codigo": "CA-001",
+          "Nombre": "Cable HDMI 2m"
+        },
+        "Cantidad": 2,
+        "SubTotal": 700,
+        "Descuento": 0,
+        "PrecioUnitario": 350,
+        "PrecioUnitarioNeto": 286.89
+      }
+    ],
+    "Impuestos": [
+      {
+        "Valor": 4363.93,
+        "Nombre": "IVA Tasa Básica"
+      }
+    ],
+    "logoBase64": "",
+    "hasContacto": true,
+    "hasRedondeo": false,
+    "hasDtoGlobal": true,
+    "invoiceLines": [
+      {
+        "Articulo": {
+          "Codigo": "SV-001",
+          "Nombre": "Servicio Consultoría (hora)"
+        },
+        "Cantidad": 4,
+        "SubTotal": 14000,
+        "Descuento": 0,
+        "PrecioUnitario": 3500,
+        "PrecioUnitarioNeto": 2868.85
+      },
+      {
+        "Articulo": {
+          "Codigo": "LI-001",
+          "Nombre": "Licencia Software Anual"
+        },
+        "Cantidad": 1,
+        "SubTotal": 9600,
+        "Descuento": 0,
+        "PrecioUnitario": 9600,
+        "PrecioUnitarioNeto": 7868.85
+      },
+      {
+        "Articulo": {
+          "Codigo": "CA-001",
+          "Nombre": "Cable HDMI 2m"
+        },
+        "Cantidad": 2,
+        "SubTotal": 700,
+        "Descuento": 0,
+        "PrecioUnitario": 350,
+        "PrecioUnitarioNeto": 286.89
+      }
+    ],
+    "MontoDtoGlobal": 1205.26,
+    "isConsumoFinal": false,
+    "isImpIncluidos": true,
+    "SubtotalesDesglosados": []
+  },
+  "mysql": {
+    "invoice": {
+      "Tipo": {
+        "Nombre": "Venta Contado",
+        "Clasificacion": {
+          "OperaContado": true
+        }
+      },
+      "Numero": {
+        "Serie": "A",
+        "Numero": "3",
+        "CAEIdentificador": "",
+        "CAEDesde": "",
+        "CAEHasta": "",
+        "CAEFechaVto": ""
+      },
+      "Fecha": "2026-03-20T09:00:00-03:00",
+      "Comentario": "Consultoría Q1 2026 - Proyecto migración cloud",
+      "TipoCambio": 1,
+      "PorcentajeDescGlobal": 5,
+      "DireccionFactura": {
+        "Domicilio": "Ruta 5 km 510"
+      },
+      "Empresa": {
+        "Parametros": {
+          "EFA_Emisor_RUT": "21-654321-0001",
+          "EFA_Resolucion": "Res. DGI 1234/2025",
+          "EFA_Emisor_Ciudad": "Montevideo",
+          "EFA_Emisor_Nombre": "Soluciones Tech S.A.",
+          "EFA_Emisor_Direccion": "Bulevar Artigas 1250",
+          "EFA_Emisor_NComercial": "SolTech"
+        }
+      },
+      "Sucursal": {
+        "Direccion": "Av. Brasil 2890"
+      }
+    },
+    "invoiceLines": [
+      {
+        "Articulo": {
+          "Codigo": "SV-001",
+          "Nombre": "Servicio Consultoría (hora)"
+        },
+        "Cantidad": 4,
+        "PrecioUnitario": 3500,
+        "PrecioUnitarioNeto": 2868.85,
+        "Descuento": 0,
+        "SubTotal": 14000
+      },
+      {
+        "Articulo": {
+          "Codigo": "LI-001",
+          "Nombre": "Licencia Software Anual"
+        },
+        "Cantidad": 1,
+        "PrecioUnitario": 9600,
+        "PrecioUnitarioNeto": 7868.85,
+        "Descuento": 0,
+        "SubTotal": 9600
+      },
+      {
+        "Articulo": {
+          "Codigo": "CA-001",
+          "Nombre": "Cable HDMI 2m"
+        },
+        "Cantidad": 2,
+        "PrecioUnitario": 350,
+        "PrecioUnitarioNeto": 286.89,
+        "Descuento": 0,
+        "SubTotal": 700
+      }
+    ],
+    "company": {
+      "Nombre": "Soluciones Tech S.A.",
+      "NombreComercial": "SolTech",
+      "RUT": "21-654321-0001",
+      "Direccion": "Bulevar Artigas 1250",
+      "Ciudad": "Montevideo",
+      "logoUrl": ""
+    },
+    "Moneda": {
+      "ISO4217": "UYU",
+      "Simbolo": "$"
+    },
+    "Contacto": {
+      "GuardarComo": "Importadora Norte"
+    },
+    "CFE": {
+      "TipoComprobanteFiscal": {
+        "Nombre": ""
+      },
+      "CodSeguridad": "",
+      "Adenda": ""
+    },
+    "Articulos": [
+      {
+        "Articulo": {
+          "Codigo": "SV-001",
+          "Nombre": "Servicio Consultoría (hora)"
+        },
+        "Cantidad": 4,
+        "PrecioUnitario": 3500,
+        "PrecioUnitarioNeto": 2868.85,
+        "Descuento": 0,
+        "SubTotal": 14000
+      },
+      {
+        "Articulo": {
+          "Codigo": "LI-001",
+          "Nombre": "Licencia Software Anual"
+        },
+        "Cantidad": 1,
+        "PrecioUnitario": 9600,
+        "PrecioUnitarioNeto": 7868.85,
+        "Descuento": 0,
+        "SubTotal": 9600
+      },
+      {
+        "Articulo": {
+          "Codigo": "CA-001",
+          "Nombre": "Cable HDMI 2m"
+        },
+        "Cantidad": 2,
+        "PrecioUnitario": 350,
+        "PrecioUnitarioNeto": 286.89,
+        "Descuento": 0,
+        "SubTotal": 700
+      }
+    ],
+    "Impuestos": [
+      {
+        "Nombre": "IVA Tasa Básica",
+        "Valor": 4363.93
+      }
+    ],
+    "SubtotalesDesglosados": [],
+    "Subtotal": 19836.07,
+    "Total": 22900,
+    "Redondeo": 0,
+    "MontoDtoGlobal": 1205.26,
+    "isCFE": false,
+    "isConsumoFinal": false,
+    "isImpIncluidos": true,
+    "hasContacto": true,
+    "hasDtoGlobal": true,
+    "hasRedondeo": false,
+    "logoBase64": "",
+    "QRBase64": ""
+  }
+}

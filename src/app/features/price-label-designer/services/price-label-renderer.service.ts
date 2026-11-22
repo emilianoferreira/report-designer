@@ -1,3 +1,4 @@
+import { LabelDiagnostic } from '../utils/label-diagnostics';
 import { labelPresentation } from '../utils/label-presentation';
 import { templateErrors } from '../utils/label-validation';
 import { Injectable } from '@angular/core';
@@ -19,21 +20,33 @@ import {
 })
 export class PriceLabelRendererService {
   validate(template: LabelTemplate, articles: PriceLabelArticle[], copies: number, company: PriceLabelCompany): string[] {
+    return this.diagnose(template, articles, copies, company).map(issue => issue.message);
+  }
+
+  diagnose(template: LabelTemplate, articles: PriceLabelArticle[], copies: number, company: PriceLabelCompany): LabelDiagnostic[] {
     const structural = templateErrors(template);
-    if (structural.length) return structural;
-    const errors: string[] = [];
-    if (!Number.isInteger(copies) || copies < 1 || copies > 99) errors.push('Copias: entero entre 1 y 99.');
-    if (!articles.length) errors.push('No hay artículos para imprimir.');
+    if (structural.length) return structural.map(message => ({severity:'error', code:'template', message}));
+    const errors: LabelDiagnostic[] = [];
+    let currentElement: LabelElement | undefined;
+    let currentArticle: PriceLabelArticle | undefined;
+    const add = (message: string) => errors.push({severity:'error', code:'validation', message,
+      articleId:currentArticle?.id, articleName:currentArticle?.name, articleCode:currentArticle?.['code'],
+      elementId:currentElement?.id, elementName:currentElement?.name});
+    if (!Number.isInteger(copies) || copies < 1 || copies > 99) add('Copias: entero entre 1 y 99.');
+    if (!articles.length) add('No hay artículos para imprimir.');
     for (const el of template.elements) {
-      if (!el?.position || !el?.size || !el?.style || !['text','price','barcode','image'].includes(el.type)) { errors.push('Objeto incompleto o incompatible.'); continue; }
-      if (![el.position.x,el.position.y,el.size.width,el.size.height].every(Number.isFinite) || el.position.x < 0 || el.position.y < 0 || el.size.width < 2 || el.size.height < 2 || el.position.x+el.size.width > template.label.width+0.001 || el.position.y+el.size.height > template.label.height+0.001) errors.push(el.name+': geometría inválida.');
-      if (el.type === 'price' && (!Number.isInteger(el.decimals) || el.decimals < 0 || el.decimals > 4)) errors.push(el.name+': decimales entre 0 y 4.');
-      for (const article of articles) {
+      currentElement = el; currentArticle = undefined;
+      if (!el?.position || !el?.size || !el?.style || !['text','price','barcode','image'].includes(el.type)) { add('Objeto incompleto o incompatible.'); continue; }
+      if (![el.position.x,el.position.y,el.size.width,el.size.height].every(Number.isFinite) || el.position.x < 0 || el.position.y < 0 || el.size.width < 2 || el.size.height < 2 || el.position.x+el.size.width > template.label.width+0.001 || el.position.y+el.size.height > template.label.height+0.001) add(el.name+': geometría inválida.');
+      if (el.type === 'price' && (!Number.isInteger(el.decimals) || el.decimals < 0 || el.decimals > 4)) add(el.name+': decimales entre 0 y 4.');
+      for (const article of new Map(articles.map(a => [a.id,a])).values()) {
+        currentArticle = article;
         const context = { article, company }, prefix = article.name+' · '+el.name+': ';
-        if (el.type === 'price') { const value=this.resolvePath(el.binding,context); if (value == null || String(value).trim()==='' || !Number.isFinite(Number(value))) errors.push(prefix+'precio ausente o inválido.'); }
-        if (el.type === 'barcode' && !this.createBarcodeSvg(String(this.resolvePath(el.binding,context) ?? ''),el)) errors.push(prefix+'código inválido para '+el.barcodeType+'.');
-        if (el.type === 'text' && el.binding && this.resolvePath(el.binding,context)==null) errors.push(prefix+'campo inexistente.');
-        if (el.type === 'image' && !(el.sourceType==='url' ? el.url : this.resolvePath(el.binding,context))) errors.push(prefix+'imagen ausente.');
+        if ((el.type === 'price' || el.type === 'text' && el.binding === 'article.price') && 'currencyCode' in article && !article['currencyCode']) add(prefix+'moneda no informada.');
+        if (el.type === 'price') { const value=this.resolvePath(el.binding,context); if (value == null || String(value).trim()==='' || !Number.isFinite(Number(value))) add(prefix+'precio ausente o inválido.'); }
+        if (el.type === 'barcode' && !this.createBarcodeSvg(String(this.resolvePath(el.binding,context) ?? ''),el)) add(prefix+'código inválido para '+el.barcodeType+'.');
+        if (el.type === 'text' && el.binding && this.resolvePath(el.binding,context)==null) add(prefix+'campo inexistente.');
+        if (el.type === 'image' && !(el.sourceType==='url' ? el.url : this.resolvePath(el.binding,context))) add(prefix+'imagen ausente.');
       }
     }
     return errors;
@@ -134,6 +147,7 @@ ${elements.map(element => this.renderElement(element, context)).join('')}      <
 
   resolvePath(path: string | undefined, context: PriceLabelRenderContext): any {
     if (!path) return undefined;
+    if (path === 'company.currencySymbol' && Object.prototype.hasOwnProperty.call(context.article, 'currencySymbol')) return context.article['currencySymbol'];
     const parts = path.split('.');
     let current: any = context;
     for (const part of parts) {
@@ -145,6 +159,15 @@ ${elements.map(element => this.renderElement(element, context)).join('')}      <
 
   formatPrice(value: any, decimals: number): string {
     if (value == null || String(value).trim() === '' || !Number.isInteger(decimals) || decimals < 0 || decimals > 4) return '';
+    if (typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value) && value.length <= 100) {
+      const negative=value.startsWith('-'); const [whole,fraction='']=value.replace(/^-/, '').split('.');
+      const kept=fraction.padEnd(decimals+1,'0');
+      let units=BigInt(whole+kept.slice(0,decimals));
+      if(Number(kept[decimals])>=5)units+=BigInt(1);
+      const digits=units.toString().padStart(decimals+1,'0');
+      const integer=(decimals?digits.slice(0,-decimals):digits).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+      return (negative&&units!==BigInt(0)?'-':'')+integer+(decimals?','+digits.slice(-decimals):'');
+    }
     const amount = Number(value);
     if (!Number.isFinite(amount)) return '';
     return amount.toLocaleString('es-UY', {

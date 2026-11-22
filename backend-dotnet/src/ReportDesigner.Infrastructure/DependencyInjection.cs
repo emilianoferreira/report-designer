@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using MySql.Data.MySqlClient;
 using ReportDesigner.Infrastructure.Persistence;
 using ReportDesigner.Application.Templates;
 using ReportDesigner.Infrastructure.Templates;
@@ -15,6 +16,31 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        var provider = configuration["Database:Provider"] ?? "Postgres";
+        if (provider == "MySql")
+        {
+            MySqlConnectionStringBuilder mysql;
+            try { mysql = new MySqlConnectionStringBuilder(configuration.GetConnectionString("MySql")); }
+            catch (ArgumentException) { throw new InvalidOperationException("ConnectionStrings:MySql is invalid."); }
+            if (string.IsNullOrWhiteSpace(mysql.Server) || string.IsNullOrWhiteSpace(mysql.Database)
+                || string.IsNullOrWhiteSpace(mysql.UserID))
+                throw new InvalidOperationException("ConnectionStrings:MySql requires Server, Database and User ID.");
+            if (mysql.SslMode is not (MySqlSslMode.VerifyCA or MySqlSslMode.VerifyFull))
+                throw new InvalidOperationException("MySQL requires TLS with VerifyCA or VerifyFull.");
+            services.AddSingleton(new SessionDatabase(() => new MySqlConnection(mysql.ConnectionString), true));
+            services.AddScoped<SessionStore>();
+            var zone = configuration["InvoiceData:TimeZone"];
+            if (string.IsNullOrWhiteSpace(zone)) throw new InvalidOperationException("Configure InvoiceData:TimeZone to match the PostgreSQL session timezone.");
+            services.AddSingleton(TimeZoneInfo.FindSystemTimeZoneById(zone));
+            services.AddDbContext<MySqlReportDesignerDbContext>(options => options.UseMySQL(mysql.ConnectionString));
+            services.AddScoped<ITemplateQueries, MySqlTemplateQueries>();
+            services.AddScoped<ITemplateCommands, MySqlTemplateCommands>();
+            services.AddScoped<MySqlInvoiceDataSource>();
+            services.AddScoped<IInvoiceQueries, MySqlInvoiceQueries>();
+            services.AddHealthChecks().AddCheck<MySqlHealthCheck>("mysql", tags: ["ready"]);
+            return services;
+        }
+        if (provider != "Postgres") throw new InvalidOperationException("Database:Provider must be Postgres or MySql.");
         var connectionString = configuration.GetConnectionString("Postgres");
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new InvalidOperationException("Configure ConnectionStrings:Postgres before starting the API.");
@@ -29,6 +55,7 @@ public static class DependencyInjection
 
         services.AddDbContext<ReportDesignerDbContext>(options => options.UseNpgsql(connectionString));
         services.AddSingleton(_ => NpgsqlDataSource.Create(connectionString));
+        services.AddSingleton(sp => new SessionDatabase(() => sp.GetRequiredService<NpgsqlDataSource>().CreateConnection(), false));
         services.AddScoped<SessionStore>();
         services.AddScoped<ITemplateQueries, EfTemplateQueries>();
         services.AddScoped<ITemplateCommands, PostgresTemplateCommands>();

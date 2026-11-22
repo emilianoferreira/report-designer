@@ -288,6 +288,7 @@
         @if (!leftPanelCollapsed) {
           <div class="panel-content">
             <app-toolbox />
+            <app-design-validation (showPreview)="setViewMode('preview')" />
           </div>
         }
         <div class="panel-edge panel-edge-left">

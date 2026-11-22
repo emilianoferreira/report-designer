@@ -3,6 +3,9 @@
 
   <!-- ─── Toolbar ─── -->
   <div class="canvas-toolbar">
+    <button class="toolbar-btn" [class.active]="comparing" [attr.aria-pressed]="comparing" (click)="comparing = !comparing">Comparar impresión</button>
+    <button class="toolbar-btn" [class.active]="showGenerated" [attr.aria-pressed]="showGenerated"
+      (click)="showGenerated = !showGenerated">Bloques generados</button>
     <div class="toolbar-group">
       <button
         class="toolbar-btn"
@@ -98,7 +101,51 @@
     </div>
   </div>
 
+  @if (surfaceReady && !dragState && !(validation?.pending$ | async)) {
+    <div class="surface-inspection" data-surface-inspection>
+      @if (validation?.pagination$ | async; as pagination) {
+        <p role="status" data-pagination-status>{{ pagination.pages }} {{ pagination.pages === 1 ? 'hoja' : 'hojas' }}
+          @if (pagination.pending) { · Paginación pendiente. {{ pagination.pending }} }
+          @if (!pagination.resourcesReady) { · Medición pendiente de fuentes o imágenes. }
+        </p>
+      }
+      <details>
+        <summary>Contenido generado ({{ observations.blocks.length }})</summary>
+        <p>Artículos, tablas y subtotales se calculan con el escenario seleccionado.</p>
+        <div class="observation-list">
+          @for (block of observations.blocks; track block.key) {
+            <button type="button" data-generated-inspect [attr.data-block-key]="block.key"
+              (click)="inspectObservation(block)">
+              {{ block.label }} · Hoja {{ block.page }} @if (block.source) { · {{ block.source }} }
+            </button>
+          }
+        </div>
+      </details>
+      <details [open]="observations.warnings.length > 0">
+        <summary>Recortes y límites imprimibles ({{ observations.warnings.length }})</summary>
+        <div class="observation-list">
+          @for (warning of observations.warnings; track warning.key) {
+            <button type="button" data-warning-inspect [attr.data-warning-element]="warning.elementId"
+              (click)="inspectObservation(warning)">
+              {{ warning.label }} · Hoja {{ warning.page }}
+              @if (warning.outside) { · Fuera del área imprimible }
+              @if (warning.clipped) { · Contenido recortado }
+              @if (warning.uncertainClip) { · Revisar posible recorte }
+            </button>
+          }
+        </div>
+      </details>
+      @if (inspected; as item) {
+        <p data-inspected-content>{{ item.label }} · Hoja {{ item.page }}
+          @if (item.generated) { · Generado automáticamente }
+          @if (item.source) { · Origen {{ item.source }} }
+        </p>
+      }
+    </div>
+  }
+
   <!-- ─── Scroll area ─── -->
+  @if (gestureMessage) { <p role="status">{{ gestureMessage }}</p> }
   <div class="canvas-scroll-area" #scrollArea>
 
     <!-- ─── Horizontal Ruler ─── -->
@@ -140,13 +187,17 @@
       <!-- ─── Page Surface ─── -->
       <div
         #canvasPage
-        class="canvas-page"
+        class="canvas-page" [class.comparing]="comparing"
         [style.width.px]="pageWidthPx"
         [style.height.px]="pageHeightPx"
         [style.transform]="'scale(' + zoom + ')'"
         [style.transform-origin]="'top left'"
         (click)="onCanvasClick($event)"
       >
+        <iframe #renderFrame class="canvas-render-frame" title="Lienzo con datos"
+          sandbox="allow-same-origin" [srcdoc]="surfaceHtml"
+          [style.width.px]="pageWidthPx" [style.height.px]="pageHeightPx"
+          (load)="loadSurface()"></iframe>
         <!-- Grid overlay -->
         @if (showGrid) {
           <div
@@ -155,14 +206,34 @@
           ></div>
         }
 
-        <!-- Margins visual -->
-        <div
-          class="margin-indicator"
-          [style.top.px]="mmToPx(template.page.margins.top)"
-          [style.left.px]="mmToPx(template.page.margins.left)"
-          [style.right.px]="mmToPx(template.page.margins.right)"
-          [style.bottom.px]="mmToPx(template.page.margins.bottom)"
-        ></div>
+        @if (surfaceReady && !dragState && !(validation?.pending$ | async)) {
+          @for (page of observations.pages; track page.page) {
+            <div class="sheet-boundary" [attr.data-sheet-boundary]="page.page"
+              [style.left.px]="page.x" [style.top.px]="page.y"
+              [style.width.px]="page.width" [style.height.px]="page.height"></div>
+            <div class="margin-indicator"
+              [attr.data-printable-page]="page.page"
+              [style.left.px]="page.x + mmToPx(template.page.margins.left)"
+              [style.top.px]="page.y + mmToPx(template.page.margins.top)"
+              [style.width.px]="page.width - mmToPx(template.page.margins.left + template.page.margins.right)"
+              [style.height.px]="page.height - mmToPx(template.page.margins.top + template.page.margins.bottom)"></div>
+          }
+          @if (showGenerated) {
+            @for (block of visibleBlocks; track block.key) {
+              <div class="generated-outline" [class.inspected]="block.key === inspected?.key"
+                [attr.data-generated-outline]="block.key" [style.left.px]="block.x" [style.top.px]="block.y"
+                [style.width.px]="block.width" [style.height.px]="block.height">
+                <span>{{ block.label }} · Hoja {{ block.page }}</span>
+              </div>
+            }
+          }
+          @for (warning of observations.warnings; track warning.key) {
+            <div class="warning-outline" [attr.data-warning-outline]="warning.key"
+              [attr.data-warning-element]="warning.elementId"
+              [style.left.px]="warning.x" [style.top.px]="warning.y"
+              [style.width.px]="warning.width" [style.height.px]="warning.height"></div>
+          }
+        }
 
         <!-- Smart snap lines (ephemeral during element drag) -->
         @for (line of activeSnapLines; track $index) {
@@ -180,7 +251,11 @@
           <div
             class="section-area"
             [class.active]="isSectionActive($any(sectionKey))"
-            [style.height.px]="getSectionHeightPx($any(sectionKey))"
+            [style.height.px]="sectionBoxes[sectionKey]?.height ?? getSectionHeightPx($any(sectionKey))"
+            [style.top.px]="sectionBoxes[sectionKey]?.top"
+            [style.left.px]="sectionBoxes[sectionKey]?.left"
+            [style.width.px]="sectionBoxes[sectionKey]?.width"
+            [style.visibility]="surfaceReady ? 'visible' : 'hidden'"
             (dragover)="onDragOver($event)"
             (drop)="onDrop($event, $any(sectionKey))"
           >
@@ -200,6 +275,7 @@
               @for (element of getSectionElements($any(sectionKey)); track trackByElementId($index, element)) {
                 <app-element-renderer
                   [element]="element"
+                  [overlayOnly]="surfaceReady"
                   [selected]="isElementSelected(element.id)"
                   [sectionKey]="$any(sectionKey)"
                   [dragTransform]="getElementTransform(element.id)"

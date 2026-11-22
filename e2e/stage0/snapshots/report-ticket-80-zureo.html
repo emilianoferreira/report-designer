@@ -175,10 +175,12 @@
         box-shadow: none;
       }
       @page {
-        size: 80mm 200mm;
+        size: auto;
         margin: 0;
       }
     }
+ @media screen { .element-print-only { display: none !important; } }
+      @media print { .element-screen-only { display: none !important; } }
   </style>
 </head>
 <body>

@@ -10,6 +10,7 @@ import { seedIdentities, checkSecurity } from '../stage8/check-security.mjs';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const require = createRequire(new URL('../../server/package.json', import.meta.url));
 const { default: EmbeddedPostgres } = await import(pathToFileURL(require.resolve('embedded-postgres')).href);
+export async function runIsolatedApi({ verify } = {}) {
 const directory = await mkdtemp(path.join(os.tmpdir(), 'labels-concurrency-'));
 const freePort = async () => { const s=net.createServer(); await new Promise(r=>s.listen(0,'127.0.0.1',r)); const port=s.address().port; await new Promise(r=>s.close(r)); return port; };
 const [dbPort,nestPort,dotnetPort] = await Promise.all([freePort(),freePort(),freePort()]);
@@ -31,9 +32,12 @@ try {
   }
   console.log('APIs ready; running security and concurrency checks.');
   await checkSecurity({urls,db,users,root,resultsDir:directory});
+  if (verify) await verify({urls,db,users,root,resultsDir:directory});
   console.log('PASS: both APIs, real isolated PostgreSQL, concurrent revision checks and existing security regressions.');
 } catch (error) { console.error(error); process.exitCode=1; } finally {
   console.log('Stopping isolated services');
   for(const child of children) { const done=new Promise(resolve=>child.once('exit',resolve)); if(child.exitCode===null && child.signalCode===null){child.kill();await done;} }
   if(db)await db.end();await postgres.stop();
 }
+}
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await runIsolatedApi();

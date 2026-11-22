@@ -1,0 +1,17 @@
+{
+  "date": "2026-11-07",
+  "baseCommit": "4561a5d1a3b9fdc9bffa27910062583ed6784053",
+  "branch": "codex/mysql-migration",
+  "main": "0c9e5d64cfe298fa6bd92ec31328a9d20d82a009",
+  "apiBuild": "exit 0; 0 warnings; 0 errors",
+  "probeBuild": "exit 0; 0 warnings; 0 errors",
+  "lockedRestore": "exit 0",
+  "comparison": "12 JSON parity and 5 access/missing cases passed",
+  "security": "345 checked requests; 2 backends",
+  "renderer": "6 equal pairs; 12 PDFs; no PDF binary comparison",
+  "priceLabels": "exit 0",
+  "fiscal": "exit 0",
+  "angular": "389/389 passed",
+  "unchanged": "SQL scripts, API, IInvoiceQueries registration, existing snapshots, 13 old artifact hashes",
+  "notRerun": "Full Docker stage8 orchestration and rollback"
+}

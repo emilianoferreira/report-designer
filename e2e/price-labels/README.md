@@ -1,5 +1,33 @@
 # Regresiones del diseñador de etiquetas
 
+## Preparación de lotes — integración del catálogo
+
+Desde el diseñador, **Preparar impresión** abre /price-labels/print. Elegir un
+molde guardado y una lista general; buscar por código o barras y agregar resultados.
+El catálogo se consulta por páginas de 25; las búsquedas conservan el lote. Cada
+artículo admite cantidad individual y la suma no puede superar 100 etiquetas.
+
+La pantalla consume /api/label-print; no usa fixtures locales como sustitución.
+El backend Development habilita el catálogo ficticio mediante appsettings.Development.json;
+reiniciarlo tras actualizar. Una configuración explícita Disabled conserva prioridad. Ver [guía](../../docs/label-print-backend.md).
+Con el proveedor deshabilitado se informa la indisponibilidad, sin mostrar artículos.
+El proveedor demo incluye un logo ficticio embebido para los moldes predeterminados.
+Buscar DEMO- permite recorrer 30 artículos con precios en Principal y Mayorista.
+
+Cambiar la lista conserva selección, orden y cantidades, invalida los precios anteriores
+y resuelve el lote completo. Actualizar precios consulta manualmente; si falla, permite
+usar la última instantánea de la misma lista/selección, con fecha y aviso visibles.
+Imprimir/exportar verifica la sesión, pero no vuelve a consultar precios. Una sesión
+vencida o cambio de empresa descarta los datos. Artículos no disponibles bloquean el
+lote; precios ausentes solo permiten moldes que no usan ese dato. Cero es válido y
+el tratamiento tributario desconocido se identifica sin calcular impuestos.
+
+Después de npm run build, ejecutar node e2e/price-labels/print-batch.cjs. La prueba
+sirve Angular compilado con respuestas API controladas (no acredita conexión real a
+Zureo): búsqueda, paginación, cantidades 2/5/1, cambio de lista, cero/ausencia de precio,
+fallos, respuestas tardías, exportación de instantánea, sesión vencida y proveedor
+inhabilitado. Las pruebas unitarias están en el módulo price-label-print.
+
 Ejecutar desde la raíz del repositorio:
 
 `npm run test:price-labels`
@@ -21,3 +49,31 @@ La representación comparte `labelPresentation` entre lienzo y HTML. El contenid
 El guardado y la eliminación de etiquetas envían `If-Match` con la revisión de fila, independiente del historial. Los conflictos 409 conservan el borrador y permiten recargar o crear una copia. DELETE requiere confirmación incluso sin cambios. Las APIs conservan el comportamiento de clientes antiguos que no envían la cabecera.
 
 Para probar concurrencia y seguridad con PostgreSQL real sin Docker: compilar ambos backends (`npm --prefix server run build` y `dotnet build backend-dotnet/src/ReportDesigner.Api/ReportDesigner.Api.csproj -m:1`) y ejecutar `node e2e/price-labels/concurrency-api.mjs`. Usa las dependencias existentes, puertos libres y una base temporal nueva; no consulta ni modifica bases configuradas por el usuario.
+
+## Impresión validada — cuarto incremento
+
+El diagnóstico del lote agrupa incidencias por ID de artículo y elemento. Muestra
+cantidad de etiquetas y páginas afectadas; la tabla del lote incluye el resumen
+por artículo. Los problemas de precio, código de barras, imagen o geometría bloquean
+la salida. Los textos recortados advierten sin alterar fuente ni medidas.
+
+La vista previa mantiene un único documento por revisión. Espera las fuentes y la
+decodificación de todas las imágenes (límite de diez segundos por recurso), inspecciona
+el contenido y habilita imprimir/exportar solo al terminar. Las acciones vuelven a
+validar recursos y comprueban la sesión, sin consultar precios ni reconstruir el HTML.
+Cambiar molde, datos o cantidades durante esa espera invalida la acción pendiente.
+Las páginas anterior/siguiente y los enlaces del diagnóstico navegan el documento;
+imprimir y exportar siempre incluyen todas las páginas, incluso la última parcial.
+El JSON descargado sigue siendo exclusivamente el molde.
+
+npm run test:price-labels ahora incluye las regresiones históricas, el lote con API
+simulada y una prueba independiente de A4/ticket 80 mm. El lote comprueba diagnóstico
+sin duplicados por copias, recorte por artículo, carga/fallo de imágenes, navegación,
+impresión del mismo documento, HTML completo y PDF de nueve etiquetas en tres páginas.
+El test unitario label-print-validation.spec.ts cubre agrupación, límites, fuentes,
+imágenes y cancelación de una impresión obsoleta. La suite fiscal se ejecuta aparte
+con node e2e/fiscal-profile/regression.cjs.
+
+Estas pruebas validan navegador, HTML y PDF. No certifican una impresora física ni
+calibración. Un HTML exportado con imágenes externas puede necesitar acceder a esas
+URLs al abrirlo posteriormente; no se incorpora ni transforma el contenido remoto.

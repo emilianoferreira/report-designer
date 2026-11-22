@@ -3,6 +3,19 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Estudio .NET + MySQL",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "study: build API",
+      "program": "${workspaceFolder}/backend-dotnet/src/ReportDesigner.Api/bin/Debug/net10.0/ReportDesigner.Api.dll",
+      "cwd": "${workspaceFolder}/backend-dotnet/src/ReportDesigner.Api",
+      "envFile": "${workspaceFolder}/.local/study/api.env",
+      "console": "internalConsole",
+      "justMyCode": true,
+      "stopAtEntry": false,
+      "launchSettingsProfile": ""
+    },
+    {
       "name": "ng serve",
       "type": "chrome",
       "request": "launch",

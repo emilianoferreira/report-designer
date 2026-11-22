@@ -1,0 +1,58 @@
+# Local study only. Never combine with the production/preproduction Compose files.
+name: report-designer-study
+services:
+  mysql:
+    image: mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
+    labels:
+      study.owner: ${STUDY_OWNER:?Run npm run study:setup}
+    ports:
+      - "127.0.0.1:3307:3306"
+    environment:
+      MYSQL_DATABASE: report_designer_study
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/root-password
+    # Windows bind-mounted secrets can appear world-writable to Linux. MySQL
+    # ignores such option files; copy them into the container with private modes.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        install -d -m 700 /run/study
+        install -m 600 /run/secrets/admin-client /run/study/admin.cnf
+        install -m 600 /run/secrets/reader-client /run/study/reader.cnf
+        exec /usr/local/bin/docker-entrypoint.sh "$$@"
+      - --
+    command:
+      - --default-time-zone=+00:00
+      - --require-secure-transport=ON
+      - --max-allowed-packet=134217728
+    volumes:
+      - mysql-data:/var/lib/mysql
+    secrets:
+      - root-password
+      - admin-client
+      - reader-client
+    healthcheck:
+      test: [CMD, mysql, --defaults-extra-file=/run/study/admin.cnf, --execute=SELECT 1]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+volumes:
+  mysql-data:
+    name: report-designer-study_mysql-data
+    labels:
+      study.owner: ${STUDY_OWNER:?Run npm run study:setup}
+networks:
+  default:
+    labels:
+      study.owner: ${STUDY_OWNER:?Run npm run study:setup}
+secrets:
+  root-password:
+    file: ../.local/study/root-password
+  admin-client:
+    file: ../.local/study/admin.cnf
+  reader-client:
+    file: ../.local/study/reader.cnf

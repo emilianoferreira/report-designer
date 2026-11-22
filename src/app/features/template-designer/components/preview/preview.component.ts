@@ -1,3 +1,6 @@
+import { measureRenderSurface } from '../../utils/measure-render-surface';
+import { inject } from '@angular/core';
+import { ValidationSessionService } from '../../services/validation-session.service';
 /**
  * Preview Component
  * Renders the template + sample data as HTML in an iframe.
@@ -18,7 +21,7 @@ import {
   ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subject, takeUntil, debounceTime, skip } from 'rxjs';
+import { Subject, takeUntil, debounceTime, skip, tap } from 'rxjs';
 import { TemplateStateService } from '../../services/template-state.service';
 import { HtmlRendererService } from '../../services/html-renderer.service';
 import { SAMPLE_INVOICE_DATA, SAMPLE_INVOICE_MULTILINE } from '../../data/sample-invoice';
@@ -30,8 +33,12 @@ import { RenderEvidence } from '../../services/render-evidence';
 import { sampleFiscalInvoice } from '../../data/sample-fiscal-invoice';
 import { SelectionService } from '../../services/selection.service';
 import { RuleResult, RuleStatus } from '../../utils/static-fiscal-rules';
-import { confirmedPrintFailures, inspectFiscalPrint, RenderedFiscalReport } from '../../utils/rendered-fiscal-rules';
-import { paginateFiscalPrint } from '../../utils/paginate-fiscal-print';
+import { inspectFiscalPrint, RenderedFiscalReport } from '../../utils/rendered-fiscal-rules';
+import { prepareBrowserPrint } from '../../utils/prepare-browser-print';
+import { decideBrowserPrint, isContentValidationFinding } from '../../utils/print-validation-policy';
+import { RECEIVER_OMISSION_RULE } from '../../utils/receiver-omissions';
+import { buildValidationFeedback, printFailureLabel, ValidationFeedback } from '../../utils/validation-feedback';
+import { ValidationFeedbackComponent } from '../validation-feedback/validation-feedback.component';
 import { FiscalAdviceComponent } from '../fiscal-advice/fiscal-advice.component';
 
 export type PreviewViewMode = 'render' | 'html' | 'json';
@@ -39,26 +46,32 @@ export type PreviewViewMode = 'render' | 'html' | 'json';
 @Component({
   selector: 'app-preview',
   standalone: true,
-  imports: [CommonModule, FiscalAdviceComponent],
+  imports: [CommonModule, FiscalAdviceComponent, ValidationFeedbackComponent],
   templateUrl: './preview.component.html',
   styleUrl: './preview.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PreviewComponent implements OnInit, OnDestroy {
+  readonly validation = inject(ValidationSessionService, { optional: true });
   renderEvidence?: RenderEvidence;
   renderInputSnapshot = '';
   previewReady = false;
   private injectionVersion = 0;
   private preparation?: Promise<Document | undefined>;
   private paginationPending?: string;
+  private preparedPages: Element[] = [];
   paginatedHtml = '';
   @Output() readonly showDesign = new EventEmitter<void>();
   fiscalSample = false;
   renderedReport?: RenderedFiscalReport;
+  feedback?: ValidationFeedback;
+  reportPending = true;
+  readonly isContentFinding = isContentValidationFinding;
   printing = false;
   printMessage = '';
   readonly ruleLabels: Record<RuleStatus, string> = { pass: 'Cumple', fail: 'Incumple', pending: 'Pendiente', 'not-applicable': 'No aplica' };
   @ViewChild('previewFrame') previewFrame!: ElementRef<HTMLIFrameElement>;
+  @ViewChild('printValidation') private printValidation?: ElementRef<HTMLDetailsElement>;
 
   // ─── Render outputs (recomputed on each renderPreview) ───
   previewHtml = '';      // HTML with data resolved
@@ -97,14 +110,21 @@ export class PreviewComponent implements OnInit, OnDestroy {
     // Re-render preview when template changes (debounced)
     this.templateState.template$
       .pipe(
-        takeUntil(this.destroy$),
         skip(1),
-        debounceTime(300)
+        tap(() => this.invalidateReport()),
+        debounceTime(300),
+        takeUntil(this.destroy$)
       )
       .subscribe(() => {
+        if (!this.fiscalContext || this.renderInputSnapshot !== this.currentSnapshot()) this.renderPreview();
+      });
+    if (this.validation) {
+      this.validation.scenario$.pipe(takeUntil(this.destroy$)).subscribe(mode => {
+        this.fiscalSample = mode.startsWith('fiscal');
+        this.sampleDataMode = mode.endsWith('multi') ? 'multi' : 'single';
         this.renderPreview();
       });
-    this.renderPreview();
+    } else this.renderPreview();
   }
 
   ngOnDestroy(): void {
@@ -112,6 +132,19 @@ export class PreviewComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
     if (this.copyStatusTimeout) clearTimeout(this.copyStatusTimeout);
+  }
+
+  private invalidateReport(): void {
+    this.injectionVersion++;
+    this.preparedPages = [];
+    this.previewReady = false;
+    this.renderedReport = undefined;
+    this.feedback = undefined;
+    this.fiscalContext = undefined;
+    this.reportPending = true;
+    this.paginatedHtml = '';
+    this.printMessage = '';
+    this.cdr.markForCheck();
   }
 
   // ─────────────────────────────────────────────────────────────────
@@ -124,9 +157,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
    * sample data toggle flips.
    */
   renderPreview(): void {
-    this.injectionVersion++;
-    this.previewReady = false;
-    this.renderedReport = undefined;
+    this.invalidateReport();
     this.paginationPending = undefined;
     this.paginatedHtml = '';
     this.printMessage = '';
@@ -139,7 +170,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
     this.pageHeightPx = mmToPx(template.page.height);
 
     // Precompute all formats — cheap and keeps view switching instant
-    const artifact = this.renderer.renderWithEvidence(template, data, data.fiscal?.isCfe === true);
+    const artifact = this.renderer.renderWithEvidence(template, data, true);
     this.previewHtml = artifact.html;
     this.renderEvidence = artifact.evidence;
     this.renderInputSnapshot = artifact.inputSnapshot;
@@ -149,7 +180,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
     // Inject into iframe only if currently in render view
     if (this.viewMode === 'render') {
       this.injectIframe();
-    }
+    } else this.reportPending = false;
 
     this.cdr.markForCheck();
   }
@@ -157,9 +188,24 @@ export class PreviewComponent implements OnInit, OnDestroy {
   private injectIframe(): void {
     const version = ++this.injectionVersion;
     const html = this.previewHtml;
-    const evidence = this.renderEvidence;
+    const evidence = this.renderEvidence && { ...this.renderEvidence,
+      diagnostics: this.renderEvidence.diagnostics.filter(diagnostic => diagnostic.code !== 'resource-error') };
+    this.renderEvidence = evidence;
     this.previewReady = false;
-    this.preparation = this.prepareDocument(version, html, evidence);
+    this.reportPending = true;
+    this.renderedReport = undefined;
+    this.feedback = undefined;
+    this.preparation = this.prepareDocument(version, html, evidence).catch(() => {
+      if (version === this.injectionVersion) {
+        this.previewReady = false;
+        this.renderedReport = undefined;
+        this.feedback = undefined;
+        this.reportPending = false;
+        this.printMessage = 'No se pudo preparar la salida. Revisá el molde y los datos y volvé a intentarlo.';
+        this.cdr.markForCheck();
+      }
+      return undefined;
+    });
   }
 
   private async prepareDocument(version: number, html: string, evidence: RenderEvidence | undefined): Promise<Document | undefined> {
@@ -170,28 +216,27 @@ export class PreviewComponent implements OnInit, OnDestroy {
     doc.open();
     doc.write(html);
     doc.close();
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const resources = Promise.all([doc.fonts.ready, ...Array.from(doc.images).map(image => image.decode().catch(() => {
-      if (version === this.injectionVersion) evidence?.diagnostics.push({ code: 'resource-error',
-        elementId: image.closest('[data-render-element]')?.getAttribute('data-render-element') ?? undefined,
-        message: 'No se pudo cargar o decodificar una imagen.' });
-    }))]);
-    const loaded = await Promise.race([resources.then(() => true), new Promise<boolean>(resolve => {
-      timer = setTimeout(() => resolve(false), 5000);
-    })]);
-    if (timer) clearTimeout(timer);
-    if (version !== this.injectionVersion) return undefined;
-    if (!loaded) evidence?.diagnostics.push({ code: 'resource-error', message: 'Fuentes o imágenes no finalizaron en el tiempo de espera.' });
-    this.previewReady = loaded;
-    if (this.fiscalSample && loaded && this.renderInputSnapshot === this.currentSnapshot() &&
-        !evidence?.diagnostics.some(diagnostic => diagnostic.code === 'resource-error')) {
-      const template = this.templateState.getCurrentTemplate();
-      const pagination = paginateFiscalPrint(doc, template);
-      this.paginationPending = pagination.pending;
-      this.pageHeightPx = mmToPx(template.page.height) * pagination.pages;
-      if (doc.querySelector('[data-render-page]')) this.paginatedHtml = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+    const template = this.templateState.getCurrentTemplate();
+    const context = this.fiscalContext;
+    const snapshot = this.renderInputSnapshot;
+    if (!evidence || !context) return undefined;
+    const prepared = await prepareBrowserPrint(doc, template, context, evidence,
+      () => version === this.injectionVersion && snapshot === this.currentSnapshot() &&
+        doc === this.previewFrame?.nativeElement.contentDocument);
+    if (!prepared) return undefined;
+    this.previewReady = prepared.resourcesReady;
+    this.paginationPending = prepared.paginationPending;
+    this.preparedPages = Array.from(doc.querySelectorAll('body > .page'));
+    this.pageHeightPx = measureRenderSurface(doc, mmToPx(template.page.height), template.page.dynamicHeight);
+    if (doc.querySelector('[data-render-page]')) this.paginatedHtml = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+    this.renderedReport = prepared.report;
+    this.feedback = buildValidationFeedback(context, prepared.report, snapshot, this.currentSnapshot());
+    this.reportPending = false;
+    if (this.validation?.requestedPage) {
+      const page = doc.querySelectorAll('body > .page')[this.validation.requestedPage - 1];
+      page?.scrollIntoView({ block: 'nearest' });
+      this.validation.requestedPage = undefined;
     }
-    this.refreshFiscalReport(doc);
     this.cdr.markForCheck();
     return doc;
   }
@@ -201,7 +246,12 @@ export class PreviewComponent implements OnInit, OnDestroy {
    * When returning to Render, re-inject the iframe (it was destroyed by *ngIf).
    */
   setViewMode(mode: PreviewViewMode): void {
-    if (mode !== 'render') this.injectionVersion++;
+    if (mode !== 'render') {
+      this.injectionVersion++;
+      this.preparedPages = [];
+      this.renderedReport = undefined; this.feedback = undefined;
+      this.reportPending = false; this.previewReady = false;
+    }
     this.viewMode = mode;
     if (mode === 'render') {
       this.injectIframe();
@@ -214,6 +264,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   // ─────────────────────────────────────────────────────────────────
 
   private getActiveData(): InvoiceData {
+    if (this.validation) return this.validation.data();
     if (this.fiscalSample) return sampleFiscalInvoice(this.templateState.getCurrentTemplate().compliance, this.sampleDataMode === 'multi');
     return this.sampleDataMode === 'single'
       ? SAMPLE_INVOICE_DATA
@@ -222,12 +273,14 @@ export class PreviewComponent implements OnInit, OnDestroy {
 
   toggleSampleData(): void {
     this.sampleDataMode = this.sampleDataMode === 'single' ? 'multi' : 'single';
-    this.renderPreview();
+    if (this.validation) this.validation.select(this.fiscalSample ? (this.sampleDataMode === 'multi' ? 'fiscal-multi' : 'fiscal-single') : this.sampleDataMode);
+    else this.renderPreview();
   }
 
   toggleFiscalSample(): void {
     this.fiscalSample = !this.fiscalSample;
-    this.renderPreview();
+    if (this.validation) this.validation.select(this.fiscalSample ? (this.sampleDataMode === 'multi' ? 'fiscal-multi' : 'fiscal-single') : this.sampleDataMode);
+    else this.renderPreview();
   }
 
   // ─────────────────────────────────────────────────────────────────
@@ -240,9 +293,16 @@ export class PreviewComponent implements OnInit, OnDestroy {
 
   private refreshFiscalReport(doc: Document): RenderedFiscalReport | undefined {
     if (this.renderInputSnapshot !== this.currentSnapshot() || !this.renderEvidence || !this.fiscalContext) return undefined;
+    const resourcesReady = this.previewReady && doc.fonts.status === 'loaded' &&
+      Array.from(doc.images).every(image => image.complete && image.naturalWidth > 0);
+    const pages = Array.from(doc.querySelectorAll('body > .page'));
+    const sequenceChanged = pages.length !== this.preparedPages.length || pages.some((page, index) => page !== this.preparedPages[index]);
+    const paginationPending = sequenceChanged ? 'Cambió la composición de hojas desde la preparación de la vista.' : this.paginationPending;
     const report = inspectFiscalPrint(this.templateState.getCurrentTemplate(), this.fiscalContext, doc,
-      this.renderEvidence, this.previewReady, this.paginationPending);
+      this.renderEvidence, resourcesReady, paginationPending);
     this.renderedReport = report;
+    this.feedback = buildValidationFeedback(this.fiscalContext, report, this.renderInputSnapshot, this.currentSnapshot());
+    this.reportPending = false;
     return report;
   }
 
@@ -251,12 +311,16 @@ export class PreviewComponent implements OnInit, OnDestroy {
     this.showDesign.emit();
   }
 
+  showFindingPage(finding: RuleResult): void {
+    if (finding.page) this.previewFrame?.nativeElement.contentDocument?.querySelectorAll('body > .page')[finding.page - 1]?.scrollIntoView({ block: 'nearest' });
+  }
+
   async printPreview(): Promise<void> {
     if (this.printing) return;
     this.printing = true;
     this.printMessage = '';
     try {
-      if (this.renderInputSnapshot !== this.currentSnapshot()) this.renderPreview();
+      if (!this.fiscalContext || this.renderInputSnapshot !== this.currentSnapshot()) this.renderPreview();
       if (this.viewMode !== 'render') this.setViewMode('render');
       const snapshot = this.renderInputSnapshot;
       const version = this.injectionVersion;
@@ -267,9 +331,16 @@ export class PreviewComponent implements OnInit, OnDestroy {
         return;
       }
       const report = this.refreshFiscalReport(doc);
-      const failures = report ? confirmedPrintFailures(report) : [];
-      if (failures.length) {
-        this.printMessage = 'Impresión bloqueada. Corregí ' + failures.map(result => result.id + ' · ' + result.title).join(', ') + '.';
+      if (!this.fiscalContext) throw new Error('missing-print-context');
+      const decision = decideBrowserPrint(this.fiscalContext, report, snapshot, this.currentSnapshot());
+      if (decision.state === 'refresh') {
+        this.printMessage = 'La evidencia de impresión cambió. Volvé a preparar la vista actual.';
+        return;
+      }
+      if (decision.state === 'block') {
+        this.printMessage = 'Impresión bloqueada. Revisá ' + decision.failures.map(printFailureLabel).join('; ') + '.';
+        if (this.printValidation && decision.failures.some(finding => finding.ruleId === RECEIVER_OMISSION_RULE))
+          this.printValidation.nativeElement.open = true;
         return;
       }
       doc.defaultView?.print();
@@ -290,7 +361,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   }
 
   exportHtmlTemplate(): void {
-    this.downloadBlob(this.templateHtml, this.fileName('template.html'), 'text/html');
+    this.downloadBlob(this.renderer.exportAsZureoTemplate(this.templateState.getCurrentTemplate()), this.fileName('template.html'), 'text/html');
   }
 
   exportJson(): void {
@@ -322,7 +393,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   }
 
   copyHtmlTemplate(): Promise<void> {
-    return this.copyToClipboard(this.templateHtml);
+    return this.copyToClipboard(this.renderer.exportAsZureoTemplate(this.templateState.getCurrentTemplate()));
   }
 
   copyJson(): Promise<void> {

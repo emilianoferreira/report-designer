@@ -3,6 +3,14 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "study: build API",
+      "type": "process",
+      "command": "node",
+      "args": ["scripts/study-lab.mjs", "build"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": "$msCompile"
+    },
+    {
       "type": "npm",
       "script": "start",
       "isBackground": true,
