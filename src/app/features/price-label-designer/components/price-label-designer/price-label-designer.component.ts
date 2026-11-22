@@ -376,7 +376,19 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
     } finally {
       this.saving = false;
     }
-    if (savedId) await this.router.navigate(['/price-labels', savedId, 'edit'], { replaceUrl: true });
+    if (savedId) {
+      const batch = this.batchToken;
+      const previousId = this.route.snapshot.paramMap.get('id');
+      if (batch && previousId) this.printDrafts.retarget(batch, previousId, savedId);
+      let opened = false;
+      try {
+        opened = await this.router.navigate(['/price-labels', savedId, 'edit'], {
+          replaceUrl: true, queryParams: { batch }
+        });
+      } finally {
+        if (!opened && batch && previousId) this.printDrafts.retarget(batch, savedId, previousId);
+      }
+    }
   }
 
   async reloadTemplate(): Promise<void> {

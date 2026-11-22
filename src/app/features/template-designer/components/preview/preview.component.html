@@ -16,7 +16,7 @@
           [class.active]="sampleDataMode === 'multi'"
           (click)="toggleSampleData()"
         >
-          {{ sampleDataMode === 'multi' ? '5 artículos' : '1 artículo' }}
+          {{ sampleDataMode === 'fifteen' ? 'Volver a 1 artículo' : sampleDataMode === 'multi' ? '5 artículos' : '1 artículo' }}
         </button>
         <button class="toolbar-btn" (click)="showFifteenArticles()" [attr.aria-pressed]="sampleDataMode === 'fifteen'">15 artículos</button>
       </div>
