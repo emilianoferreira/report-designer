@@ -1,26 +1,34 @@
 import { templateErrors } from '../../utils/label-validation';
 import { CommonModule } from '@angular/common';
-import { Component, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, HostListener, Injector, OnDestroy, OnInit, ViewChild, afterNextRender } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import {
   LabelElement,
   LabelElementType,
-  LabelTemplate
+  LabelTemplate,
+  LabelOrientation,
+  LabelCalibration,
+  PriceLabelArticle,
+  ThermalLabelProfile
 } from '../../../../core/models/price-label-template.model';
 import { PriceLabelCanvasComponent } from '../price-label-canvas/price-label-canvas.component';
 import { PriceLabelPreviewComponent } from '../price-label-preview/price-label-preview.component';
 import { PriceLabelPropertiesComponent } from '../price-label-properties/price-label-properties.component';
+import { PriceLabelSetupComponent } from '../price-label-setup/price-label-setup.component';
 import {
   SAMPLE_PRICE_LABEL_ARTICLES,
-  SAMPLE_PRICE_LABEL_COMPANY
+  SAMPLE_PRICE_LABEL_COMPANY,
+  LABEL_SIMULATIONS
 } from '../../data/sample-price-label-data';
 import { createDefaultPriceLabelTemplate } from '../../data/default-price-label-template';
+import { defaultThermalLabelProfile, PRICE_LABEL_PRESETS } from '../../data/new-label-template';
+import { calibrationArticles, createCalibrationTemplate, isThermalCalibration } from '../../data/label-calibration';
 import { PriceLabelStateService } from '../../services/price-label-state.service';
 import { PriceLabelStorageService } from '../../services/price-label-storage.service';
 
-import { labelLayoutError } from '../../utils/label-layout';
+import { defaultLabelPrintProfile, labelSheetName, resolveLabelLayout } from '../../utils/label-layout';
 import { AuthService } from '../../../../core/auth/auth.service';
 
 type ViewMode = 'design' | 'preview';
@@ -40,7 +48,8 @@ interface ToolItem {
     FormsModule,
     PriceLabelCanvasComponent,
     PriceLabelPreviewComponent,
-    PriceLabelPropertiesComponent
+    PriceLabelPropertiesComponent,
+    PriceLabelSetupComponent
   ],
   templateUrl: './price-label-designer.component.html',
   styleUrl: './price-label-designer.component.scss'
@@ -57,11 +66,22 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
   rightPanelCollapsed = false;
   saving = false;
   conflict = false;
+  loadingTemplate = false;
+  openError = '';
+  showSetup = false;
+  private loadRequest = 0;
   private serverVersion?: number;
   private baseline = '';
   private destroyed = false;
 
-  readonly sampleArticles = SAMPLE_PRICE_LABEL_ARTICLES;
+  sampleArticles = SAMPLE_PRICE_LABEL_ARTICLES;
+  readonly simulations = LABEL_SIMULATIONS;
+  simulationIndex = 0;
+  private simulatedArticle?: PriceLabelArticle[];
+  get previewArticles(): PriceLabelArticle[] {
+    return this.template.calibration ? this.sampleArticles : this.simulatedArticle ?? this.sampleArticles;
+  }
+  private calibration?: LabelCalibration;
   readonly sampleCompany = SAMPLE_PRICE_LABEL_COMPANY;
 
   readonly tools: ToolItem[] = [
@@ -71,13 +91,15 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
     { type: 'image', label: 'Imagen', description: 'Agregar logo o imagen', icon: '▧' }
   ];
 
-  readonly labelPresets = [
-    { id: '50x30', label: '50 x 30 mm', width: 50, height: 30, columns: 4, rows: 8 },
-    { id: '60x40', label: '60 x 40 mm', width: 60, height: 40, columns: 3, rows: 6 },
-    { id: '40x25', label: '40 x 25 mm', width: 40, height: 25, columns: 4, rows: 10 },
-    { id: 'custom', label: 'Personalizado', width: 0, height: 0, columns: 0, rows: 0 }
-  ];
+  readonly labelPresets = PRICE_LABEL_PRESETS;
   selectedPreset = '50x30';
+  readonly thermalFields = [
+    { key: 'width', label: 'Ancho del rollo' },
+    { key: 'height', label: 'Alto de página en el controlador' },
+    { key: 'printableWidth', label: 'Ancho imprimible' },
+    { key: 'offsetX', label: 'Desplazamiento horizontal' },
+    { key: 'offsetY', label: 'Desplazamiento vertical' }
+  ] as const;
 
   private sub = new Subscription();
   private saveStatusTimer: any;
@@ -86,7 +108,9 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
     private state: PriceLabelStateService,
     public storage: PriceLabelStorageService,
     private router: Router,
-    private auth: AuthService
+    private route: ActivatedRoute,
+    private auth: AuthService,
+    private injector: Injector
   ) {}
 
   ngOnInit(): void {
@@ -95,6 +119,10 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
       this.state.template$.subscribe(template => {
         this.saveStatus = '';
         this.template = template;
+        if (template.calibration !== this.calibration) {
+          this.calibration = template.calibration;
+          this.sampleArticles = template.calibration ? calibrationArticles(template.calibration) : SAMPLE_PRICE_LABEL_ARTICLES;
+        }
         this.selectedPreset = this.detectPreset(template);
         if (this.selectedElementId && !template.elements.some(el => el.id === this.selectedElementId)) {
           this.selectedElementId = null;
@@ -107,6 +135,48 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
         this.savedTemplates = templates;
       })
     );
+    if (!this.canEdit) this.viewMode = 'preview';
+    this.sub.add(this.route.paramMap.subscribe(params => {
+      const id = params.get('id');
+      this.showSetup = false;
+      if (id && id !== this.template.id) {
+        void this.openFromRoute(id);
+      } else {
+        this.loadRequest++;
+        this.loadingTemplate = false;
+        this.openError = '';
+        if (!id && !this.legacyRoute) {
+          const calibration = createCalibrationTemplate(this.route.snapshot.queryParamMap.get('calibration'));
+          this.loadTemplate(calibration ?? createDefaultPriceLabelTemplate());
+          this.showSetup = !calibration;
+        }
+      }
+    }));
+  }
+
+  get canEdit(): boolean { return this.auth.session?.role === 'editor'; }
+  get legacyRoute(): boolean { return this.route.routeConfig?.path === 'price-labels'; }
+
+  async openFromRoute(id: string): Promise<void> {
+    const request = ++this.loadRequest;
+    this.loadingTemplate = true;
+    this.openError = '';
+    try {
+      const template = await this.storage.fetch(id);
+      if (this.destroyed || request !== this.loadRequest) return;
+      this.openError = templateErrors(template).join(' ');
+      if (!this.openError) this.loadTemplate(template);
+    } catch (error: any) {
+      if (this.destroyed || request !== this.loadRequest) return;
+      this.openError = error.status === 404 ? 'No se encontró el molde de etiqueta.' : 'No se pudo cargar el molde.';
+    } finally {
+      if (request === this.loadRequest) this.loadingTemplate = false;
+    }
+  }
+
+  retryOpen(): void {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id) void this.openFromRoute(id);
   }
 
   ngOnDestroy(): void {
@@ -122,7 +192,16 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
     return this.template.elements.find(el => el.id === this.selectedElementId) || null;
   }
 
-  preparePrint(): void { this.router.navigate(['/price-labels/print']); }
+  get needsSaveForPrint(): boolean {
+    return this.canEdit && (this.serverVersion === undefined || this.hasUnsavedChanges());
+  }
+
+  async preparePrint(): Promise<void> {
+    if (this.saving) return;
+    if (this.needsSaveForPrint) await this.saveTemplate(false, false);
+    if (this.destroyed || this.serverVersion === undefined || this.hasUnsavedChanges() || this.conflict) return;
+    await this.router.navigate(['/price-labels/print'], { queryParams: { templateId: this.template.id } });
+  }
 
   goToDocuments(): void {
     this.router.navigate(['/templates']);
@@ -132,7 +211,34 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
     this.viewMode = mode;
   }
 
-  get layoutError(): string { return labelLayoutError(this.template); }
+  selectSimulation(index: number): void {
+    const simulation = this.simulations[index];
+    if (!simulation) return;
+    this.simulationIndex = index;
+    this.simulatedArticle = simulation.changes ? [{ ...SAMPLE_PRICE_LABEL_ARTICLES[0], ...simulation.changes }] : undefined;
+  }
+
+  returnToElement(id: string): void {
+    if (!this.canEdit || !this.template.elements.some(element => element.id === id)) return;
+    this.selectElement(id);
+    this.rightPanelCollapsed = false;
+    this.setViewMode('design');
+    afterNextRender(() => this.canvas?.focusSurface(), { injector: this.injector });
+  }
+
+  get sheetName(): string { return labelSheetName(this.template); }
+  get startsWithThermal(): boolean { return defaultLabelPrintProfile(this.template) === 'thermal'; }
+  get sheetError(): string { return resolveLabelLayout(this.template).error ?? ''; }
+  get thermalError(): string {
+    return this.template.printProfiles?.thermal ? resolveLabelLayout(this.template, 'thermal').error ?? '' : '';
+  }
+  get layoutError(): string {
+    if (this.template.calibration) {
+      const profile = isThermalCalibration(this.template.calibration) ? 'thermal' : 'sheet';
+      return resolveLabelLayout(this.template, profile).error ?? '';
+    }
+    return this.template.printProfiles?.thermal && !this.thermalError ? '' : this.sheetError;
+  }
 
   private fingerprint(template: LabelTemplate): string {
     const { version, ...content } = template;
@@ -150,7 +256,7 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
-    if (event.defaultPrevented || event.isComposing) return;
+    if (!this.canEdit || this.showSetup || this.loadingTemplate || this.openError || event.defaultPrevented || event.isComposing) return;
     const target = event.target as HTMLElement;
     const typing = !!target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]') || target.isContentEditable;
     const modifier = event.ctrlKey || event.metaKey;
@@ -202,10 +308,19 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
     this.conflict = false;
     this.state.setTemplate(template);
     this.baseline = this.fingerprint(this.template);
+    if (template.calibration || !this.canEdit) this.viewMode = 'preview';
   }
 
   createNewTemplate(): void {
     if (this.canDiscard()) this.loadTemplate(createDefaultPriceLabelTemplate());
+  }
+
+  startGuidedTemplate(template: LabelTemplate): void {
+    this.loadTemplate(template);
+    this.baseline = '';
+    this.viewMode = 'design';
+    this.showSetup = false;
+    afterNextRender(() => this.canvas?.focusSurface(), { injector: this.injector });
   }
 
   openTemplate(templateId: string, select?: HTMLSelectElement): void {
@@ -217,11 +332,12 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
     this.loadTemplate(template);
   }
 
-  async saveTemplate(asCopy = false): Promise<void> {
-    if (this.saving || this.layoutError || this.state.interacting) return;
+  async saveTemplate(asCopy = false, openSaved = true): Promise<void> {
+    if (!this.canEdit || this.showSetup || this.loadingTemplate || this.openError || this.saving || this.layoutError || this.state.interacting) return;
     const original = this.template;
     const sent = asCopy ? { ...original, name: original.name + ' (copia)' } : original;
     this.saving = true;
+    let savedId: string | undefined;
     try {
       const saved = await this.storage.save(sent, this.serverVersion, asCopy);
       if (this.destroyed) return;
@@ -232,12 +348,14 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
       this.baseline = this.fingerprint(saved);
       this.state.acceptSaved(unchanged ? saved : { ...this.template, id: saved.id, name: asCopy && this.template.name === original.name ? saved.name : this.template.name });
       this.showSaveStatus(unchanged ? 'Guardado' : 'Guardado; hay cambios nuevos pendientes');
+      if (unchanged && openSaved && !this.legacyRoute && this.route.snapshot.paramMap.get('id') !== saved.id) savedId = saved.id;
     } catch (error: any) {
       this.conflict = error.status === 409;
       this.showSaveStatus(this.conflict ? 'La plantilla cambió en el servidor. Tu borrador se conservó.' : 'No se pudo guardar. Los cambios se conservaron.');
     } finally {
       this.saving = false;
     }
+    if (savedId) await this.router.navigate(['/price-labels', savedId, 'edit'], { replaceUrl: true });
   }
 
   async reloadTemplate(): Promise<void> {
@@ -255,7 +373,7 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
   }
 
   async deleteTemplate(): Promise<void> {
-    if (this.saving || !confirm('¿Eliminar la plantilla "' + this.template.name + '"? Esta acción no se puede deshacer y descarta los cambios locales.')) return;
+    if (!this.canEdit || this.saving || !confirm('¿Eliminar la plantilla "' + this.template.name + '"? Esta acción no se puede deshacer y descarta los cambios locales.')) return;
     this.saving = true;
     try {
       if (this.storage.getById(this.template.id)) await this.storage.delete(this.template.id, this.serverVersion);
@@ -266,6 +384,7 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
       this.conflict = error.status === 409;
       this.showSaveStatus(this.conflict ? 'La plantilla cambió en el servidor. No se eliminó.' : 'No se pudo eliminar. Tu borrador se conservó.');
     } finally { this.saving = false; }
+    if (!this.legacyRoute && this.serverVersion === undefined) this.goToDocuments();
   }
 
   updateName(name: string): void {
@@ -327,6 +446,27 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
   updatePageNumber(field: keyof LabelTemplate['page'], value: any): void {
     this.state.updatePage({ [field]: Number(value) } as any);
   }
+
+  setA4Orientation(orientation: LabelOrientation): void {
+    const portrait = orientation === 'portrait';
+    this.state.updatePage({ mode: 'sheet', size: 'A4', orientation, width: portrait ? 210 : 297, height: portrait ? 297 : 210 });
+  }
+
+  addThermalProfile(): void {
+    const { width, height } = this.template.label;
+    this.state.setThermalProfile(defaultThermalLabelProfile(width, height));
+  }
+
+  updateThermalProfile(changes: Partial<ThermalLabelProfile>): void {
+    const profile = this.template.printProfiles?.thermal;
+    if (profile) this.state.setThermalProfile({ ...profile, ...changes });
+  }
+
+  updateThermalNumber(field: Exclude<keyof ThermalLabelProfile, 'media'>, value: string): void {
+    this.updateThermalProfile({ [field]: Number(value) });
+  }
+
+  removeThermalProfile(): void { this.state.setThermalProfile(); }
 
   private detectPreset(template: LabelTemplate): string {
     const match = this.labelPresets.find(preset =>

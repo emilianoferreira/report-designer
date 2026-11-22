@@ -6,36 +6,61 @@
     <div class="header-left">
       <span class="app-logo">Diseñador</span>
       <span class="header-separator">|</span>
-      <h1 class="page-title">Moldes de impresión</h1>
+      <h1 class="page-title">Mis moldes</h1>
     </div>
     <div class="header-right">
-      <button class="btn-secondary" (click)="openPriceLabelDesigner()">
-        Etiquetas de precios
-      </button>
-      <button class="btn-new" (click)="openNewForm()">
-        + Nuevo molde
-      </button>
+      <a class="btn-secondary" routerLink="/price-labels/print">Preparar impresión</a>
+      @if (canEdit) {
+        <button class="btn-new" (click)="choosingType = !choosingType" [attr.aria-expanded]="choosingType" aria-controls="mold-type">+ Nuevo molde</button>
+      }
     </div>
   </header>
 
   <!-- Content -->
   <div class="list-content">
-    @if (molds.length === 0) {
-      <div class="empty-state">
-        <div class="empty-icon">📄</div>
-        <h2 class="empty-title">No hay moldes creados</h2>
-        <p class="empty-text">Crea tu primer molde de impresión para diseñar facturas, tickets y otros comprobantes.</p>
-        <button class="btn-new btn-new-lg" (click)="openNewForm()">
-          + Crear primer molde
-        </button>
+    @if (choosingType && canEdit) {
+      <div id="mold-type" class="catalog-actions" role="group" aria-label="Tipo de molde nuevo">
+        <button class="btn-secondary" (click)="openNewForm()">Comprobante</button>
+        <a class="btn-secondary" routerLink="/price-labels/new">Etiqueta</a>
+        <details>
+          <summary class="btn-secondary">Calibración</summary>
+          <div class="catalog-actions" role="group" aria-label="Moldes de calibración">
+            @for (calibration of calibrations; track calibration.id) {
+              <a class="btn-secondary" routerLink="/price-labels/new" [queryParams]="{ calibration: calibration.id }">{{ calibration.name }}</a>
+            }
+          </div>
+        </details>
       </div>
-    } @else {
+    }
+    <nav class="catalog-actions" aria-label="Tipos de molde">
+      @for (option of filters; track option.value) {
+        <a class="btn-secondary" routerLink="/templates" [queryParams]="{ type: option.value }"
+          [attr.aria-current]="filter === option.value ? 'page' : null">{{ option.label }}</a>
+      }
+    </nav>
+    @let reportError = storage.error$ | async;
+    @let labelError = labelStorage.error$ | async;
+    @if (labelActionError) { <p role="alert">{{ labelActionError }}</p> }
+    @if (loading) {
+      <p role="status">Cargando moldes…</p>
+    } @else if (reportError || labelError) {
+      <div role="alert">
+        @if (reportError) { <p>{{ reportError }}</p> }
+        @if (labelError) { <p>No se pudieron cargar los moldes de etiquetas.</p> }
+        <button class="btn-secondary" (click)="retryCatalog()">Reintentar carga</button>
+      </div>
+    } @else if (!visibleReports.length && !visibleLabels.length) {
+      <div class="empty-state">
+        <h2 class="empty-title">{{ filter === 'all' ? 'No hay moldes guardados' : 'No hay moldes de este tipo' }}</h2>
+      </div>
+    }
+    @if (visibleReports.length || visibleLabels.length) {
       <div class="mold-grid">
-        @for (mold of molds; track mold.id) {
+        @for (mold of visibleReports; track mold.id) {
           <div class="mold-card" (dblclick)="openDesigner(mold)">
             <div class="card-header">
               <span class="card-doctype">{{ getDocTypeLabel(mold.documentType) }}</span>
-              <div class="card-menu">
+              @if (canEdit) { <div class="card-menu">
                 <button class="card-action" title="Editar metadatos" (click)="openEditForm(mold); $event.stopPropagation()">
                   ✏️
                 </button>
@@ -45,7 +70,7 @@
                 <button class="card-action delete" title="Eliminar" (click)="requestDelete(mold); $event.stopPropagation()">
                   🗑️
                 </button>
-              </div>
+              </div> }
             </div>
             <h3 class="card-name">{{ mold.name }}</h3>
             @if (mold.description) {
@@ -54,10 +79,40 @@
             <div class="card-footer">
               <span class="card-date">Modificado: {{ formatDate(mold.updatedAt) }}</span>
               <button class="btn-open" (click)="openDesigner(mold)">
-                Editar
+                {{ canEdit ? 'Editar' : 'Abrir' }}
               </button>
             </div>
           </div>
+        }
+        @for (label of visibleLabels; track label.id) {
+          <article class="mold-card">
+            <div class="card-header">
+              <span class="card-doctype">Etiqueta</span>
+              @if (canEdit) {
+                <div class="card-menu">
+                  <button class="card-action" title="Duplicar" aria-label="Duplicar etiqueta"
+                    [disabled]="labelActionPending" (click)="duplicateLabel(label)">📋</button>
+                  <button class="card-action delete" title="Eliminar" aria-label="Eliminar etiqueta"
+                    [disabled]="labelActionPending" (click)="requestLabelDelete(label)">🗑️</button>
+                </div>
+              }
+            </div>
+            <h3 class="card-name">{{ label.name }}</h3>
+            @if (label.label; as size) {
+              <p class="card-description">{{ size.width }} × {{ size.height }} mm · {{ labelSupports(label) }}</p>
+            }
+            @if (labelStorage.updatedAt(label.id); as modified) {
+              <p class="card-date">Modificado: {{ formatDate(modified) }}</p>
+            }
+            <div class="card-footer catalog-actions">
+              @if (label.calibration) {
+                <a class="btn-open" [routerLink]="['/price-labels', label.id, 'edit']">Vista previa</a>
+              } @else {
+                <a class="btn-open" [routerLink]="['/price-labels', label.id, 'edit']">{{ canEdit ? 'Editar' : 'Abrir' }}</a>
+                <a class="btn-secondary" routerLink="/price-labels/print" [queryParams]="{ templateId: label.id }">Preparar impresión</a>
+              }
+            </div>
+          </article>
         }
       </div>
     }
@@ -75,14 +130,17 @@
   <!-- Delete Confirmation Modal -->
   @if (confirmDeleteId) {
     <div class="delete-overlay" (click)="cancelDelete()">
-      <div class="delete-modal" (click)="$event.stopPropagation()">
-        <h3 class="delete-title">Eliminar molde</h3>
+      <div class="delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-mold-title"
+        (click)="$event.stopPropagation()" (keydown.escape)="cancelDelete()"
+        (keydown)="cycleDeleteFocus($event, cancelDeleteButton, confirmDeleteButton)">
+        <h3 class="delete-title" id="delete-mold-title">Eliminar molde</h3>
+        @if (labelToDelete) { <p>{{ labelToDelete.name }}</p> }
         <p class="delete-text">
           Esta acción eliminará el molde y su diseño de forma permanente. No se puede deshacer.
         </p>
         <div class="delete-actions">
-          <button class="form-btn cancel" (click)="cancelDelete()">Cancelar</button>
-          <button class="form-btn danger" (click)="confirmDelete()">Eliminar</button>
+          <button #cancelDeleteButton class="form-btn cancel" [disabled]="labelActionPending" (click)="cancelDelete()">Cancelar</button>
+          <button #confirmDeleteButton class="form-btn danger" [disabled]="labelActionPending" (click)="confirmDelete()">Eliminar</button>
         </div>
       </div>
     </div>

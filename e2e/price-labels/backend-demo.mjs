@@ -14,6 +14,8 @@ await runIsolatedApi({verify: async ({urls,users}) => {
   assert.deepEqual(lists.items.map(x=>x.name),['Principal','Mayorista']);
   assert.ok(context.company.logo.startsWith('data:image/svg+xml'));
   const list=lists.items[0].id;
+  const byName = await call(url, viewer, 'GET', '/api/label-print/articles?query=cafe%20molido&priceListId=' + encodeURIComponent(list));
+  assert.deepEqual(byName.items.map(item => item.article.code), ['DEMO-006']);
   const page=await call(url,viewer,'GET','/api/label-print/articles?query=DEMO-&priceListId='+encodeURIComponent(list));
   assert.equal(page.items.length,25); assert.ok(page.nextCursor);
   const next=await call(url,viewer,'GET','/api/label-print/articles?query=DEMO-&priceListId='+encodeURIComponent(list)+'&cursor='+encodeURIComponent(page.nextCursor));
@@ -33,28 +35,53 @@ await runIsolatedApi({verify: async ({urls,users}) => {
   await call(url,alice,'POST','/api/label-print/resolve',{...body,articleIds:[body.articleIds[0],body.articleIds[0]]},400);
   await call(url,alice,'GET','/api/label-print/price-lists?pageSize=101',undefined,400);
   await call(url,alice,'GET','/api/label-print/price-lists?cursor=invalid',undefined,400);
-  // Exercise compiled Angular against the real isolated API and demo catalog.
-  const mold=JSON.parse(readFileSync('e2e/stage0/fixtures/price-label.json','utf8'));
-  mold.template_json.label.gapX=0;
-  for(const element of mold.template_json.elements) if(element.type==='barcode')element.barcodeType='EAN13';
-  const saved=await call(url,alice,'POST','/api/templates',mold,201);
+  // Create through Angular, then prepare the saved mold as a viewer of the same company.
   const browser=await chromium.launch({channel:'chrome',headless:true});
   try {
     const ui=await browser.newPage();
+    let identity = alice;
     await ui.route('**/*',async route=>{
       const request=route.request(),target=new URL(request.url());
       if(target.hostname!=='review.test')return route.abort();
       if(target.pathname.startsWith('/api/')){
-        const response=await fetch(url+target.pathname+target.search,{method:request.method(),headers:{cookie:viewer.cookie,'X-CSRF-Token':viewer.session.csrf_token,'Content-Type':'application/json'},...(request.postData()?{body:request.postData()}: {})});
+        const headers = { cookie: identity.cookie, 'Content-Type': 'application/json' };
+        for (const name of ['x-csrf-token', 'if-match']) {
+          if (request.headers()[name]) headers[name] = request.headers()[name];
+        }
+        const response=await fetch(url+target.pathname+target.search,{method:request.method(),headers,...(request.postData()?{body:request.postData()}: {})});
         return route.fulfill({status:response.status,contentType:response.headers.get('content-type')||'application/json',body:await response.text()});
       }
       const name=target.pathname.split('/').pop(),asset=/^[\w.-]+\.(js|css|ico)$/.test(name)?name:'index.html';
       return route.fulfill({body:readFileSync('dist/zureo-report-designer/browser/'+asset),contentType:asset.endsWith('.js')?'application/javascript':asset.endsWith('.css')?'text/css':'text/html'});
     });
-    await ui.goto('http://review.test/price-labels/print');
-    await ui.getByLabel('Molde guardado').selectOption(saved.id);
+    await ui.goto('http://review.test/templates');
+    await ui.getByRole('button', { name: '+ Nuevo molde', exact: true }).click();
+    await ui.getByRole('link', { name: 'Etiqueta', exact: true }).click();
+    const name = 'Lote con catálogo de demostración';
+    await ui.getByLabel('Nombre del molde').fill(name);
+    await ui.getByRole('combobox', { name: /^Tamaño de la etiqueta/ }).selectOption('60x40');
+    await ui.getByRole('radio', { name: 'Rollo térmico', exact: true }).check();
+    await ui.getByRole('button', { name: 'Continuar al editor', exact: true }).click();
+    await ui.locator('.barcode-content').click();
+    await ui.locator('app-price-label-properties').getByRole('button', { name: 'Datos', exact: true }).click();
+    await ui.getByRole('combobox', { name: /^Tipo/ }).selectOption('EAN13');
+    await ui.getByRole('button', { name: 'Guardar', exact: true }).click();
+    await expect(ui).toHaveURL(/\/price-labels\/[^/]+\/edit$/);
+    const id = new URL(ui.url()).pathname.split('/')[2];
+    const saved = await call(url, alice, 'GET', '/api/templates/' + id);
+    assert.equal(saved.nombre, name);
+    assert.equal(saved.template_json.printProfiles.thermal.width, 60);
+    assert.equal(saved.template_json.printProfiles.defaultProfile, 'thermal');
+    assert.equal(saved.template_json.elements.find(element => element.type === 'barcode').barcodeType, 'EAN13');
+    await call(url, bob, 'GET', '/api/templates/' + id, undefined, 404);
+    await ui.getByRole('button', { name: 'Preparar impresión', exact: true }).click();
+    await expect(ui.getByLabel('Molde guardado')).toHaveValue(id);
+    identity = viewer;
+    await ui.reload();
+    await expect(ui.getByLabel('Molde guardado')).toHaveValue(id);
+    await expect(ui.getByLabel('Perfil de impresión')).toHaveValue('thermal');
     await ui.getByLabel('Lista de precios').selectOption({label:'Principal'});
-    await ui.getByLabel('Buscar por código o código de barras').fill('DEMO-');
+    await ui.getByLabel('Buscar por nombre, código o código de barras').fill('DEMO-');
     await ui.getByRole('button',{name:'Buscar',exact:true}).click();
     const names=['Arroz blanco 1 kg','Azúcar blanca 1 kg','Aceite de girasol 900 ml'];
     for(let i=0;i<3;i++){
@@ -67,13 +94,16 @@ await runIsolatedApi({verify: async ({urls,users}) => {
     await ui.getByLabel('Lista de precios').selectOption({label:'Mayorista'});
     await expect(ui.frameLocator('iframe').locator('.label-price').first()).toContainText('52,00');
     await expect(ui.getByRole('heading',{name:'Lote · 8 / 100 etiquetas'})).toBeVisible();
+    await ui.getByLabel('Perfil de impresión').selectOption('thermal');
+    await expect(ui.frameLocator('iframe').locator('.page')).toHaveCount(8);
     await ui.evaluate(()=>{window.demoPrints=0;document.querySelector('iframe').contentWindow.print=()=>window.demoPrints++;});
     await ui.getByRole('button',{name:'Imprimir',exact:true}).click();
     await expect.poll(()=>ui.evaluate(()=>window.demoPrints)).toBe(1);
     const downloaded=ui.waitForEvent('download');await ui.getByRole('button',{name:'Exportar HTML',exact:true}).click();
     const html=readFileSync(await (await downloaded).path(),'utf8');
     assert.ok(html.includes('data:image/svg+xml'));assert.ok(html.includes('52,00'));assert.ok(html.includes('<svg'));
-    console.log('PASS: compiled UI + real demo API, default image mold, EAN13, quantities, list switch, print and HTML export.');
+    assert.ok(html.includes('size: 60mm 40mm'));
+    console.log('PASS: compiled UI + real demo API, editor creates mold, viewer opens saved mold, EAN13, quantities, list switch, thermal print and HTML export.');
   }finally{await browser.close();}
   await call(url,alice,'POST','/api/auth/logout',undefined,204);
   await call(url,alice,'POST','/api/label-print/resolve',body,401);

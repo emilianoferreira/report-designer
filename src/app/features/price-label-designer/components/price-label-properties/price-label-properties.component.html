@@ -108,15 +108,7 @@
       <h3>Datos</h3>
 
       @if (element.type === 'text') {
-        <label>
-          Campo de datos
-          <select [(ngModel)]="textBinding" (change)="applyChanges()">
-            <option value="">Texto fijo</option>
-            @for (field of dataPaths; track field.path) {
-              <option [value]="field.path">{{ field.label }}</option>
-            }
-          </select>
-        </label>
+        <ng-container *ngTemplateOutlet="bindingPicker; context: { $implicit: 'textBinding' }" />
         <label>
           Texto fijo
           <textarea [(ngModel)]="textContent" (blur)="applyChanges()" rows="3"></textarea>
@@ -124,14 +116,8 @@
       }
 
       @if (element.type === 'price') {
-        <label>
-          Precio
-          <input type="text" class="mono" [(ngModel)]="priceBinding" (blur)="applyChanges()" />
-        </label>
-        <label>
-          Moneda
-          <input type="text" class="mono" [(ngModel)]="priceCurrencyPath" (blur)="applyChanges()" />
-        </label>
+        <ng-container *ngTemplateOutlet="bindingPicker; context: { $implicit: 'priceBinding' }" />
+        <ng-container *ngTemplateOutlet="bindingPicker; context: { $implicit: 'priceCurrencyPath' }" />
         <div class="field-grid">
           <label>
             Prefijo
@@ -145,10 +131,7 @@
       }
 
       @if (element.type === 'barcode') {
-        <label>
-          Datos
-          <input type="text" class="mono" [(ngModel)]="barcodeBinding" (blur)="applyChanges()" />
-        </label>
+        <ng-container *ngTemplateOutlet="bindingPicker; context: { $implicit: 'barcodeBinding' }" />
         <label>
           Tipo
           <select [(ngModel)]="barcodeType" (change)="applyChanges()">
@@ -172,10 +155,7 @@
           </select>
         </label>
         @if (imageSourceType === 'binding') {
-          <label>
-            Binding
-            <input type="text" class="mono" [(ngModel)]="imageBinding" (blur)="applyChanges()" />
-          </label>
+          <ng-container *ngTemplateOutlet="bindingPicker; context: { $implicit: 'imageBinding' }" />
         } @else {
           <label>
             URL
@@ -192,6 +172,28 @@
         </label>
       }
     </section>
+
+    <ng-template #bindingPicker let-field>
+      <label>{{ bindingLabel(field) }}
+        <select [attr.aria-label]="bindingLabel(field)" [ngModel]="selectsKnownBinding(field) ? bindingPath(field) : null"
+          (ngModelChange)="selectBinding(field, $event)">
+          @if (!selectsKnownBinding(field)) {
+            <option [ngValue]="null" disabled>Ruta personalizada</option>
+          }
+          @for (option of optionsForBinding(field); track option.path) {
+            <option [value]="option.path">{{ option.label }}</option>
+          }
+        </select>
+      </label>
+      <button type="button" class="binding-advanced" [attr.aria-expanded]="advancedField === field"
+        [attr.aria-label]="'Ruta avanzada de ' + bindingLabel(field)"
+        (click)="advancedField = advancedField === field ? undefined : field">Ruta avanzada</button>
+      @if (advancedField === field) {
+        <label>Ruta de {{ bindingLabel(field) }}
+          <input type="text" class="mono" [value]="bindingPath(field)" (blur)="updateBindingPath(field, $any($event.target).value)" />
+        </label>
+      }
+    </ng-template>
 
     <section class="panel-section" [hidden]="activeTab !== 'style'">
       <h3>Apariencia</h3>

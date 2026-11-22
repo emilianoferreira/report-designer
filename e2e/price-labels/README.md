@@ -1,9 +1,31 @@
 # Regresiones del diseñador de etiquetas
 
+## Perfiles de impresión
+
+En **Configuración de impresión**, el perfil de hoja conserva las medidas, márgenes y
+cuadrícula que ya guarda el molde. Los moldes históricos con `mode: continuous`
+conservan también su distribución previa. **Agregar perfil térmico** permite guardar
+un perfil de rollo adicional y seleccionarlo en la vista previa o al preparar el lote.
+
+La salida térmica genera una página del tamaño configurado por cada etiqueta.
+Seleccioná ese tamaño y escala 100 % en el controlador. Configurá allí también el
+sensor de separación o marca cuando corresponda. Las pruebas de navegador verifican
+la paginación, las medidas del PDF y el orden de salida. La alimentación, alineación
+y lectura de barras se comprueban en la impresora y el soporte elegidos.
+
+## Moldes de calibración
+
+Desde **Mis moldes → Nuevo molde → Calibración**, elegí la hoja de control A4,
+la plancha A4 4 × 8 o el rollo de 50 × 30 mm o 60 × 40 mm. La vista previa
+carga el patrón y los códigos de referencia sin consultar el catálogo de artículos.
+Podés imprimir directamente o guardar el molde para repetir la prueba. Para A4,
+imprimí primero la hoja de control y luego la plancha. En térmica, imprimí las
+12 páginas en un solo trabajo a tamaño real y compará la primera y la última.
+
 ## Preparación de lotes — integración del catálogo
 
 Desde el diseñador, **Preparar impresión** abre /price-labels/print. Elegir un
-molde guardado y una lista general; buscar por código o barras y agregar resultados.
+molde guardado y una lista general; buscar por nombre, código o barras y agregar resultados.
 El catálogo se consulta por páginas de 25; las búsquedas conservan el lote. Cada
 artículo admite cantidad individual y la suma no puede superar 100 etiquetas.
 
@@ -14,6 +36,23 @@ Con el proveedor deshabilitado se informa la indisponibilidad, sin mostrar artí
 El proveedor demo incluye un logo ficticio embebido para los moldes predeterminados.
 Buscar DEMO- permite recorrer 30 artículos con precios en Principal y Mayorista.
 
+El recorrido de punta a punta comienza en **Mis moldes**. Crea un molde con A4 y
+térmica, lo guarda y lo reabre. Luego arma un lote, cambia de lista sin perder
+cantidades ni perfil y coteja el orden, precios y contenido del HTML exportado.
+El PDF del navegador comprueba dos páginas A4 y cinco páginas térmicas para el
+mismo lote. La prueba también comprueba la paginación con una búsqueda aún sin
+confirmar y que se limpie la consulta anterior al vaciar el lote.
+
+En **Mis moldes → Nuevo molde → Etiqueta** el alta solicita nombre, tamaño y
+soporte inicial. El editor permite revisar el diseño antes de guardar. Si se
+eligió rollo térmico, ese perfil se abre por defecto en la simulación y al
+preparar el lote. El flujo de navegador prueba el alta A4 y térmica, incluido
+un tamaño personalizado y la exportación de un lote desde ambos recorridos.
+
+La regresión también recorre el flujo solo con teclado en 1280 × 720 y
+1600 × 900. Comprueba el foco al abrir el alta, corregir un error, pasar al
+editor, agregar y quitar artículos, ir a revisión y descargar el HTML.
+
 Cambiar la lista conserva selección, orden y cantidades, invalida los precios anteriores
 y resuelve el lote completo. Actualizar precios consulta manualmente; si falla, permite
 usar la última instantánea de la misma lista/selección, con fecha y aviso visibles.
@@ -21,6 +60,26 @@ Imprimir/exportar verifica la sesión, pero no vuelve a consultar precios. Una s
 vencida o cambio de empresa descarta los datos. Artículos no disponibles bloquean el
 lote; precios ausentes solo permiten moldes que no usan ese dato. Cero es válido y
 el tratamiento tributario desconocido se identifica sin calcular impuestos.
+
+## Estado frente al plan de rediseño v2
+
+| Criterio | Cobertura en este cambio |
+| --- | --- |
+| D1 · Diseño A4 | Biblioteca unificada, alta guiada, edición, simulación, guardado, reapertura y composición A4 probados en navegador. |
+| D2 · Reutilizar para térmica | Un perfil de hoja y uno de rollo por molde. Cambio de perfil con geometría intacta y una etiqueta por página térmica, comprobado por HTML y PDF. El sensor y el avance dependen del controlador. |
+| D3 · Diseño y lote | La simulación usa datos ficticios. El lote conserva orden y cantidades al cambiar de lista e invalida los precios anteriores. |
+| D4 · Compatibilidad y seguridad | JSON aditivo y sin migración de base. Regresiones de moldes históricos, comprobantes, fiscalidad, roles, empresa, CSRF, sesión y conflictos de revisión. |
+| D5 · Salida | La vista previa, la impresión del navegador y el HTML usan el mismo documento preparado. Los enlaces al lote consultan la revisión guardada del molde y permiten reintentar si falla la carga. |
+| D6 · Usabilidad | Recorridos de teclado a 1280 × 720 y 1600 × 900 cubiertos. Queda pendiente una sesión de usabilidad con diseñadores. |
+
+**Validación física aplazada.** Los patrones de calibración quedan disponibles en
+Zureo. Falta verificar escala y registro en A4, alineación y avance del rollo,
+lectura con escáner y compatibilidad por impresora, soporte y controlador.
+
+El catálogo Zureo real, los protocolos nativos de impresión, el historial de
+versiones restaurables, los lotes persistentes y la celda inicial en planchas
+parcialmente usadas quedan como ampliaciones. El MVP admite un perfil por tipo
+de soporte. La versión del esquema de perfiles y la revisión de guardado son independientes.
 
 Después de npm run build, ejecutar node e2e/price-labels/print-batch.cjs. La prueba
 sirve Angular compilado con respuestas API controladas (no acredita conexión real a

@@ -1,11 +1,12 @@
-import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { LabelTemplate, PriceLabelArticle, PriceLabelCompany } from '../../../../core/models/price-label-template.model';
+import { LabelPrintProfileId, LabelTemplate, PriceLabelArticle, PriceLabelCompany } from '../../../../core/models/price-label-template.model';
 import { mmToPx } from '../../../template-designer/utils/coordinate-utils';
 import { PriceLabelRendererService } from '../../services/price-label-renderer.service';
-import { labelLayoutError } from '../../utils/label-layout';
+import { LabelPrintLayout, defaultLabelPrintProfile, labelSheetName } from '../../utils/label-layout';
 import { LabelDiagnostic, inspectLabelDocument, summarizeDiagnostics } from '../../utils/label-diagnostics';
+import { isThermalCalibration } from '../../data/label-calibration';
 
 type PreviewMode = 'sheet' | 'html' | 'json';
 @Component({
@@ -18,29 +19,51 @@ export class PriceLabelPreviewComponent implements OnChanges, AfterViewInit, OnD
   @Input({required:true}) articles!:PriceLabelArticle[];
   @Input({required:true}) company!:PriceLabelCompany;
   @Input() batchMode=false;
+  @Input() batchProfile: LabelPrintProfileId = 'sheet';
   @Input() beforeOutput?:()=>Promise<boolean>;
+  @Input() allowElementNavigation = false;
   @Output() diagnosticsChanged=new EventEmitter<LabelDiagnostic[]>(true);
+  @Output() elementRequested = new EventEmitter<string>();
   diagnostics:LabelDiagnostic[]=[];
   checking=false;
   busy=false;
+  outputStatus = '';
   copies=1;
   mode:PreviewMode='sheet';
+  profile: LabelPrintProfileId = 'sheet';
+  pageCount = 0;
+  private layout?: LabelPrintLayout;
   html=''; json=''; zoom=0.72; currentPage=1;
   private revision=0;
   private ready=false;
   private staticDiagnostics:LabelDiagnostic[]=[];
   constructor(private renderer:PriceLabelRendererService){}
   get errors():string[]{return this.diagnostics.filter(d=>d.severity==='error').map(d=>d.message);}
-  get warnings():string[]{return [...new Set(this.diagnostics.filter(d=>d.severity==='warning').map(d=>d.message))];}
-  get pageWidthPx():number{return mmToPx(this.template.page.width);}
-  get pageHeightPx():number{return mmToPx(this.template.page.height);}
-  get layoutError():string{return labelLayoutError(this.template);}
-  get pageCount():number{return this.html?Math.ceil(this.articles.length*this.copies/(this.template.label.columns*this.template.label.rows)):0;}
-  get blocked():boolean{return this.busy || this.checking || !this.html || !!this.layoutError || this.errors.length>0;}
+  get editorDiagnostics(): LabelDiagnostic[] {
+    return [...new Map(this.diagnostics.map(issue => [JSON.stringify([issue.elementId, issue.severity, issue.message]), issue])).values()];
+  }
+  get sheetName(): string { return labelSheetName(this.template); }
+  get pageWidthPx():number{return mmToPx(this.layout?.width ?? 0);}
+  get pageHeightPx():number{return mmToPx(this.layout?.height ?? 0);}
+  get blocked():boolean{return this.busy || this.checking || !this.html || this.errors.length>0;}
   ngAfterViewInit():void{this.ready=true;this.render();}
-  ngOnChanges():void{this.render();}
+  ngOnChanges(changes: SimpleChanges): void {
+    const previous = changes['template']?.previousValue as LabelTemplate | undefined;
+    if (this.batchMode) this.profile = this.batchProfile;
+    else if (this.template?.calibration) this.profile = isThermalCalibration(this.template.calibration) ? 'thermal' : 'sheet';
+    else if (!this.template?.printProfiles?.thermal) this.profile = 'sheet';
+    else if (changes['template'] && previous?.id !== this.template.id) {
+      this.profile = defaultLabelPrintProfile(this.template);
+    }
+    this.render();
+  }
   ngOnDestroy():void{this.revision++;this.ready=false;}
   setMode(mode:PreviewMode):void{this.mode=mode;}
+  selectProfile(profile: LabelPrintProfileId): void {
+    this.profile = profile;
+    this.mode = 'sheet';
+    this.render();
+  }
   onCopiesChange():void{this.render();}
   goToPage(page:number):void{
     if(page<1 || page>this.pageCount)return;
@@ -53,18 +76,22 @@ export class PriceLabelPreviewComponent implements OnChanges, AfterViewInit, OnD
   async exportHtml():Promise<void>{await this.output('html');}
   exportJson():void{this.download(this.json,this.safeFileName('json'),'application/json');}
   private publish(issues:LabelDiagnostic[]):void{
-    this.diagnostics=summarizeDiagnostics(issues,this.articles,this.copies,this.template.label.columns*this.template.label.rows);
+    this.diagnostics=summarizeDiagnostics(issues,this.articles,this.copies,this.layout?.capacity ?? 0);
     this.diagnosticsChanged.emit(this.diagnostics);
   }
   private render():void{
     const revision=++this.revision;
     if(!this.template || !this.articles || !this.company)return;
     this.currentPage=1;
-    this.staticDiagnostics=this.renderer.diagnose(this.template,this.articles,this.copies,this.company);
-    if(this.batchMode && (this.copies!==1 || this.articles.length>100))
-      this.staticDiagnostics.push({severity:'error',code:'batch-limit',message:'El lote no puede superar 100 etiquetas.'});
+    this.outputStatus = '';
+    const prepared = this.batchMode && (this.copies !== 1 || this.articles.length > 100)
+      ? { layout: undefined, pageCount: 0, html: '', diagnostics: [{ severity: 'error', code: 'batch-limit', message: 'El lote no puede superar 100 etiquetas.' }] as LabelDiagnostic[] }
+      : this.renderer.prepare(this.template, this.articles, this.copies, this.company, this.profile);
+    this.layout = prepared.layout;
+    this.pageCount = prepared.pageCount;
+    this.staticDiagnostics = prepared.diagnostics;
     this.publish(this.staticDiagnostics);
-    this.html=this.staticDiagnostics.length?'':this.renderer.renderToHtml(this.template,this.articles,this.copies,this.company);
+    this.html = prepared.html;
     this.json=JSON.stringify(this.template,null,2);
     this.checking=!!this.html;
     if(!this.ready)return;
@@ -91,11 +118,15 @@ export class PriceLabelPreviewComponent implements OnChanges, AfterViewInit, OnD
     const doc=this.previewFrame.nativeElement.contentDocument;
     if(!doc)return;
     this.busy=true;
+    this.outputStatus = '';
     try{
       if(this.beforeOutput && !await this.beforeOutput())return;
       if(!this.ready || revision!==this.revision)return;
       if(!await this.inspect(revision,doc))return;
-      if(kind==='html')this.download(this.html,this.safeFileName('html'),'text/html');
+      if(kind==='html') {
+        this.download(this.html,this.safeFileName('html'),'text/html');
+        this.outputStatus = 'Descarga HTML iniciada.';
+      }
       else {
         this.mode='sheet';
         await new Promise<void>(resolve=>setTimeout(resolve,0));

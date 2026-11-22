@@ -16,6 +16,9 @@ import {
   LabelTextElement
 } from '../../../../core/models/price-label-template.model';
 
+type BindingField = 'textBinding' | 'priceBinding' | 'priceCurrencyPath' | 'barcodeBinding' | 'imageBinding';
+type BindingOption = { path: string; label: string };
+
 @Component({
   selector: 'app-price-label-properties',
   standalone: true,
@@ -69,17 +72,59 @@ export class PriceLabelPropertiesComponent implements OnChanges {
 
   readonly fontFamilies = ['Arial', 'Helvetica', 'Verdana', 'Tahoma', 'Times New Roman', 'Courier New'];
   readonly barcodeTypes = ['CODE128', 'EAN13', 'EAN8', 'CODE39'];
-  readonly dataPaths = [
-    { path: 'article.name', label: 'Nombre del articulo' },
-    { path: 'article.price', label: 'Precio' },
-    { path: 'article.barcode', label: 'Codigo de barras' },
-    { path: 'company.logo', label: 'Logo de empresa' },
-    { path: 'company.currencySymbol', label: 'Simbolo de moneda' }
-  ];
+  readonly bindingLabels: Record<BindingField, string> = {
+    textBinding: 'Campo de datos', priceBinding: 'Precio', priceCurrencyPath: 'Moneda',
+    barcodeBinding: 'Datos del código de barras', imageBinding: 'Imagen'
+  };
+  readonly bindingOptions: Record<BindingField, BindingOption[]> = {
+    textBinding: [
+      { path: '', label: 'Texto fijo' },
+      { path: 'article.name', label: 'Nombre del artículo' },
+      { path: 'article.code', label: 'Código del artículo' },
+      { path: 'article.price', label: 'Precio de la lista elegida al imprimir' },
+      { path: 'article.barcode', label: 'Código de barras del artículo' },
+      { path: 'company.name', label: 'Nombre de empresa' },
+      { path: 'company.logo', label: 'Logo de empresa' },
+      { path: 'company.currencySymbol', label: 'Símbolo de moneda' }
+    ],
+    priceBinding: [{ path: 'article.price', label: 'Precio de la lista elegida al imprimir' }],
+    priceCurrencyPath: [
+      { path: '', label: 'Sin moneda' },
+      { path: 'company.currencySymbol', label: 'Símbolo de la moneda del precio' },
+      { path: 'article.currencyCode', label: 'Código de moneda (por ejemplo, UYU)' }
+    ],
+    barcodeBinding: [{ path: 'article.barcode', label: 'Código de barras del artículo' }],
+    imageBinding: [
+      { path: 'company.logo', label: 'Logo de empresa' },
+      { path: 'article.image', label: 'Imagen del artículo' }
+    ]
+  };
+  advancedField?: BindingField;
+
+  selectsKnownBinding(field: BindingField): boolean {
+    return this.bindingOptions[field].some(option => option.path === this[field]);
+  }
+
+  bindingLabel(field: BindingField): string { return this.bindingLabels[field]; }
+  optionsForBinding(field: BindingField): BindingOption[] { return this.bindingOptions[field]; }
+  bindingPath(field: BindingField): string { return this[field]; }
+
+  updateBindingPath(field: BindingField, path: string): void {
+    if (path === this[field]) return;
+    this[field] = path;
+    this.applyChanges();
+  }
+
+  selectBinding(field: BindingField, path: string): void {
+    this[field] = path;
+    if (this.advancedField === field) this.advancedField = undefined;
+    this.applyChanges();
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['element']) {
       this.validationError = '';
+      if (changes['element'].previousValue?.id !== this.element?.id) this.advancedField = undefined;
       this.loadElement();
     }
   }

@@ -1,4 +1,5 @@
 <div class="preview-shell">
+<ng-template #diagnosticContent>
 @if (batchMode) {
   <section aria-label="Diagnóstico del lote">
     <h3>Diagnóstico por artículo</h3>
@@ -13,39 +14,69 @@
     }
   </section>
 } @else {
-  @for (warning of warnings; track $index) { <p role="status">{{ warning }}</p> }
-  @for (error of errors; track $index) { <p role="alert">{{ error }}</p> }
+  @let issues = editorDiagnostics;
+  @if (issues.length) {
+    <section class="editor-diagnostics" aria-label="Diagnóstico de la simulación">
+      @for (issue of issues; track $index) {
+        <p [attr.role]="issue.severity === 'error' ? 'alert' : 'status'">{{ issue.message }}
+          @if (allowElementNavigation && issue.elementId; as elementId) {
+            <button type="button" (click)="elementRequested.emit(elementId)">Volver a {{ issue.elementName || 'elemento' }}</button>
+          }
+        </p>
+      }
+    </section>
+  }
 }
+</ng-template>
 @if (checking) { <p role="status">Validando fuentes, imágenes y contenido…</p> }
   <div class="preview-toolbar">
+    @if (!batchMode && !template.calibration) {
     <div class="toolbar-group">
-      @if (!batchMode) {
+      @if (template.printProfiles?.thermal) {
+        <label>Perfil de impresión
+          <select [ngModel]="profile" (ngModelChange)="selectProfile($event)">
+            <option value="sheet">{{ sheetName }}</option>
+            <option value="thermal">Rollo térmico</option>
+          </select>
+        </label>
+      }
       <label>
         Copias por articulo
         <input type="number" [(ngModel)]="copies" (change)="onCopiesChange()" min="1" max="99" />
       </label>
-      }
+    </div>
+    }
+
+    <div class="toolbar-group">
+      <button [class.active]="mode === 'sheet'" [attr.aria-pressed]="mode === 'sheet'" (click)="setMode('sheet')">{{ profile === 'thermal' ? 'Rollo térmico' : sheetName }}</button>
+      <button [class.active]="mode === 'html'" [attr.aria-pressed]="mode === 'html'" (click)="setMode('html')">HTML</button>
+      <button [class.active]="mode === 'json'" [attr.aria-pressed]="mode === 'json'" (click)="setMode('json')">JSON</button>
     </div>
 
     <div class="toolbar-group">
-      <button [class.active]="mode === 'sheet'" (click)="setMode('sheet')">Hoja A4</button>
-      <button [class.active]="mode === 'html'" (click)="setMode('html')">HTML</button>
-      <button [class.active]="mode === 'json'" (click)="setMode('json')">JSON</button>
-    </div>
-
-    <div class="toolbar-group">
-      <button [disabled]="blocked" (click)="print()">Imprimir</button>
-      <button [disabled]="blocked" (click)="exportHtml()">Exportar HTML</button>
+      <button [disabled]="blocked && !busy" [attr.aria-disabled]="busy ? true : null" (click)="print()">Imprimir</button>
+      <button [disabled]="blocked && !busy" [attr.aria-disabled]="busy ? true : null" (click)="exportHtml()">Exportar HTML</button>
       <button (click)="exportJson()">{{batchMode ? 'Exportar molde JSON' : 'Exportar JSON'}}</button>
       <button [disabled]="!html || busy || checking" (click)="revalidate()">Revalidar contenido</button>
     </div>
   </div>
+  <div role="status" class="output-status">{{ outputStatus }}</div>
+  @if (profile === 'thermal' && template.printProfiles?.thermal; as roll) {
+    <p class="driver-settings">Seleccioná {{ roll.width }} × {{ roll.height }} mm y escala 100 % en el controlador.
+      @switch (roll.media) {
+        @case ('gap') { Configurá la detección de separación en la impresora. }
+        @case ('black-mark') { Configurá la detección de marca negra en la impresora. }
+        @case ('continuous') { Configurá papel continuo en la impresora. }
+      }
+    </p>
+  }
 
   <nav aria-label="Páginas del lote">
-    <button [disabled]="currentPage <= 1 || !pageCount" (click)="goToPage(currentPage - 1)">Página anterior</button>
-    <span>Página {{pageCount ? currentPage : 0}} de {{pageCount}}</span>
-    <button [disabled]="currentPage >= pageCount" (click)="goToPage(currentPage + 1)">Página siguiente</button>
+    <button [disabled]="pageCount <= 1" [attr.aria-disabled]="currentPage <= 1 ? true : null" (click)="goToPage(currentPage - 1)">Página anterior</button>
+    <span aria-live="polite">Página {{pageCount ? currentPage : 0}} de {{pageCount}}</span>
+    <button [disabled]="pageCount <= 1" [attr.aria-disabled]="currentPage >= pageCount ? true : null" (click)="goToPage(currentPage + 1)">Página siguiente</button>
   </nav>
+  <ng-container [ngTemplateOutlet]="diagnosticContent" />
   <div class="preview-body">
 
       <div

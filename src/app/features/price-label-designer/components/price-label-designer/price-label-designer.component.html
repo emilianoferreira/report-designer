@@ -1,4 +1,15 @@
 <div class="label-designer-page">
+  @if (loadingTemplate) {
+    <p role="status">Cargando molde…</p>
+  } @else if (openError) {
+    <p role="alert">{{ openError }}</p>
+    <div class="header-left">
+      <button class="header-btn" (click)="goToDocuments()">Volver a Mis moldes</button>
+      <button class="header-btn" (click)="retryOpen()">Reintentar</button>
+    </div>
+  } @else if (showSetup) {
+    <app-price-label-setup (configured)="startGuidedTemplate($event)" />
+  } @else {
   @if (storage.error$ | async; as error) { <div role="alert">{{ error }} <button (click)="storage.refresh()">Reintentar carga</button></div> }
   @if (conflict) {
     <div role="alert">La versión del servidor cambió. Tu borrador sigue disponible.
@@ -10,18 +21,24 @@
     <div class="header-left">
       <button class="back-btn" (click)="goToDocuments()" title="Volver a documentos" aria-label="Volver a documentos">←</button>
       <span class="app-logo">Diseñador</span><span class="header-separator">|</span>
-      <input class="template-name-input" aria-label="Nombre de la plantilla" [ngModel]="template.name" (blur)="updateName($any($event.target).value)" />
+      <input class="template-name-input" aria-label="Nombre de la plantilla" [readOnly]="!canEdit" [ngModel]="template.name" (blur)="canEdit && updateName($any($event.target).value)" />
       @if (hasUnsavedChanges()) { <span class="dirty-indicator" title="Cambios sin guardar" aria-label="Cambios sin guardar">●</span> }
     </div>
+    @if (canEdit) {
     <div class="view-toggle" aria-label="Modo del diseñador">
       <button class="mode-btn" [class.active]="viewMode === 'design'" [attr.aria-pressed]="viewMode === 'design'" (click)="setViewMode('design')">Diseño</button>
       <button class="mode-btn" [class.active]="viewMode === 'preview'" [attr.aria-pressed]="viewMode === 'preview'" (click)="setViewMode('preview')">Vista previa</button>
     </div>
+    }
     <div class="header-right">
-      <button class="header-btn" (click)="preparePrint()">Preparar impresión</button>
+      @if (!template.calibration) {
+        <button class="header-btn" [disabled]="!!layoutError" [attr.aria-disabled]="saving ? true : null" (click)="preparePrint()">{{ needsSaveForPrint ? 'Guardar y preparar impresión' : 'Preparar impresión' }}</button>
+      }
+      @if (canEdit) {
       <details class="template-menu" #templateMenu (keydown.escape)="templateMenu.open = false; templateSummary.focus()">
         <summary #templateSummary>Plantilla <span aria-hidden="true">▾</span></summary>
         <div class="menu-content">
+          @if (legacyRoute) {
           <label>Abrir plantilla
             <select class="template-select" [disabled]="saving" [ngModel]="template.id" (change)="openTemplate($any($event.target).value, $any($event.target)); templateMenu.open = false">
               <option [value]="template.id">Actual</option>
@@ -31,10 +48,12 @@
             </select>
           </label>
           <button [disabled]="saving" (click)="createNewTemplate(); templateMenu.open = false">Nueva plantilla</button>
+          }
           <button class="danger" [disabled]="saving" (click)="deleteTemplate(); templateMenu.open = false">Eliminar plantilla</button>
         </div>
       </details>
-      <button class="header-btn primary" [class.has-changes]="hasUnsavedChanges()" [disabled]="saving || !!layoutError" (click)="saveTemplate()">{{ saving ? 'Guardando…' : 'Guardar' }}</button>
+      <button class="header-btn primary" [class.has-changes]="hasUnsavedChanges()" [disabled]="!!layoutError" [attr.aria-disabled]="saving ? true : null" (click)="saveTemplate()">{{ saving ? 'Guardando…' : 'Guardar' }}</button>
+      }
     </div>
   </header>
   @if (layoutError) { <p class="layout-error" role="alert">{{ layoutError }}</p> }
@@ -42,7 +61,10 @@
     <div class="document-toolbar">
       <span class="document-kind">ETIQUETAS</span>
       <span>{{ template.label.width }} × {{ template.label.height }} mm</span>
-      <span class="sheet-summary">{{ template.label.columns }} columnas · {{ template.label.rows }} filas · A4</span>
+      <span class="sheet-summary">
+        @if (startsWithThermal) { Rollo térmico }
+        @else { {{ sheetName }} · {{ template.label.columns }} columnas · {{ template.label.rows }} filas }
+      </span>
       <button [class.active]="settingsOpen" [attr.aria-expanded]="settingsOpen" aria-controls="print-settings" (click)="settingsOpen = !settingsOpen">Configuración de impresión</button>
     </div>
     <div id="print-settings" class="print-settings" [hidden]="!settingsOpen">
@@ -111,7 +133,17 @@
         </section>
 
         <section class="panel-section">
-          <h2>Márgenes de hoja A4 (mm)</h2>
+          <h2>Perfil de hoja</h2>
+          <label>Formato de hoja
+            <select [ngModel]="sheetName === 'Hoja A4' ? (template.page.width === 210 ? 'portrait' : 'landscape') : 'custom'" (ngModelChange)="setA4Orientation($event)">
+              @if (sheetName !== 'Hoja A4') {
+                <option value="custom" disabled>Personalizada · {{ template.page.width }} × {{ template.page.height }} mm</option>
+              }
+              <option value="portrait">A4 vertical</option>
+              <option value="landscape">A4 horizontal</option>
+            </select>
+          </label>
+          <h2>Márgenes (mm)</h2>
           <div class="field-grid">
             <label>
               Margen sup.
@@ -130,9 +162,32 @@
               <input type="number" [ngModel]="template.page.marginLeft" (change)="updatePageNumber('marginLeft', $any($event.target).value)" min="0" step="0.5" />
             </label>
           </div>
+          @if (sheetError && !layoutError) { <p role="status">{{ sheetError }}</p> }
         </section>
-
-
+        <section class="panel-section">
+          <h2>Perfil térmico</h2>
+          @if (template.printProfiles?.thermal; as roll) {
+            <div class="field-grid">
+              @for (field of thermalFields; track field.key) {
+                <label>{{ field.label }} (mm)
+                  <input type="number" min="0" step="0.1" [ngModel]="roll[field.key]"
+                    (change)="updateThermalNumber(field.key, $any($event.target).value)" />
+                </label>
+              }
+            </div>
+            <label>Tipo de rollo
+              <select [ngModel]="roll.media" (ngModelChange)="updateThermalProfile({ media: $event })">
+                <option value="gap">Etiquetas con separación</option>
+                <option value="black-mark">Etiquetas con marca negra</option>
+                <option value="continuous">Papel continuo</option>
+              </select>
+            </label>
+            @if (thermalError) { <p role="status">{{ thermalError }}</p> }
+            <button type="button" (click)="removeThermalProfile()">Quitar perfil térmico</button>
+          } @else {
+            <button type="button" (click)="addThermalProfile()">Agregar perfil térmico</button>
+          }
+        </section>
     </div>
     <div class="designer-body">
       <aside class="left-panel" [class.collapsed]="leftPanelCollapsed" aria-label="Herramientas">
@@ -175,12 +230,29 @@
     </div>
   } @else {
     <main class="preview-panel">
-      <p role="status">Demostración — artículos de ejemplo.</p>
-      <app-price-label-preview [template]="template" [articles]="sampleArticles" [company]="sampleCompany" />
+      @if (template.calibration) {
+        <p role="status">Patrón de calibración · imprimí a tamaño real (100 %).</p>
+      } @else {
+        <p role="status">Demostración — artículos de ejemplo.</p>
+        <label class="simulation-picker">Datos ficticios de diseño
+          <select [ngModel]="simulationIndex" (ngModelChange)="selectSimulation($event)">
+            @for (simulation of simulations; track simulation.label; let index = $index) {
+              <option [ngValue]="index">{{ simulation.label }}</option>
+            }
+          </select>
+        </label>
+      }
+      <app-price-label-preview [template]="template" [articles]="previewArticles" [company]="sampleCompany"
+        [allowElementNavigation]="canEdit" (elementRequested)="returnToElement($event)" />
     </main>
   }
   <footer class="designer-status" role="status">
-    <span>{{ selectedElement ? selectedElement.name : 'Selecciona un elemento para editar sus propiedades' }}</span>
-    <span class="save-status">{{ saveStatus || (saving ? 'Guardando…' : hasUnsavedChanges() ? 'Cambios sin guardar' : 'Sin cambios pendientes') }}</span>
+    @if (canEdit) {
+      <span>{{ selectedElement ? selectedElement.name : 'Selecciona un elemento para editar sus propiedades' }}</span>
+      <span class="save-status">{{ saveStatus || (saving ? 'Guardando…' : hasUnsavedChanges() ? 'Cambios sin guardar' : 'Sin cambios pendientes') }}</span>
+    } @else {
+      <span>Solo lectura</span>
+    }
   </footer>
+  }
 </div>

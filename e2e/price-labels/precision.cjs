@@ -118,13 +118,13 @@ module.exports = async function precisionTests(page, newTemplate, openSettings) 
   // Saving keeps history and the server-issued identity on every restored snapshot.
   const save = page.waitForResponse(r => r.request().method() === 'POST');
   await page.keyboard.press('Control+s'); await save;
-  await page.waitForFunction(() => !document.querySelector('button.primary').disabled);
+  await page.waitForFunction(() => document.querySelector('button.primary:not(:disabled):not([aria-disabled=true])'));
   const id = await page.locator('.template-select').inputValue();
   await button('Deshacer').click();
   assert.equal(await page.locator('.template-select').inputValue(), id);
   const update = page.waitForResponse(r => r.request().method() === 'PUT');
   await page.keyboard.press('Control+s'); await update;
-  await page.waitForFunction(() => !document.querySelector('button.primary').disabled);
+  await page.waitForFunction(() => document.querySelector('button.primary:not(:disabled):not([aria-disabled=true])'));
   await button('Rehacer').click();
   assert.equal(await page.locator('.template-select').inputValue(), id);
   await page.screenshot({ path: 'tmp/labels-precision.png' });

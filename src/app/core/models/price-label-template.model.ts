@@ -20,6 +20,22 @@ export interface LabelTemplate {
   page: LabelPageConfig;
   label: LabelConfig;
   elements: LabelElement[];
+  // The sheet profile still reads the original page and grid fields.
+  printProfiles?: { schemaVersion: 1; thermal: ThermalLabelProfile; defaultProfile?: LabelPrintProfileId };
+  calibration?: LabelCalibration;
+}
+
+export type LabelCalibration = 'a4-control' | 'a4-grid' | 'thermal-50x30' | 'thermal-60x40';
+
+export type LabelPrintProfileId = 'sheet' | 'thermal';
+
+export interface ThermalLabelProfile {
+  width: number;
+  height: number;
+  printableWidth: number;
+  offsetX: number;
+  offsetY: number;
+  media: 'gap' | 'black-mark' | 'continuous';
 }
 
 export interface LabelPageConfig {

@@ -1,0 +1,35 @@
+<main class="setup">
+  <a routerLink="/templates">← Mis moldes</a>
+  <h1>Nuevo molde de etiqueta</h1>
+  <form (ngSubmit)="submit()" (input)="error = ''" (change)="error = ''">
+    <label class="field">
+      Nombre del molde
+      <input #nameField name="name" [(ngModel)]="name" autocomplete="off" required />
+    </label>
+
+    <label class="field">
+      Tamaño de la etiqueta
+      <select name="size" [(ngModel)]="presetId">
+        @for (preset of presets; track preset.id) {
+          <option [value]="preset.id">{{ preset.label }}</option>
+        }
+      </select>
+    </label>
+    @if (presetId === 'custom') {
+      <div class="dimensions">
+        <label class="field">Ancho (mm)<input #widthField name="width" type="number" min="10" step="0.1" [(ngModel)]="width" required /></label>
+        <label class="field">Alto (mm)<input #heightField name="height" type="number" min="10" step="0.1" [(ngModel)]="height" required /></label>
+      </div>
+    }
+
+    <fieldset>
+      <legend>Soporte inicial</legend>
+      <label><input name="support" type="radio" [(ngModel)]="support" value="sheet" /> Hoja A4</label>
+      <label><input name="support" type="radio" [(ngModel)]="support" value="thermal" /> Rollo térmico</label>
+      <p>{{ support === 'sheet' ? 'La cuadrícula se ajusta al tamaño de la etiqueta.' : 'Cada etiqueta tendrá una página del tamaño indicado. Podés ajustar el rollo en el editor.' }}</p>
+    </fieldset>
+
+    @if (error) { <p class="error" role="alert">{{ error }}</p> }
+    <button type="submit">Continuar al editor</button>
+  </form>
+</main>

@@ -34,4 +34,18 @@ export const SAMPLE_PRICE_LABEL_ARTICLES: PriceLabelArticle[] = [
     price: 2800,
     barcode: '779000100004'
   }
+].map((article, index) => ({
+  ...article,
+  code: `MUESTRA-${index + 1}`,
+  currencyCode: 'UYU',
+  currencySymbol: '$',
+  image: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="80"><rect width="160" height="80" fill="#eee"/><text x="80" y="47" text-anchor="middle" font-family="Arial" font-size="22">Artículo</text></svg>')
+}));
+
+export const LABEL_SIMULATIONS = [
+  { label: 'Artículos de ejemplo', changes: undefined },
+  { label: 'Nombre largo', changes: { name: 'Juego de herramientas para mantenimiento doméstico con estuche, accesorios y adaptadores incluidos' } },
+  { label: 'Precio cero', changes: { price: 0 } },
+  { label: 'Precio largo', changes: { price: 123456789.99 } },
+  { label: 'Código ausente', changes: { barcode: '' } }
 ];

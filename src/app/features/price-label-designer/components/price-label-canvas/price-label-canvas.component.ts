@@ -3,11 +3,13 @@ import { CommonModule } from '@angular/common';
 import {
   Component,
   ChangeDetectorRef,
+  ElementRef,
   EventEmitter,
   HostListener,
   Input,
   Output,
-  OnDestroy
+  OnDestroy,
+  ViewChild
 } from '@angular/core';
 import {
   LabelElement,
@@ -45,6 +47,7 @@ interface DragState {
   styleUrl: './price-label-canvas.component.scss'
 })
 export class PriceLabelCanvasComponent implements OnDestroy {
+  @ViewChild('surface') private surface?: ElementRef<HTMLElement>;
   @Input({ required: true }) template!: LabelTemplate;
   @Input() selectedElementId: string | null = null;
   @Input({ required: true }) sampleArticle!: PriceLabelArticle;
@@ -71,6 +74,7 @@ export class PriceLabelCanvasComponent implements OnDestroy {
     this.dragState = null; this.activeSnapLines = []; this.history.cancelTransaction();
   }
   resetZoom(): void { this.zoom = 1; }
+  focusSurface(): void { this.surface?.nativeElement.focus(); }
   onWheel(event: WheelEvent): void {
     if (!event.ctrlKey && !event.metaKey) return;
     event.preventDefault();

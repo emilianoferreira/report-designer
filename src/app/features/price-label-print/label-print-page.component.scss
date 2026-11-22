@@ -1,0 +1,48 @@
+@use '../../shared/styles/designer-theme' as theme;
+
+@include theme.controls;
+
+:host {
+  @include theme.tokens;
+  display: block;
+  height: 100%;
+  overflow: auto;
+  box-sizing: border-box;
+  padding: clamp(12px, 2vw, 24px);
+  background: var(--designer-workspace);
+  color: var(--designer-text);
+}
+
+header, form { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+h1 { flex: 1; margin: 0; font-size: 22px; }
+h2 { margin: 0 0 12px; font-size: 17px; scroll-margin-block-start: 16px; }
+h1:focus, h2:focus { outline: 2px solid var(--designer-brand); outline-offset: 3px; }
+a { color: var(--designer-brand); }
+.demo { padding: 12px; background: #fff3cd; border-radius: 6px; }
+
+.print-setup {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr));
+  gap: 12px;
+}
+
+.print-panel {
+  min-width: 0;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--designer-border);
+  border-radius: 8px;
+}
+
+.print-batch, .print-review { margin-top: 12px; }
+.batch-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.print-panel label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+button, select, input { padding: 6px 8px; }
+input[type='number'] { width: 4rem; margin-inline: 3px; }
+.scroll { overflow: auto; margin-bottom: 12px; }
+table { width: 100%; text-align: left; border-collapse: collapse; }
+td, th { padding: 8px; border-bottom: 1px solid var(--designer-border); }
+td:nth-child(5) { white-space: nowrap; }
+.preview { height: clamp(390px, 70vh, 650px); }
+.jump-button { margin-inline-end: 8px; color: var(--designer-brand); }
+[role='alert'] { color: #a11; }

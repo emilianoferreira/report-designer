@@ -51,7 +51,7 @@ describe('Validated label output',()=>{
      expect(component.blocked).toBeFalse();
      let authorize!:(value:boolean)=>void;
      component.beforeOutput=()=>new Promise<boolean>(resolve=>authorize=resolve);
-     const pending=component.print();component.ngOnChanges();authorize(true);await pending;
+     const pending=component.print();component.ngOnChanges({});authorize(true);await pending;
      expect(printed).not.toHaveBeenCalled();
    }finally{component.ngOnDestroy();frame.remove();}
  });

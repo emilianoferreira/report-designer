@@ -31,6 +31,7 @@ Check(search.Items.Count == 25 && search.NextCursor != null);
 Check((await service.SearchAsync("", retail, null, 25, ct)).Items.Count == 0);
 Check((await service.SearchAsync(search.Items[0].Article!.Barcode, retail, null, 25, ct)).Items.Count == 1);
 Check((await service.SearchAsync("DEMO-060", retail, null, 25, ct)).Items.Count == 0);
+Check((await service.SearchAsync("cafe molido", retail, null, 25, ct)).Items.Single().Article!.Code == "DEMO-006");
 var ids = search.Items.Take(4).Select(x => x.ArticleId).ToArray();
 var snapshot = await service.ResolveAsync(wholesale, ids, ct);
 Check(snapshot.Items.Select(x => x.ArticleId).SequenceEqual(ids));
