@@ -87,6 +87,7 @@ export interface DetailSectionDefinition extends SectionDefinition {
   rowHeight: number;        // mm, default row height
   autoGrow: boolean;        // rows can grow if content overflows
   maxRowsPerPage?: number;
+  showColumnHeaders?: boolean;
   alternateRowColor?: string;
   showGridLines: boolean;
   gridLineColor?: string;

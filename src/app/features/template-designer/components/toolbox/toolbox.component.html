@@ -1,5 +1,50 @@
 <!-- Toolbox - Draggable element tools organized by category -->
 <div class="toolbox">
+  @let section = (selection.activeSection$ | async) ?? 'header';
+  @let selected = selection.selectedElements$ | async;
+  @let template = state.template$ | async;
+  @let generatedTicketDetail = section === 'detail' && template?.page?.dynamicHeight;
+  @if (template) {
+    <section class="structure" aria-label="Estructura del reporte">
+      <h3 class="toolbox-title">Estructura</h3>
+      <label for="report-section">Sección activa</label>
+      <select id="report-section" [value]="section" (change)="selectSection($any($event.target).value)">
+        @for (item of sections; track item.key) {
+          <option [value]="item.key">{{ item.label }}</option>
+        }
+      </select>
+      <label for="report-section-height">Altura mínima (mm)</label>
+      <input id="report-section-height" type="number" min="0" max="1000" step="0.1"
+        [value]="template.sections[section].height" (change)="setSectionHeight(section, $any($event.target))" />
+      @if (template.sections[section].elements.length) {
+        <label for="report-section-element">Elementos</label>
+        <select id="report-section-element" [value]="selected?.length === 1 ? selected?.[0]?.id : ''"
+          (change)="selectElement(section, $any($event.target).value)">
+          <option value="">Seleccionar elemento</option>
+          @for (element of template.sections[section].elements; track element.id) {
+            <option [value]="element.id">{{ element.name }}</option>
+          }
+        </select>
+      }
+      @if (section === 'detail') {
+        @if (generatedTicketDetail) {
+          <p>El ticket genera las líneas de artículos. Para insertar elementos, elegí Encabezado o Pie.</p>
+        } @else {
+          <p>La tabla se genera con los artículos del comprobante.</p>
+        }
+        @if (!template.page.dynamicHeight) {
+          <label class="inline-option">
+            <input type="checkbox" [checked]="template.sections.detail.showColumnHeaders ?? false"
+              (change)="updateDetail('showColumnHeaders', $any($event.target).checked)" />
+            Encabezados de tabla
+          </label>
+          <label for="report-rows">Artículos por página</label>
+          <input id="report-rows" type="number" min="1" step="1" placeholder="Automático"
+            [value]="template.sections.detail.maxRowsPerPage ?? ''" (change)="setRowsPerPage($any($event.target))" />
+        }
+      }
+    </section>
+  }
   <h3 class="toolbox-title">Herramientas</h3>
 
   <!-- Basic Elements -->
@@ -7,15 +52,19 @@
     <div class="category-label">Básicos</div>
     <div class="tool-grid">
       @for (tool of basicTools; track tool.label) {
-        <div
+        <button
+          type="button"
           class="tool-item"
           draggable="true"
           (dragstart)="onDragStart($event, tool)"
+          (click)="insert(tool)"
+          [disabled]="generatedTicketDetail"
+          [attr.aria-label]="tool.label"
           [title]="tool.description"
         >
-          <div class="tool-icon">{{ tool.icon }}</div>
-          <div class="tool-label">{{ tool.label }}</div>
-        </div>
+          <span class="tool-icon">{{ tool.icon }}</span>
+          <span class="tool-label">{{ tool.label }}</span>
+        </button>
       }
     </div>
   </div>
@@ -25,37 +74,45 @@
     <div class="category-label">Datos</div>
     <div class="tool-grid">
       @for (tool of dataTools; track tool.label) {
-        <div
+        <button
+          type="button"
           class="tool-item"
           draggable="true"
           (dragstart)="onDragStart($event, tool)"
+          (click)="insert(tool)"
+          [disabled]="generatedTicketDetail"
+          [attr.aria-label]="tool.label"
           [title]="tool.description"
         >
-          <div class="tool-icon">{{ tool.icon }}</div>
-          <div class="tool-label">{{ tool.label }}</div>
-        </div>
+          <span class="tool-icon">{{ tool.icon }}</span>
+          <span class="tool-label">{{ tool.label }}</span>
+        </button>
       }
     </div>
   </div>
 
   <!-- Shape Elements (collapsible) -->
   <div class="tool-category">
-    <div class="category-label category-toggle" (click)="toggleShapes()">
+    <button type="button" class="category-label category-toggle" (click)="toggleShapes()" [attr.aria-expanded]="shapesExpanded">
       <span>Formas</span>
       <span class="toggle-icon" [class.expanded]="shapesExpanded">▸</span>
-    </div>
+    </button>
     @if (shapesExpanded) {
       <div class="tool-grid shapes-grid">
         @for (tool of shapeTools; track tool.label) {
-          <div
+          <button
+            type="button"
             class="tool-item"
             draggable="true"
             (dragstart)="onDragStart($event, tool)"
+            (click)="insert(tool)"
+            [disabled]="generatedTicketDetail"
+            [attr.aria-label]="tool.label"
             [title]="tool.description"
           >
-            <div class="tool-icon">{{ tool.icon }}</div>
-            <div class="tool-label">{{ tool.label }}</div>
-          </div>
+            <span class="tool-icon">{{ tool.icon }}</span>
+            <span class="tool-label">{{ tool.label }}</span>
+          </button>
         }
       </div>
     }

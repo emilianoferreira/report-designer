@@ -97,6 +97,16 @@ label {
   color: #616161;
 }
 
+.binding-advanced {
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--designer-brand);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 input,
 select,
 textarea {

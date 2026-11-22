@@ -86,7 +86,7 @@ export class HtmlRendererService {
         message: 'La sección repetida personalizada requiere revisión manual.' });
     }
     if (template.page.dynamicHeight) evidence.diagnostics.push({ code: 'unsupported-feature', coverageImpact: 'physical-support',
-      message: 'El navegador no permite declarar ancho fijo con longitud de papel automática; configurar el rollo en el controlador de impresión.' });
+      message: 'La salida del navegador usa el ancho del molde y la longitud medida. Confirmá el tamaño y el corte en el controlador de impresión.' });
     let html = this.renderToHtml(template, data, { evidence, printSurface });
     // Controlled renderer output: annotate generated blocks without a DOM round trip.
     html = html.replace(/<(div|table)( class="(detail-table|ticket-item|subtotals-block|ticket-subtotals-block)")/g,
@@ -526,8 +526,6 @@ ${footerHtml}
     const colDescuento = fieldByBinding('Descuento');
     const colSubtotal = fieldByBinding('SubTotal');
 
-    // Note: column headers are already rendered as positioned text elements
-    // in the detail section, so we skip <thead> to avoid duplication.
     // Generate column CSS classes once instead of repeating inline styles per cell.
     const colDefs = [
       { cls: 'dc-cod', el: colCodigo, fallback: 'left' },
@@ -548,8 +546,11 @@ ${footerHtml}
     if (tableOffsetPx > 0) {
       html += `      <div style="padding-top: ${tableOffsetPx}px;">\n`;
     }
-    html += `      <table class="detail-table">
-        <tbody>\n`;
+    html += '      <table class="detail-table">\n';
+    if (section.showColumnHeaders) {
+      html += '        <thead><tr><th>Código</th><th>Descripción</th><th>Cant.</th><th>Unitario</th><th>Desc.</th><th>Importe</th></tr></thead>\n';
+    }
+    html += '        <tbody>\n';
 
     for (const [rowIndex, line] of lines.entries()) {
       const art = line['Articulo'] || {};
@@ -921,18 +922,20 @@ ${footerHtml}
       const value = this.resolveBinding(el.binding.source, data);
       if (value == null && el.binding.defaultValue == null) opts.evidence?.diagnostics.push({
         code: 'missing-value', message: `Campo sin valor: ${el.binding.source}` });
-      // Canonical fiscal dates without a time represent a civil day. Date("YYYY-MM-DD")
-      // otherwise starts at midnight UTC and prints the previous day in Uruguay.
-      const civilDate = el.binding.format?.type === 'date' && el.binding.source.startsWith('fiscal.') &&
-        typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
-      const formatted = el.binding.format
-        ? this.applyFormat(civilDate ? value + 'T00:00:00' : value, el.binding.format)
-        : String(value ?? el.binding.defaultValue ?? '');
+      const formatted = this.formatFieldValue(el.binding, value);
       return `      <div class="element element-datafield" style="${pos}${content}">${this.escapeHtml(formatted)}</div>\n`;
     } else {
       // Export as z-code directive
       return `      <div class="element element-datafield" style="${pos}${content}" z-code="true">${el.binding.source}</div>\n`;
     }
+  }
+
+  formatFieldValue(binding: DataFieldElement['binding'], value: unknown): string {
+    if (value == null) return binding.defaultValue ?? '';
+    // Treat a fiscal YYYY-MM-DD value as a civil day when formatting it.
+    const civilDate = binding.format?.type === 'date' && binding.source.startsWith('fiscal.') &&
+      typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+    return binding.format ? this.applyFormat(civilDate ? value + 'T00:00:00' : value, binding.format) : String(value);
   }
 
   private renderFormulaElement(

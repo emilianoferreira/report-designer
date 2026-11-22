@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpContext } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse } from '@angular/common/http';
 import { BehaviorSubject, firstValueFrom } from 'rxjs';
 import { HANDLES_REQUEST_ERRORS } from '../../../core/auth/auth.interceptor';
 import { LabelTemplate } from '../../../core/models/price-label-template.model';
@@ -10,14 +10,16 @@ export class PriceLabelStorageService {
   readonly templates$ = this.templatesSubject.asObservable();
   readonly ready: Promise<void>;
   readonly error$ = new BehaviorSubject('');
-  private revisions = new Map<string, number>();
-  revision(id: string): number | undefined { return this.revisions.get(id); }
+  private metadata = new Map<string, { revision: number; updatedAt?: string }>();
+  revision(id: string): number | undefined { return this.metadata.get(id)?.revision; }
+  updatedAt(id: string): string | undefined { return this.metadata.get(id)?.updatedAt; }
   private options(revision?: number): { headers: Record<string, string>; context: HttpContext } {
     return { headers: revision === undefined ? {} : { 'If-Match': '"' + revision + '"' }, context: new HttpContext().set(HANDLES_REQUEST_ERRORS, true) };
   }
   async refresh(): Promise<void> { await this.init(); }
   async fetch(id: string): Promise<LabelTemplate> {
-    const row = await firstValueFrom(this.http.get<any>('/api/templates/' + id, this.options()));
+    const row = await firstValueFrom(this.http.get<any>('/api/templates/' + encodeURIComponent(id), this.options()));
+    if (row?.template_json?.type !== 'price-label') throw new HttpErrorResponse({ status: 404 });
     const template = this.apiToTemplate(row);
     this.templatesSubject.next([...this.getAll().filter(t => t.id !== template.id), template]);
     return template;
@@ -47,10 +49,17 @@ export class PriceLabelStorageService {
   }
   async delete(id: string, revision?: number): Promise<void> {
     await firstValueFrom(this.http.delete('/api/templates/' + id, this.options(revision)));
+    this.metadata.delete(id);
     this.templatesSubject.next(this.getAll().filter(t => t.id !== id));
   }
+  async duplicate(id: string): Promise<LabelTemplate> {
+    const row = await firstValueFrom(this.http.post<any>('/api/templates/' + encodeURIComponent(id) + '/duplicate', {}, this.options()));
+    const copy = this.apiToTemplate(row);
+    this.templatesSubject.next([...this.getAll().filter(template => template.id !== copy.id), copy]);
+    return copy;
+  }
   private apiToTemplate(row: any): LabelTemplate {
-    this.revisions.set(row.id, row.version ?? 0);
+    this.metadata.set(row.id, { revision: row.version ?? 0, updatedAt: row.updated_at ?? undefined });
     return { ...row.template_json, id: row.id, name: row.nombre };
   }
 }

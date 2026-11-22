@@ -4,6 +4,8 @@ import { BehaviorSubject } from 'rxjs';
 import { TemplateListComponent } from './template-list.component';
 import { TemplateStorageService } from '../../services/template-storage.service';
 import { createDefaultTemplate } from '../../data/default-template';
+import { AuthService } from '../../../../core/auth/auth.service';
+import { PriceLabelStorageService } from '../../../price-label-designer/services/price-label-storage.service';
 
 describe('TemplateListComponent', () => {
   let component:TemplateListComponent;let fixture:ComponentFixture<TemplateListComponent>;
@@ -12,8 +14,13 @@ describe('TemplateListComponent', () => {
     createdAt:'2024-01-15T10:30:00Z',updatedAt:'2024-01-15T10:30:00Z',template:createDefaultTemplate()};
   beforeEach(async () => {
     molds=new BehaviorSubject<any[]>([]);
-    storage=jasmine.createSpyObj('Storage',['create','updateMetadata','duplicate','delete'],{molds$:molds.asObservable()});
-    await TestBed.configureTestingModule({imports:[TemplateListComponent,RouterTestingModule],providers:[{provide:TemplateStorageService,useValue:storage}]}).compileComponents();
+    storage=jasmine.createSpyObj('Storage',['create','updateMetadata','duplicate','delete'],{molds$:molds.asObservable(),error$:new BehaviorSubject('')});
+    const session$ = new BehaviorSubject({ role: 'editor' });
+    await TestBed.configureTestingModule({imports:[TemplateListComponent,RouterTestingModule],providers:[
+      {provide:TemplateStorageService,useValue:storage},
+      {provide:PriceLabelStorageService,useValue:{templates$:new BehaviorSubject([]),error$:new BehaviorSubject('')}},
+      {provide:AuthService,useValue:{session:session$.value,session$}}
+    ]}).compileComponents();
     fixture=TestBed.createComponent(TemplateListComponent);component=fixture.componentInstance;fixture.detectChanges();
   });
   it('starts empty and displays only documents emitted by the authenticated store',()=>{

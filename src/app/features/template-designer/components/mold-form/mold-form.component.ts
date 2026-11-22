@@ -2,9 +2,10 @@
  * Mold Form Component
  * Modal dialog for creating or editing mold metadata (name, type, description).
  */
-import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnDestroy, Output, ChangeDetectionStrategy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ReportStartingPoint } from '../../data/blank-report';
 import {
   CompanyDocumentType,
   DOCUMENT_TYPE_LABELS,
@@ -15,6 +16,7 @@ export interface MoldFormData {
   name: string;
   documentType: CompanyDocumentType;
   description: string;
+  startingPoint: ReportStartingPoint;
 }
 
 @Component({
@@ -25,9 +27,13 @@ export interface MoldFormData {
   styleUrl: './mold-form.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class MoldFormComponent {
+export class MoldFormComponent implements AfterViewInit, OnDestroy {
+  @ViewChild('dialog', { static: true }) private dialog!: ElementRef<HTMLDialogElement>;
+  private opener?: HTMLElement;
   /** If set, the form is in edit mode */
   @Input() mold: TemplateMold | null = null;
+  @Input() pending = false;
+  @Input() error = '';
 
   @Output() saved = new EventEmitter<MoldFormData>();
   @Output() cancelled = new EventEmitter<void>();
@@ -35,6 +41,7 @@ export class MoldFormComponent {
   name = '';
   documentType: CompanyDocumentType = 'venta_contado';
   description = '';
+  startingPoint: ReportStartingPoint = 'a4';
 
   documentTypes = Object.entries(DOCUMENT_TYPE_LABELS).map(([value, label]) => ({
     value: value as CompanyDocumentType,
@@ -61,16 +68,41 @@ export class MoldFormComponent {
     }
   }
 
+  ngAfterViewInit(): void {
+    const dialog = this.dialog.nativeElement;
+    const active = dialog.ownerDocument.activeElement;
+    if (active instanceof HTMLElement) this.opener = active;
+    dialog.showModal();
+  }
+
+  ngOnDestroy(): void {
+    this.closeDialog();
+  }
+
   onSubmit(): void {
-    if (!this.isValid) return;
+    if (!this.isValid || this.pending) return;
     this.saved.emit({
       name: this.name.trim(),
       documentType: this.documentType,
-      description: this.description.trim()
+      description: this.description.trim(),
+      startingPoint: this.startingPoint
     });
   }
 
   onCancel(): void {
+    if (this.pending) return;
+    this.closeDialog();
     this.cancelled.emit();
+  }
+
+  onBackdropClick(event: MouseEvent): void {
+    if (event.target === this.dialog.nativeElement) this.onCancel();
+  }
+
+  private closeDialog(): void {
+    const dialog = this.dialog.nativeElement;
+    if (!dialog.open) return;
+    dialog.close();
+    if (this.opener?.isConnected) this.opener.focus({ preventScroll: true });
   }
 }

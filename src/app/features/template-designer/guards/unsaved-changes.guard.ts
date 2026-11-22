@@ -6,11 +6,11 @@
 import { CanDeactivateFn } from '@angular/router';
 
 export interface HasUnsavedChanges {
-  hasUnsavedChanges(): boolean;
+  hasUnsavedChanges(nextUrl?: string): boolean;
 }
 
-export const unsavedChangesGuard: CanDeactivateFn<HasUnsavedChanges> = (component) => {
-  if (component.hasUnsavedChanges()) {
+export const unsavedChangesGuard: CanDeactivateFn<HasUnsavedChanges> = (component, _route, _current, next) => {
+  if (component.hasUnsavedChanges(next.url)) {
     return confirm('Hay cambios sin guardar. ¿Desea salir sin guardar?');
   }
   return true;

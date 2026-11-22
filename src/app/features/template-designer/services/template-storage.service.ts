@@ -4,23 +4,27 @@ import { BehaviorSubject, firstValueFrom } from 'rxjs';
 import { TemplateMold, CompanyDocumentType, ReportTemplate } from '../../../core/models/template.model';
 import { AuthService } from '../../../core/auth/auth.service';
 import { createDefaultTemplate } from '../data/default-template';
+import { createReportStartingPoint, ReportStartingPoint } from '../data/blank-report';
 
 @Injectable({ providedIn: 'root' })
 export class TemplateStorageService {
   private moldsSubject = new BehaviorSubject<TemplateMold[]>([]);
   readonly molds$ = this.moldsSubject.asObservable();
+  readonly error$ = new BehaviorSubject('');
   readonly ready: Promise<void>;
   constructor(private http: HttpClient, private auth: AuthService) { this.ready = this.init(); }
+  async refresh(): Promise<void> { await this.init(); }
   private async init(): Promise<void> {
     try {
       const rows = await firstValueFrom(this.http.get<any[]>('/api/templates'));
       this.moldsSubject.next(rows.filter(t => t?.template_json?.type !== 'price-label').map(t => this.apiToMold(t)));
-    } catch { this.moldsSubject.next([]); }
+      this.error$.next('');
+    } catch { this.error$.next('No se pudieron cargar los moldes de comprobantes.'); }
   }
   getAll(): TemplateMold[] { return this.moldsSubject.value; }
   getById(id: string): TemplateMold | undefined { return this.getAll().find(m => m.id === id); }
-  async create(name: string, documentType: CompanyDocumentType, description = '', companyId?: string): Promise<TemplateMold> {
-    const template = createDefaultTemplate();
+  async create(name: string, documentType: CompanyDocumentType, description = '', startingPoint: ReportStartingPoint = 'example'): Promise<TemplateMold> {
+    const template = createReportStartingPoint(startingPoint);
     template.metadata.name = name;
     template.metadata.companyId = this.auth.session!.company_id;
     const row = await firstValueFrom(this.http.post<any>('/api/templates', {

@@ -153,3 +153,26 @@ export const SAMPLE_INVOICE_MULTILINE: InvoiceData = {
     { Nombre: 'IVA Tasa Mínima', Valor: 120.00 }
   ]
 };
+
+const fifteenLines = Array.from({ length: 3 }, (_, group) =>
+  SAMPLE_INVOICE_MULTILINE.invoiceLines.map(line => ({
+    ...line,
+    Articulo: {
+      ...line['Articulo'],
+      Codigo: `${line['Articulo'].Codigo}-${group + 1}`,
+      Nombre: `${line['Articulo'].Nombre} · Variante ${group + 1}`
+    }
+  }))
+).flat();
+
+export const SAMPLE_INVOICE_FIFTEEN: InvoiceData = {
+  ...SAMPLE_INVOICE_MULTILINE,
+  invoiceLines: fifteenLines,
+  Articulos: fifteenLines,
+  Subtotal: 23553.72,
+  Total: 28560,
+  Impuestos: [
+    { Nombre: 'IVA Tasa Básica', Valor: 4646.28 },
+    { Nombre: 'IVA Tasa Mínima', Valor: 360 }
+  ]
+};

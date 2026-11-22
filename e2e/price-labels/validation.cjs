@@ -9,8 +9,10 @@ module.exports = async (page, newTemplate) => {
   await expect(page.getByRole('alert')).toContainText('Decimales');
   await expect(page.locator('.price-content')).toContainText('4.200,00');
   await decimals.fill('2'); await decimals.press('Tab');
-  await page.locator('app-price-label-properties').getByLabel('Precio',{exact:true}).fill('article.missing');
-  await page.locator('app-price-label-properties').getByLabel('Precio',{exact:true}).press('Tab');
+  await button('Ruta avanzada de Precio').click();
+  const pricePath = page.getByLabel('Ruta de Precio', { exact: true });
+  await pricePath.fill('article.missing');
+  await pricePath.press('Tab');
   await button('Vista previa').click();
   await expect(button('Imprimir')).toBeDisabled(); await expect(button('Exportar HTML')).toBeDisabled();
   await expect(page.getByRole('alert').first()).toContainText('precio ausente');

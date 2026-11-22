@@ -1,38 +1,68 @@
-<header><a routerLink="/templates">← Moldes</a><h1>Preparar impresión</h1><a routerLink="/price-labels">Diseñar etiquetas</a></header>
+<header><a routerLink="/templates/labels">← Moldes de etiquetas</a><h1 #pageTitle tabindex="-1">Preparar impresión</h1>@if(template){<button type="button" (click)="openMold()">Abrir molde</button>}</header>
 @if(state.context?.mode === 'demo'){<p class="demo" role="status"><strong>Demostración — datos sintéticos del backend.</strong> No son datos reales de Zureo. Escribí DEMO- en el buscador para recorrer los 30 artículos de prueba.</p>}
-<p>El lote se descarta al salir. Imprimir y exportar utilizan los precios de la última vista previa.</p>
+<p>Imprimir y exportar utilizan los precios de la última vista previa. Podés abrir el molde y volver a este lote.</p>
+@if(resumedBatch && state.lines.length){<p role="status">Lote recuperado. Revisá la vista previa con el molde y los precios actuales.</p>}
 @if(state.loading){<p role="status">Cargando catálogo…</p>}
 @if(state.error){<p role="alert">{{state.error}}</p><button (click)="state.initialize()">Reintentar carga</button>}
 @if(state.context && !state.context.available){<p role="status">El proveedor de artículos no está habilitado. No hay datos de ejemplo de sustitución.</p><button (click)="state.initialize()">Reintentar conexión</button>}
-@if(storage.error$ | async; as error){<p role="alert">{{error}}</p><button (click)="storage.refresh()">Reintentar moldes</button>}
-<label>Molde guardado <select [ngModel]="template?.id || ''" (ngModelChange)="selectTemplate($event)"><option value="">Seleccionar molde</option>@for(saved of storage.templates$ | async;track saved.id){<option [value]="saved.id">{{saved.name}}</option>}</select></label>
+@if(storage.error$ | async; as error){<p role="alert">{{error}}</p><button (click)="retryTemplates()" [disabled]="loadingTemplate">Reintentar moldes</button>}
+<div class="print-setup">
+<section class="print-panel" aria-labelledby="print-setup-title">
+<h2 id="print-setup-title">Configuración del lote</h2>
+@if(loadingTemplate){<p role="status">Cargando moldes…</p>}
+<label>Molde guardado <select [disabled]="loadingTemplate" [ngModel]="template?.id || ''" (ngModelChange)="selectTemplate($event)"><option value="">Seleccionar molde</option>@for(saved of storage.templates$ | async;track saved.id){@if(!saved.calibration){<option [value]="saved.id">{{saved.name}}</option>}}</select></label>
 @if(templateError){<p role="alert">{{templateError}}</p>}
+@if(templateLoadFailed){<button type="button" (click)="retryTemplates()">Reintentar molde</button>}
+@if(template; as selectedTemplate){
+ @if(selectedTemplate.printProfiles?.thermal){
+  <label>Perfil de impresión <select [(ngModel)]="profile"><option value="sheet">{{sheetName(selectedTemplate)}}</option><option value="thermal">Rollo térmico</option></select></label>
+ }
+}
 @if(state.context?.available){
 <label>Lista de precios <select [ngModel]="state.listId" (ngModelChange)="state.selectList($event)"><option value="">Seleccionar lista</option>@for(list of state.lists;track list.id){<option [value]="list.id">{{list.name}}</option>}</select></label>
 @if(state.listing){<p role="status">Cargando listas…</p>}
 @if(state.listCursor){<button [disabled]="state.listing" (click)="state.loadLists()">Más listas</button>}
 @if(!state.listing && !state.lists.length){<p>No hay listas disponibles.</p>}
-<form (ngSubmit)="state.search()"><label>Buscar por código o código de barras <input name="query" maxlength="100" [(ngModel)]="state.query" /></label><button [disabled]="!state.listId || !state.query.trim()">Buscar</button></form>
+}
+</section>
+@if(state.context?.available){
+<section class="print-panel" aria-labelledby="search-title">
+<h2 id="search-title">Buscar artículos</h2>
+<form (ngSubmit)="state.search()"><label>Buscar por nombre, código o código de barras <input #searchField name="query" maxlength="100" [(ngModel)]="state.query" /></label><button [disabled]="!state.listId || !state.query.trim()">Buscar</button></form>
 @if(state.searching){<p role="status">Buscando artículos…</p>}
 @if(state.searchError){<p role="alert">{{state.searchError}}</p><button (click)="state.search()">Reintentar búsqueda</button>}
-@if(!state.query.trim()){<p>Ingresá un código para buscar; no se carga el catálogo completo.</p>}
+@if(!state.query.trim()){<p>Ingresá un nombre o código para buscar.</p>}
 @if(state.searched && !state.results.length){<p role="status">No se encontraron artículos activos.</p>}
+@if(state.lines.length){<button type="button" class="jump-button" (click)="goToBatch()">Ir al lote</button>}
 <section aria-label="Resultados de búsqueda">@for(item of state.results;track item.articleId){
  <div>{{item.article?.code}} · {{item.article?.name}} · {{item.price.amount ?? 'Sin precio'}} {{item.price.currencyCode}}
- <button [disabled]="selected(item.articleId) || state.total >= 100 || item.status !== 'available'" (click)="state.select(item)">{{selected(item.articleId)?'Agregado':'Agregar'}} {{item.article?.code}}</button></div>
+ @let added = selected(item.articleId);
+ <button [disabled]="!added && (state.total >= 100 || item.status !== 'available')" [attr.aria-disabled]="added ? true : null"
+  (click)="state.select(item)">{{added?'Agregado':'Agregar'}} {{item.article?.code}}</button></div>
 }</section>
 @if(state.searchCursor){<button [disabled]="state.searching" (click)="state.search(true)">Más resultados</button>}
+</section>
 }
-<section><h2>Lote · {{state.total}} / 100 etiquetas</h2><div class="scroll"><table><thead><tr><th>Artículo</th><th>Barras</th><th>Precio de la lista</th><th>Impuestos</th><th>Cantidad</th><th>Diagnóstico</th><th>Acciones</th></tr></thead><tbody>
+</div>
+<section class="print-panel print-batch" aria-labelledby="batch-title"><h2 #batchTitle id="batch-title" tabindex="-1" aria-live="polite">Lote · {{state.total}} / 100 etiquetas</h2><div class="scroll"><table><thead><tr><th>Artículo</th><th>Barras</th><th>Precio de la lista</th><th>Impuestos</th><th>Cantidad</th><th>Diagnóstico</th><th>Acciones</th></tr></thead><tbody>
 @for(line of state.lines;track line.article.id){
 <tr><td>{{state.row(line.article.id)?.article?.code || line.article['code']}} · {{state.row(line.article.id)?.article?.name || line.article.name}}</td><td>{{state.row(line.article.id)?.article?.barcode || 'Sin código'}}</td>
 <td>@if(state.row(line.article.id);as row){{{row.status==='unavailable'?'Artículo no disponible':row.price.amount ?? 'Sin precio'}} {{row.price.currencyCode}}}@else{Pendiente de consulta}</td>
 <td>@switch(state.row(line.article.id)?.price?.taxTreatment){@case('included'){Incluidos}@case('excluded'){No incluidos}@case('exempt'){Exento}@default{No informado}}</td>
-<td><button aria-label="Disminuir cantidad" [disabled]="line.quantity<=1" (click)="state.quantity(line.article.id,line.quantity-1)">−</button><input type="number" min="1" max="100" [attr.aria-label]="'Cantidad de '+line.article.name" [value]="line.quantity" (change)="editQuantity(line.article.id,$event)" /><button aria-label="Aumentar cantidad" [disabled]="state.total>=100" (click)="state.quantity(line.article.id,line.quantity+1)">+</button></td><td>@for(message of rowDiagnostics(line.article.id);track $index){<p>{{message}}</p>}</td><td><button (click)="state.remove(line.article.id)">Eliminar</button></td></tr>
-}</tbody></table></div>@if(!state.lines.length){<p>Agregá artículos para preparar el lote.</p>}</section>
-<button [disabled]="!state.lines.length || !state.listId || state.resolving" (click)="state.resolve()">Actualizar precios</button>
+<td><button [attr.aria-label]="'Disminuir cantidad de ' + line.article.name" [disabled]="line.quantity<=1" (click)="state.quantity(line.article.id,line.quantity-1)">−</button><input type="number" min="1" max="100" [attr.aria-label]="'Cantidad de '+line.article.name" [value]="line.quantity" (change)="editQuantity(line.article.id,$event)" /><button [attr.aria-label]="'Aumentar cantidad de ' + line.article.name" [disabled]="state.total>=100" (click)="state.quantity(line.article.id,line.quantity+1)">+</button></td><td>@for(message of rowDiagnostics(line.article.id);track $index){<p>{{message}}</p>}</td><td><button #removeButton [attr.aria-label]="'Eliminar ' + line.article.name + ' del lote'" (click)="removeLine(line.article.id)">Eliminar</button></td></tr>
+}</tbody></table></div>@if(!state.lines.length){<p>Agregá artículos para preparar el lote.</p>}
+<div class="batch-actions">
+  <button [disabled]="!state.lines.length || !state.listId" [attr.aria-disabled]="state.resolving ? true : null" (click)="!state.resolving && state.resolve()">Actualizar precios</button>
+  @if(template && state.articles.length){<button type="button" class="jump-button" (click)="goToReview()">Ir a revisión</button>}
+</div>
 @if(state.resolving){<p role="status">Resolviendo precios del lote…</p>}
 @if(state.resolveError){<p role="alert">{{state.resolveError}} @if(state.snapshot){Se conserva la última consulta indicada abajo.}</p>}
 @if(state.notice){<p role="status">{{state.notice}}</p>}
 @if(state.snapshot){<p>Última consulta: {{state.snapshot.resolvedAt | date:'dd/MM/yyyy HH:mm:ss'}}. Los precios no se actualizan automáticamente al imprimir.</p>}
-@if(template && state.articles.length){<p>{{pages}} páginas · {{state.total}} etiquetas</p><div class="preview"><app-price-label-preview [template]="template" [articles]="state.articles" [company]="state.company" [batchMode]="true" [beforeOutput]="state.authorizeOutput" (diagnosticsChanged)="renderIssues=$event" /></div>}
+</section>
+@if(template && state.articles.length){
+  <section class="print-panel print-review" aria-labelledby="review-title">
+    <h2 #reviewTitle id="review-title" tabindex="-1">Revisar e imprimir</h2>
+    <div class="preview"><app-price-label-preview [template]="template" [articles]="state.articles" [company]="state.company" [batchMode]="true" [batchProfile]="profile" [beforeOutput]="state.authorizeOutput" (diagnosticsChanged)="renderIssues=$event" /></div>
+  </section>
+}

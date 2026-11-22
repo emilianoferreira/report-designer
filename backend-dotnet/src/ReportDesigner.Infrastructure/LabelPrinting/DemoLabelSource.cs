@@ -20,7 +20,11 @@ public sealed class DemoLabelSource(ICompanyContext company, DemoLabelCatalog ca
     {
         ct.ThrowIfCancellationRequested(); CheckList(priceListId);
         // Only active items from the injected catalog are searchable.
-        var rows = query.Length == 0 ? [] : catalog.Items.Where(a => a.Active && (a.Code.StartsWith(query, StringComparison.OrdinalIgnoreCase) || a.Barcode == query)).Select(Article).ToArray();
+        var rows = query.Length == 0 ? [] : catalog.Items.Where(item => item.Active && (
+            item.Code.StartsWith(query, StringComparison.OrdinalIgnoreCase) ||
+            item.Barcode == query ||
+            CultureInfo.GetCultureInfo("es-UY").CompareInfo.IndexOf(item.Name, query, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0))
+            .Select(Article).ToArray();
         return Task.FromResult(Paginate(rows, "search:" + priceListId + ":" + query, cursor, pageSize));
     }
     public Task<ResolvedPrintSnapshot> ResolveAsync(string priceListId, IReadOnlyList<string> articleIds, CancellationToken ct)

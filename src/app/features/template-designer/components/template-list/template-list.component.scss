@@ -97,6 +97,26 @@
   }
 }
 
+a.btn-new, a.btn-secondary, a.btn-open {
+  text-decoration: none;
+}
+
+.catalog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.catalog-actions:not(.card-footer) { margin-bottom: 16px; }
+
+.list-content .btn-secondary {
+  color: #66164b;
+  border-color: #d7bfd0;
+
+  &:hover { background: #f8edf4; }
+  &[aria-current='page'] { background: #66164b; color: #fff; }
+}
+
 // ─── Content area ───
 .list-content {
   flex: 1;
@@ -184,7 +204,8 @@
   opacity: 0;
   transition: opacity 0.15s;
 
-  .mold-card:hover & {
+  .mold-card:hover &,
+  .mold-card:focus-within & {
     opacity: 1;
   }
 }

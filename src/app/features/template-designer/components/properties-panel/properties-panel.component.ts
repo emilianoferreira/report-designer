@@ -8,7 +8,8 @@ import {
   OnInit,
   OnDestroy,
   ChangeDetectionStrategy,
-  ChangeDetectorRef
+  ChangeDetectorRef,
+  inject
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -24,12 +25,16 @@ import {
   QRCodeElement,
   BarcodeElement,
   FontSettings,
+  FormatDefinition,
   ShapeType
 } from '../../../../core/models/template.model';
 import { TemplateStateService } from '../../services/template-state.service';
 import { SelectionService } from '../../services/selection.service';
 import { FiscalRolesComponent } from '../fiscal-roles/fiscal-roles.component';
 import { FISCAL_BINDING_FIELDS } from '../../utils/fiscal-roles';
+import { HtmlRendererService } from '../../services/html-renderer.service';
+import { ValidationSessionService } from '../../services/validation-session.service';
+import { SAMPLE_INVOICE_DATA } from '../../data/sample-invoice';
 
 type TabKey = 'general' | 'style' | 'data';
 
@@ -72,6 +77,11 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
   // Data-specific
   textContent = '';
   bindingSource = '';
+  fieldQuery = '';
+  bindingFormat?: FormatDefinition;
+  bindingFallback = '';
+  private readonly renderer = inject(HtmlRendererService);
+  private readonly validation = inject(ValidationSessionService, { optional: true });
   formulaExpression = '';
   imageUrl = '';
 
@@ -210,6 +220,7 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
     this.selectionService.selectedElements$
       .pipe(takeUntil(this.destroy$))
       .subscribe(elements => {
+        if (this.selectedElement?.id !== elements[0]?.id) this.fieldQuery = '';
         this.selectedElements = elements;
         this.multiSelectMode = elements.length > 1;
         this.selectedElement = elements.length === 1 ? elements[0] : null;
@@ -226,6 +237,7 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
         }
         this.cdr.markForCheck();
       });
+    this.validation?.scenario$.pipe(takeUntil(this.destroy$)).subscribe(() => this.cdr.markForCheck());
   }
 
   ngOnDestroy(): void {
@@ -235,6 +247,30 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
 
   setTab(tab: TabKey): void {
     this.activeTab = tab;
+  }
+
+  get filteredBindings(): typeof this.bindingCategories {
+    const normalize = (value: string) => value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+    const query = normalize(this.fieldQuery.trim());
+    if (!query) return this.bindingCategories;
+    return this.bindingCategories.map(group => ({
+      ...group,
+      fields: group.fields.filter(field => field.path === this.bindingSource ||
+        normalize(`${group.label} ${field.description} ${field.path}`).includes(query))
+    })).filter(group => group.fields.length > 0);
+  }
+
+  get bindingExample(): string {
+    if (!this.bindingSource) return '';
+    const data = this.validation?.data() ?? SAMPLE_INVOICE_DATA;
+    const value = this.renderer.resolveBinding(this.bindingSource, data);
+    return this.renderer.formatFieldValue({ source: this.bindingSource, format: this.bindingFormat,
+      defaultValue: this.bindingFallback }, value);
+  }
+
+  setBindingFormat(type: FormatDefinition['type'] | ''): void {
+    this.bindingFormat = type ? { type } : undefined;
+    this.onFieldChange();
   }
 
   /**
@@ -269,6 +305,8 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
     }
     if (el.type === 'dataField') {
       this.bindingSource = (el as DataFieldElement).binding.source;
+      this.bindingFormat = el.binding.format;
+      this.bindingFallback = el.binding.defaultValue ?? '';
     }
     if (el.type === 'formula') {
       this.formulaExpression = (el as FormulaElement).expression;
@@ -478,7 +516,9 @@ export class PropertiesPanelComponent implements OnInit, OnDestroy {
     if (this.selectedElement.type === 'dataField') {
       updates.binding = {
         ...(this.selectedElement as DataFieldElement).binding,
-        source: this.bindingSource
+        source: this.bindingSource,
+        format: this.bindingFormat,
+        defaultValue: this.bindingFallback || undefined
       };
     }
     if (this.selectedElement.type === 'formula') {

@@ -1,10 +1,15 @@
 import { LabelTemplate } from '../../../core/models/price-label-template.model';
-import { labelLayoutError } from './label-layout';
+import { labelCalibrations } from '../data/label-calibration';
 
 /** Validate HTTP data before any component consumes it. Unknown metadata is preserved. */
 export function templateErrors(template: LabelTemplate): string[] {
-  const layout = labelLayoutError(template);
-  if (layout) return [layout];
+  if (!template?.page || !template?.label || !Array.isArray(template.elements)) return ['Plantilla incompleta.'];
+  if (template.printProfiles !== undefined && (template.printProfiles?.schemaVersion !== 1 || !template.printProfiles.thermal)) {
+    return ['Formato de perfiles de impresión incompatible.'];
+  }
+  if (template.calibration !== undefined && !labelCalibrations.some(format => format.id === template.calibration)) {
+    return ['Formato de calibración incompatible.'];
+  }
   const errors: string[] = [];
   if (template.type !== 'price-label' || template.unit !== 'mm') errors.push('Tipo o unidad incompatible.');
   if (typeof template.name !== 'string') errors.push('Nombre de plantilla inválido.');

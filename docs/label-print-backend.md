@@ -43,8 +43,9 @@ La referencia histórica /reference/openapi.json permanece intacta.
 - GET /api/label-print/context: modo, disponibilidad y datos de empresa.
 - GET /api/label-print/price-lists: items y nextCursor.
 - GET /api/label-print/articles: query, priceListId, cursor y pageSize; artículos
-  activos con precios indicativos. Código por prefijo, barras por coincidencia
-  exacta, sin conversiones numéricas. Consulta vacía devuelve cero artículos.
+  activos con precios indicativos. Busca por fragmento del nombre, prefijo del código
+  y coincidencia exacta del código de barras. Nombre y código ignoran mayúsculas.
+  El nombre también admite búsquedas sin tilde. Una consulta vacía devuelve cero artículos.
 - POST /api/label-print/resolve: priceListId y articleIds; devuelve la instantánea
   completa, en orden de solicitud, con resolvedAt UTC y revisión si existe.
 

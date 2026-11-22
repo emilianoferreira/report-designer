@@ -16,8 +16,9 @@
           [class.active]="sampleDataMode === 'multi'"
           (click)="toggleSampleData()"
         >
-          {{ sampleDataMode === 'single' ? '1 artículo' : '5 artículos' }}
+          {{ sampleDataMode === 'multi' ? '5 artículos' : '1 artículo' }}
         </button>
+        <button class="toolbar-btn" (click)="showFifteenArticles()" [attr.aria-pressed]="sampleDataMode === 'fifteen'">15 artículos</button>
       </div>
 
       <div class="toolbar-group">
@@ -57,9 +58,21 @@
       </div>
     </div>
   </div>
+  @if (viewMode === 'render' && pageCount > 0) {
+    <nav class="renderer-context" aria-label="Páginas del comprobante">
+      <span role="status">{{ sampleSize }} {{ sampleSize === 1 ? 'artículo' : 'artículos' }} · Página {{ currentPage }} de {{ pageCount }}</span>
+      @if (pageCount > 1) {
+        <button class="toolbar-btn" (click)="showPage(currentPage - 1)" [disabled]="currentPage === 1">Página anterior</button>
+        <button class="toolbar-btn" (click)="showPage(currentPage + 1)" [disabled]="currentPage === pageCount">Página siguiente</button>
+      }
+    </nav>
+  }
 
   <!-- Preview content — switches by viewMode -->
   @if (printMessage) { <p class="renderer-context" role="alert">{{ printMessage }}</p> }
+  @if (paginationPending && viewMode === 'render') {
+    <p class="renderer-context" role="status">Saltos de página pendientes. {{ paginationPending }}</p>
+  }
   <p class="renderer-context">El informe corresponde a impresión desde el navegador. La salida de las directivas HTML z-code requiere validación en Zureo.</p>
   @if (reportPending) { <p class="renderer-context" role="status">Actualizando validación; los resultados anteriores ya no están vigentes.</p> }
   @if (!reportPending && viewMode !== 'render') { <p class="renderer-context">Volvé a Render para evaluar la salida de impresión.</p> }

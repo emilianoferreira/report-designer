@@ -5,6 +5,7 @@ import { AuthService, Session } from '../../core/auth/auth.service';
 import { PriceLabelArticle, PriceLabelCompany } from '../../core/models/price-label-template.model';
 import { LabelPrintSessionService, expandLabelBatch } from './label-print-session.service';
 import { LabelPrintApiService, PrintContext, PriceList, PrintSnapshot, ResolvedArticle } from './label-print-api.service';
+import type { LabelPrintDraft } from './label-print-draft.service';
 @Injectable()
 export class LabelPrintWorkflowService extends LabelPrintSessionService implements OnDestroy {
   context?:PrintContext; lists:PriceList[]=[]; listCursor:string|null=null; listId=''; query='';
@@ -14,6 +15,7 @@ export class LabelPrintWorkflowService extends LabelPrintSessionService implemen
   articles:PriceLabelArticle[]=[]; company:PriceLabelCompany={name:'',logo:'',currencySymbol:''};
   private initRequest=new Subscription(); private listRequest=new Subscription(); private searchRequest=new Subscription(); private resolveRequest=new Subscription();
   private authRequest:Subscription; private generation=0; private searchVersion=0; private alive=true;
+  private searchedQuery = '';
   private readonly companyId:string|undefined; private readonly userId:string|undefined;
   constructor(private api:LabelPrintApiService, private auth:AuthService, private http:HttpClient){
     super(); this.companyId=auth.session?.company_id; this.userId=auth.session?.user.id;
@@ -21,7 +23,29 @@ export class LabelPrintWorkflowService extends LabelPrintSessionService implemen
   }
   initialize():void {
     this.initRequest.unsubscribe(); this.loading=true; this.error='';
-    this.initRequest=this.api.contextInfo().subscribe({next:context=>{if(!context.available){this.clear();this.error='';}this.context=context;this.loading=false;if(context.available)this.loadLists();},error:e=>{this.loading=false;this.fail(e);}});
+    this.initRequest=this.api.contextInfo().subscribe({
+      next: context => {
+        if (!context.available) {
+          this.clear();
+          this.error = '';
+        }
+        this.context = context;
+        this.loading = false;
+        if (!context.available) return;
+        this.loadLists();
+        if (this.lines.length && !this.snapshot) {
+          this.resolve();
+          this.search();
+        }
+      },
+      error: e => { this.loading = false; this.fail(e); }
+    });
+  }
+  restoreDraft(draft: LabelPrintDraft): void {
+    this.listId = draft.listId;
+    this.query = draft.query;
+    this.lines = draft.lines;
+    this.lists = draft.selectedList ? [draft.selectedList] : [];
   }
   loadLists():void {
     if(this.listing)return; this.listing=true; this.error='';
@@ -32,24 +56,25 @@ export class LabelPrintWorkflowService extends LabelPrintSessionService implemen
     this.resolve(); this.search();
   }
   search(more=false):void {
+    if (more && !this.searchCursor) return;
     this.searchRequest.unsubscribe(); const revision=++this.searchVersion;
     const cursor=more?this.searchCursor:null;
-    if(!more){this.results=[];this.searchCursor=null;} this.searchError='';this.searching=false;this.searched=false;
-    if(!this.listId || !this.query.trim())return;
+    if(!more){this.results=[];this.searchCursor=null;this.searchedQuery=this.query.trim();} this.searchError='';this.searching=false;this.searched=false;
+    if(!this.listId || !this.searchedQuery)return;
     this.searching=true;
-    this.searchRequest=this.api.search(this.query.trim(),this.listId,cursor||'').subscribe({next:page=>{
+    this.searchRequest=this.api.search(this.searchedQuery,this.listId,cursor||'').subscribe({next:page=>{
       if(revision!==this.searchVersion)return;
       this.results=more?[...this.results,...page.items.filter(x=>!this.results.some(r=>r.articleId===x.articleId))]:page.items;
       this.searchCursor=page.nextCursor;this.searching=false;this.searched=true;
     },error:e=>{this.searching=false;this.searchError='No se pudo buscar. Reintentá la búsqueda.';this.failAuth(e);}});
   }
   select(item:ResolvedArticle):void {
-    if(!item.article || this.lines.some(l=>l.article.id===item.articleId))return;
+    if(item.status !== 'available' || !item.article || this.lines.some(l=>l.article.id===item.articleId))return;
     try { super.add({id:item.articleId,name:item.article.name,code:item.article.code,barcode:item.article.barcode||'',price:null});this.error='';this.snapshot=undefined;this.articles=[];this.resolve(); }
     catch(e){this.error=(e as Error).message;}
   }
   override quantity(id:string,value:number):void { try{super.quantity(id,value);this.error='';this.rebuild();}catch(e){this.error=(e as Error).message;} }
-  override remove(id:string):void { super.remove(id);if(this.resolving || !this.snapshot)this.resolve();else this.rebuild(); }
+  override remove(id:string):void { super.remove(id);if(!this.lines.length || this.resolving || !this.snapshot)this.resolve();else this.rebuild(); }
   resolve():void {
     this.resolveRequest.unsubscribe();const generation=++this.generation;
     this.resolveError='';this.notice='';this.resolving=false;
@@ -84,6 +109,7 @@ export class LabelPrintWorkflowService extends LabelPrintSessionService implemen
   private clear():void {
     this.generation++;this.searchVersion++;this.initRequest.unsubscribe();this.listRequest.unsubscribe();this.searchRequest.unsubscribe();this.resolveRequest.unsubscribe();
     this.lines=[];this.snapshot=undefined;this.articles=[];this.results=[];this.lists=[];this.context=undefined;this.listId='';this.listCursor=null;this.searchCursor=null;
+    this.searchedQuery='';
     this.loading=this.listing=this.searching=this.resolving=false;this.error='La sesión cambió o no tenés acceso. Volvé a iniciar sesión.';
   }
   ngOnDestroy():void {this.alive=false;this.clear();this.authRequest.unsubscribe();}

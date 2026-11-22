@@ -16,6 +16,8 @@ const assert = require('node:assert/strict');
     let saveDelay = 0;
     let failSave = false;
     let failList = false;
+    let role = 'editor';
+    let otherMolds = [];
     let deletions = 0;
     let creations = 0;
     let acceptDialog = false;
@@ -34,9 +36,9 @@ const assert = require('node:assert/strict');
     await page.route('**/api/**', async route => {
       const path = new URL(route.request().url()).pathname;
       if (path === '/api/auth/session') {
-        return route.fulfill({ json: { user: { id: 'review-user', email: 'review@example.test' }, company_id: fixture.company_id, role: 'editor', csrf_token: 'review-token', expires_at: '2099-01-01T00:00:00Z', companies: [{ id: fixture.company_id, name: 'Review', role: 'editor' }] } });
+        return route.fulfill({ json: { user: { id: 'review-user', email: 'review@example.test' }, company_id: fixture.company_id, role, csrf_token: 'review-token', expires_at: '2099-01-01T00:00:00Z', companies: [{ id: fixture.company_id, name: 'Review', role }] } });
       }
-      if (path === '/api/templates' && route.request().method() === 'GET') return route.fulfill(failList ? {status:500,json:{}} : { json: [row] });
+      if (path === '/api/templates' && route.request().method() === 'GET') return route.fulfill(failList ? {status:500,json:{}} : { json: [row, ...otherMolds] });
       if (path === '/api/templates/' + row.id && route.request().method() === 'GET') return route.fulfill({json:row});
       const revision = route.request().headers()['if-match'];
       if (revision && revision !== JSON.stringify(String(row.version))) return route.fulfill({status:409,json:{message:'Template revision conflict'}});
@@ -141,7 +143,7 @@ const assert = require('node:assert/strict');
     const saveResponse = page.waitForResponse(response => response.request().method() === 'PUT');
     await page.getByRole('button', { name: 'Guardar', exact: true }).click();
     await saveResponse;
-    await page.waitForFunction(() => !document.querySelector('button.primary').disabled);
+    await page.waitForFunction(() => document.querySelector('button.primary:not(:disabled):not([aria-disabled=true])'));
     result.rename = { requested: 'Nombre cambiado', storedJsonName: row.template_json.name, storedRowName: row.nombre, editorNameAfterSave: await name.inputValue() };
     saveDelay = 1200;
     await page.locator('.text-content').click();
@@ -201,7 +203,7 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: 'Guardar', exact: true }).click();
     await name.fill('Edición durante creación'); await name.press('Tab');
     await createdResponse;
-    await page.waitForFunction(() => !document.querySelector('button.primary').disabled);
+    await page.waitForFunction(() => document.querySelector('button.primary:not(:disabled):not([aria-disabled=true])'));
     assert.equal(await name.inputValue(), 'Edición durante creación');
     assert.equal(await page.locator('.template-select').inputValue(), row.id);
     failSave = true;
@@ -211,7 +213,7 @@ const assert = require('node:assert/strict');
     failSave = false; saveDelay = 0;
     const finalSave = page.waitForResponse(r => r.request().method() === 'PUT');
     await page.getByRole('button', { name: 'Guardar', exact: true }).click(); await finalSave;
-    await page.waitForFunction(() => !document.querySelector('button.primary').disabled);
+    await page.waitForFunction(() => document.querySelector('button.primary:not(:disabled):not([aria-disabled=true])'));
     assert.equal(creations, 1);
     assert.equal(row.nombre, 'Edición durante creación');
     const previousDialogs = dialogs;
@@ -248,14 +250,14 @@ const assert = require('node:assert/strict');
     const beforeConflictCreations = creations;
     await name.fill('Compartida'); await name.press('Tab');
     await page.getByRole('button',{name:'Guardar',exact:true}).click();
-    await page.waitForFunction(() => !document.querySelector('button.primary').disabled);
+    await page.waitForFunction(() => document.querySelector('button.primary:not(:disabled):not([aria-disabled=true])'));
     row = {...row, version:row.version+1, nombre:'Cambio remoto'};
     await name.fill('Mi borrador'); await name.press('Tab');
     await page.getByRole('button',{name:'Guardar',exact:true}).click();
     await page.getByRole('button',{name:'Guardar borrador como copia',exact:true}).waitFor();
     assert.equal(await name.inputValue(),'Mi borrador');
     await page.getByRole('button',{name:'Guardar borrador como copia',exact:true}).click();
-    await page.waitForFunction(() => !document.querySelector('button.primary').disabled);
+    await page.waitForFunction(() => document.querySelector('button.primary:not(:disabled):not([aria-disabled=true])'));
     assert.equal(await name.inputValue(),'Mi borrador (copia)');
     assert.equal(creations,beforeConflictCreations+2);
     row = {...row, version:row.version+1, nombre:'Versión remota'};
@@ -273,7 +275,7 @@ const assert = require('node:assert/strict');
     row={...row,version:row.version+1};
     await openTemplateMenu(); await page.getByRole('button',{name:'Eliminar plantilla',exact:true}).click();
     await page.getByRole('button',{name:'Recargar versión del servidor',exact:true}).click();
-    await page.waitForFunction(() => !document.querySelector('button.primary').disabled);
+    await page.waitForFunction(() => document.querySelector('button.primary:not(:disabled):not([aria-disabled=true])'));
     await openTemplateMenu(); await page.getByRole('button',{name:'Eliminar plantilla',exact:true}).click();
     await page.waitForFunction(() => document.querySelector('.save-status').textContent==='Eliminado');
     assert.equal(deletions,1);
@@ -300,6 +302,163 @@ const assert = require('node:assert/strict');
     assert.ok(reportBounds.y + reportBounds.height <= 1001);
     assert.deepEqual(consoleMessages.filter(m => m.type === 'pageerror'), []);
     console.log('PASS: report editor shared shell, visual layout, collapsible panels, property tabs, shared real barcode SVG, barcode format updates, add/delete/drag, typography, page bounds, physical PDF pagination, print event, barcode text, rename, concurrent edits (create/update), save failure, draft confirmation and migration HTML snapshot.');
+
+    await page.goto('http://review.test/templates');
+    await expect(page.getByRole('heading', { name: row.nombre, exact: true })).toBeVisible();
+    const reportName = row.nombre;
+    otherMolds = [row];
+    await page.getByRole('link', { name: 'Etiquetas', exact: true }).click();
+    await expect(page.getByRole('heading', { name: reportName, exact: true })).toHaveCount(0);
+    await page.getByRole('link', { name: '+ Nuevo molde', exact: true }).click();
+    await expect(page).toHaveURL(/\/price-labels\/new$/);
+    const next = page.getByRole('button', { name: 'Continuar al editor', exact: true });
+    await next.click();
+    await expect(page.getByRole('alert')).toHaveText('Ingresá un nombre para el molde.');
+    await page.getByLabel('Nombre del molde').fill('Etiqueta de biblioteca');
+    const size = page.getByRole('combobox', { name: /^Tamaño de la etiqueta/ });
+    await size.selectOption('custom');
+    await page.getByLabel('Ancho (mm)', { exact: true }).fill('205');
+    await next.click();
+    await expect(page.getByRole('alert')).toContainText('superan el ancho útil');
+    await size.selectOption('50x30');
+    await page.getByRole('radio', { name: 'Hoja A4', exact: true }).check();
+    await next.click();
+    await expect(name).toHaveValue('Etiqueta de biblioteca');
+    await expect(page.locator('.label-surface')).toBeFocused();
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+    await expect(page).toHaveURL(/\/price-labels\/[^/]+\/edit$/);
+    assert.equal(row.template_json.printProfiles, undefined);
+    const editUrl = page.url();
+    await page.reload();
+    await expect(name).toHaveValue('Etiqueta de biblioteca');
+    const originalSheet = structuredClone(row.template_json.page);
+    const originalLabel = structuredClone(row.template_json.label);
+    const originalElements = structuredClone(row.template_json.elements);
+    await openSettings();
+    await page.getByRole('button', { name: 'Agregar perfil térmico', exact: true }).click();
+    await page.getByLabel('Ancho del rollo (mm)', { exact: true }).fill('55');
+    await page.getByLabel('Ancho imprimible (mm)', { exact: true }).fill('54');
+    await page.getByLabel('Tipo de rollo').selectOption('black-mark');
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+    await expect(page.locator('.save-status')).toHaveText('Guardado');
+    assert.deepEqual(row.template_json.page, originalSheet);
+    assert.deepEqual(row.template_json.label, originalLabel);
+    assert.deepEqual(row.template_json.elements, originalElements);
+    await page.reload();
+    await openSettings();
+    await expect(page.getByLabel('Ancho del rollo (mm)', { exact: true })).toHaveValue('55');
+    await expect(page.getByLabel('Ancho imprimible (mm)', { exact: true })).toHaveValue('54');
+    await expect(page.getByLabel('Tipo de rollo')).toHaveValue('black-mark');
+    await page.getByRole('button', { name: 'Vista previa', exact: true }).click();
+    await page.getByLabel('Perfil de impresión').selectOption('thermal');
+    await expect(page.frameLocator('iframe').locator('.page')).toHaveCount(4);
+    await page.getByRole('button', { name: 'Volver a documentos', exact: true }).click();
+    await expect(page).toHaveURL(/\/templates\/labels$/);
+    await expect(page.getByRole('heading', { name: reportName, exact: true })).toHaveCount(0);
+    await page.getByRole('link', { name: 'Reportes', exact: true }).click();
+    await expect(page.getByRole('heading', { name: reportName, exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Etiqueta de biblioteca', exact: true })).toHaveCount(0);
+    await page.getByRole('link', { name: 'Etiquetas', exact: true }).click();
+    await expect(page.getByRole('heading', { name: reportName, exact: true })).toHaveCount(0);
+    const card = page.getByRole('article').filter({ hasText: 'Etiqueta de biblioteca' });
+    await card.getByRole('link', { name: 'Editar', exact: true }).click();
+    await expect(page).toHaveURL(editUrl);
+    await expect(name).toHaveValue('Etiqueta de biblioteca');
+    row = { ...row, version: row.version + 1 };
+    await name.fill('Borrador para imprimir'); await name.press('Tab');
+    await page.getByRole('button', { name: 'Guardar y preparar impresión', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Guardar borrador como copia', exact: true })).toBeVisible();
+    await expect(name).toHaveValue('Borrador para imprimir');
+    await expect(page).toHaveURL(editUrl);
+    await page.getByRole('button', { name: 'Recargar versión del servidor', exact: true }).click();
+    await expect(name).toHaveValue('Etiqueta de biblioteca');
+    await name.fill('Etiqueta actualizada'); await name.press('Tab');
+    await page.getByRole('button', { name: 'Guardar y preparar impresión', exact: true }).click();
+    await expect(page.getByLabel('Molde guardado')).toHaveValue(row.id);
+    await page.reload();
+    await expect(page.getByLabel('Molde guardado')).toHaveValue(row.id);
+
+    await page.goto('http://review.test/price-labels/inexistente/edit');
+    await expect(page.getByRole('alert')).toHaveText('No se encontró el molde de etiqueta.');
+    role = 'viewer';
+    await page.goto(editUrl);
+    await expect(name).toHaveValue('Etiqueta actualizada');
+    await expect(name).not.toBeEditable();
+    await expect(page.getByRole('button', { name: 'Guardar', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Preparar impresión', exact: true }).click();
+    await expect(page.getByLabel('Molde guardado')).toHaveValue(row.id);
+    await page.getByRole('link', { name: '← Moldes de etiquetas', exact: true }).click();
+    await expect(page.getByRole('link', { name: '+ Nuevo molde', exact: true })).toHaveCount(0);
+    await page.getByRole('article').filter({ hasText: 'Etiqueta actualizada' }).getByRole('link', { name: 'Preparar impresión', exact: true }).click();
+    await expect(page.getByLabel('Molde guardado')).toHaveValue(row.id);
+    assert.deepEqual(consoleMessages.filter(m => m.type === 'pageerror'), []);
+    console.log('PASS: library, label creation, direct links, save-and-print conflict and viewer printing.');
+
+    role = 'editor';
+    await page.goto('http://review.test/templates/labels');
+    const previewFrame = page.frameLocator('iframe');
+    const patternAt = index => previewFrame.locator('.label-image img').nth(index).evaluate(image => {
+      const svg = decodeURIComponent(image.getAttribute('src').split(',')[1]);
+      const artwork = new DOMParser().parseFromString(svg, 'image/svg+xml');
+      return {
+        marks: Array.from(artwork.querySelectorAll('path'), path => path.getAttribute('d')),
+        text: Array.from(artwork.querySelectorAll('text'), item => item.textContent),
+        bars: artwork.querySelectorAll('rect').length
+      };
+    });
+    const configurations = [
+      { name: 'Calibración A4 · hoja de control', size: '210mm 297mm', pages: 1, cells: 1, code: 'CAL-A4', mark: 'M 55 58 L 155 58' },
+      { name: 'Calibración A4 · plancha 4 × 8', size: '210mm 297mm', pages: 1, cells: 32, code: 'F1C1', mark: 'M 2 1.1 L 2 2.9' },
+      { name: 'Calibración térmica · 50 × 30 mm', size: '50mm 30mm', pages: 12, cells: 12, code: '2001234500012', mark: 'M 10 6 L 40 6' },
+      { name: 'Calibración térmica · 60 × 40 mm', size: '60mm 40mm', pages: 12, cells: 12, code: '2001234500012', mark: 'M 10 6 L 50 6' }
+    ];
+    for (const format of configurations) {
+      await page.locator('summary').filter({ hasText: 'Calibración' }).click();
+      await page.getByRole('link', { name: format.name, exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Imprimir', exact: true })).toBeEnabled();
+      await expect(previewFrame.locator('.page')).toHaveCount(format.pages);
+      await expect(previewFrame.locator('.label-cell')).toHaveCount(format.cells);
+      assert.ok((await previewFrame.locator('style').textContent()).includes('size: ' + format.size));
+      const first = await patternAt(0);
+      assert.ok(first.text.some(value => value.includes(format.code)));
+      assert.ok(first.marks.includes(format.mark));
+      assert.ok(first.bars > 10);
+      if (format.cells === 32) assert.ok((await patternAt(31)).text.includes('F8C4'));
+      if (format.pages === 12) {
+        const codes = ['2001234500012', 'C02', '2001234500036', 'C04', '2001234500050', 'C06',
+          '2001234500074', 'C08', '2001234500098', 'C10', '2001234500111', 'C12'];
+        await expect(previewFrame.locator('.page').locator('.label-cell')).toHaveCount(12);
+        for (const [index, code] of codes.entries()) assert.ok((await patternAt(index)).text.includes(code), code);
+      }
+      const exported = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Exportar HTML', exact: true }).click();
+      const pdfPage = await browser.newPage();
+      await pdfPage.setContent(fs.readFileSync(await (await exported).path(), 'utf8'));
+      const pdf = (await pdfPage.pdf({ preferCSSPageSize: true })).toString('latin1');
+      assert.equal((pdf.match(/\/Type \/Page\b/g) || []).length, format.pages, format.name);
+      await pdfPage.close();
+      await page.getByRole('button', { name: 'Volver a documentos', exact: true }).click();
+    }
+    await page.locator('summary').filter({ hasText: 'Calibración' }).click();
+    await page.getByRole('link', { name: configurations[2].name, exact: true }).click();
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+    await expect(page).toHaveURL(/\/price-labels\/[^/]+\/edit$/);
+    assert.equal(row.template_json.calibration, 'thermal-50x30');
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Imprimir', exact: true })).toBeEnabled();
+    await expect(previewFrame.locator('.page')).toHaveCount(12);
+    await page.evaluate(() => {
+      const iframe = document.querySelector('iframe');
+      const shown = iframe.contentDocument;
+      iframe.contentWindow.print = () => {
+        if (iframe.contentDocument !== shown) throw Error('Document replaced');
+        window.calibrationPrintCount = shown.querySelectorAll('.page').length;
+      };
+    });
+    await page.getByRole('button', { name: 'Imprimir', exact: true }).click();
+    await expect.poll(() => page.evaluate(() => window.calibrationPrintCount)).toBe(12);
+    assert.deepEqual(consoleMessages.filter(m => m.type === 'pageerror'), []);
+    console.log('PASS: calibration presets, PDF reference marks and codes, thermal sequence and saved mold printing.');
   } finally {
     await browser.close();
   }

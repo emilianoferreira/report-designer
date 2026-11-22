@@ -11,7 +11,7 @@
 @mixin controls {
   button, input, select, textarea, summary { font: inherit; }
   button, summary { cursor: pointer; }
-  button:disabled, select:disabled { opacity: .55; cursor: not-allowed; }
+  button:disabled, button[aria-disabled='true'], select:disabled { opacity: .55; cursor: not-allowed; }
   button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
     outline: 2px solid var(--designer-brand); outline-offset: 2px;
   }

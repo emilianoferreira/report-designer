@@ -1,4 +1,5 @@
 import { LabelTemplate, PriceLabelArticle } from '../../../core/models/price-label-template.model';
+import { labelPageNumber } from './label-layout';
 
 export interface LabelDiagnostic {
   severity: 'error' | 'warning';
@@ -20,7 +21,7 @@ export function summarizeDiagnostics(issues: LabelDiagnostic[], articles: PriceL
     articles.forEach((article,index) => {
       const location = locations.get(article.id) ?? {quantity:0,pages:new Set<number>()};
       location.quantity += copies;
-      for(let copy=0;copy<copies;copy++) location.pages.add(Math.floor((index*copies+copy)/capacity)+1);
+      for(let copy=0;copy<copies;copy++) location.pages.add(labelPageNumber(index * copies + copy, capacity));
       locations.set(article.id, location);
     });
   }
@@ -48,14 +49,15 @@ export async function withLabelTimeout<T>(promise: Promise<T>, milliseconds=1000
 export async function inspectLabelDocument(doc: Document, template:LabelTemplate, articles:PriceLabelArticle[], copies:number):Promise<LabelDiagnostic[]> {
   const issues:LabelDiagnostic[]=[];
   const elements=[...template.elements].sort((a,b)=>a.zIndex-b.zIndex);
-  const capacity=template.label.columns*template.label.rows;
   const cells=Array.from(doc.querySelectorAll<HTMLElement>('.label-cell'));
+  const pages=Array.from(doc.querySelectorAll<HTMLElement>('.page'));
   const identify=(element:HTMLElement):Partial<LabelDiagnostic>=>{
     const cell=element.closest('.label-cell') as HTMLElement;
     const index=cells.indexOf(cell);
     const article=articles[Math.floor(index/copies)];
     const object=elements[Array.from(cell?.children??[]).indexOf(element)];
-    return {articleId:article?.id,articleName:article?.name,articleCode:article?.['code'],elementId:object?.id,elementName:object?.name,pages:[Math.floor(index/capacity)+1]};
+    const page = pages.findIndex(candidate => candidate === cell?.closest('.page'));
+    return {articleId:article?.id,articleName:article?.name,articleCode:article?.['code'],elementId:object?.id,elementName:object?.name,pages:page < 0 ? undefined : [page + 1]};
   };
   // Trigger layout before awaiting the document's font set.
   void doc.body.offsetHeight;

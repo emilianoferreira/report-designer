@@ -6,7 +6,8 @@ import {
   LabelElementType,
   LabelPageConfig,
   LabelPoint,
-  LabelTemplate
+  LabelTemplate,
+  ThermalLabelProfile
 } from '../../../core/models/price-label-template.model';
 import { createDefaultPriceLabelTemplate } from '../data/default-price-label-template';
 import { cloneLabelElement, createLabelElement } from '../utils/price-label-element-factory';
@@ -101,6 +102,15 @@ export class PriceLabelStateService {
       ...current,
       version: current.version + 1,
       page: { ...current.page, ...changes }
+    });
+  }
+
+  setThermalProfile(thermal?: ThermalLabelProfile): void {
+    const { printProfiles, ...current } = this.getCurrentTemplate();
+    this.commitTemplate({
+      ...current,
+      version: current.version + 1,
+      ...(thermal ? { printProfiles: { ...printProfiles, schemaVersion: 1, thermal } } : {})
     });
   }
 

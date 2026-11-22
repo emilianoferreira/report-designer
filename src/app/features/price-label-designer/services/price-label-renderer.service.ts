@@ -1,6 +1,7 @@
 import { LabelDiagnostic } from '../utils/label-diagnostics';
 import { labelPresentation } from '../utils/label-presentation';
 import { templateErrors } from '../utils/label-validation';
+import { LabelPrintLayout, labelPageCount, resolveLabelLayout } from '../utils/label-layout';
 import { Injectable } from '@angular/core';
 import JsBarcode from 'jsbarcode';
 import {
@@ -8,6 +9,7 @@ import {
   LabelElement,
   LabelImageElement,
   LabelPriceElement,
+  LabelPrintProfileId,
   LabelTemplate,
   LabelTextElement,
   PriceLabelArticle,
@@ -23,8 +25,13 @@ export class PriceLabelRendererService {
     return this.diagnose(template, articles, copies, company).map(issue => issue.message);
   }
 
-  diagnose(template: LabelTemplate, articles: PriceLabelArticle[], copies: number, company: PriceLabelCompany): LabelDiagnostic[] {
+  diagnose(template: LabelTemplate, articles: PriceLabelArticle[], copies: number, company: PriceLabelCompany, profile: LabelPrintProfileId = 'sheet'): LabelDiagnostic[] {
+    return this.diagnoseDocument(template, articles, copies, company, resolveLabelLayout(template, profile).error);
+  }
+
+  private diagnoseDocument(template: LabelTemplate, articles: PriceLabelArticle[], copies: number, company: PriceLabelCompany, layoutError?: string): LabelDiagnostic[] {
     const structural = templateErrors(template);
+    if (!structural.length && layoutError) structural.push(layoutError);
     if (structural.length) return structural.map(message => ({severity:'error', code:'template', message}));
     const errors: LabelDiagnostic[] = [];
     let currentElement: LabelElement | undefined;
@@ -56,18 +63,28 @@ export class PriceLabelRendererService {
     template: LabelTemplate,
     articles: PriceLabelArticle[],
     copies: number,
-    company: PriceLabelCompany = { name: '', logo: '', currencySymbol: '$' }
+    company: PriceLabelCompany = { name: '', logo: '', currencySymbol: '$' },
+    profile: LabelPrintProfileId = 'sheet'
   ): string {
-    if (this.validate(template, articles, copies, company).length) return '';
-    const page = template.page;
-    const label = template.label;
-    const safeCopies = Math.max(1, Math.round(copies || 1));
-    const contexts = this.expandContexts(articles, safeCopies, company);
+    return this.prepare(template, articles, copies, company, profile).html;
+  }
 
-    const capacity = label.columns * label.rows;
+  prepare(template: LabelTemplate, articles: PriceLabelArticle[], copies: number, company: PriceLabelCompany, profile: LabelPrintProfileId) {
+    const { layout, error } = resolveLabelLayout(template, profile);
+    const diagnostics = this.diagnoseDocument(template, articles, copies, company, error);
+    const pageCount = layout && !diagnostics.length ? labelPageCount(articles.length * copies, layout.capacity) : 0;
+    const html = layout && pageCount ? this.renderDocument(template, articles, copies, company, layout, pageCount) : '';
+    return { layout, pageCount, html, diagnostics };
+  }
+
+  private renderDocument(template: LabelTemplate, articles: PriceLabelArticle[], copies: number, company: PriceLabelCompany, page: LabelPrintLayout, pageCount: number): string {
+    const label = template.label;
+    const contexts = this.expandContexts(articles, copies, company);
+
     const pages: string[] = [];
-    for (let start = 0; start < contexts.length; start += capacity) {
-      const labels = contexts.slice(start, start + capacity).map(context => this.renderLabel(template, context)).join('');
+    for (let index = 0; index < pageCount; index++) {
+      const start = index * page.capacity;
+      const labels = contexts.slice(start, start + page.capacity).map(context => this.renderLabel(template, context)).join('');
       pages.push('  <main class="page">\n    <section class="labels-grid">\n' + labels + '    </section>\n  </main>');
     }
     return `<!DOCTYPE html>
@@ -89,9 +106,9 @@ export class PriceLabelRendererService {
     .page:last-child { break-after: auto; }
     .labels-grid {
       display: grid;
-      grid-template-columns: repeat(${label.columns}, ${label.width}mm);
+      grid-template-columns: repeat(${page.columns}, ${label.width}mm);
       grid-auto-rows: ${label.height}mm;
-      gap: ${label.gapY}mm ${label.gapX}mm;
+      gap: ${page.gapY}mm ${page.gapX}mm;
       align-content: start;
       justify-content: start;
     }
