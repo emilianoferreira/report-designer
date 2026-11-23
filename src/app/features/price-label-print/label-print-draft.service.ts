@@ -17,7 +17,7 @@ export interface LabelPrintDraft {
 @Injectable({ providedIn: 'root' })
 export class LabelPrintDraftService {
   private sequence = 0;
-  private handoff?: { token: string; companyId: string; userId: string; draft: LabelPrintDraft };
+  private handoff?: { token: string; companyId: string; userId: string; editorTemplateId: string; draft: LabelPrintDraft };
 
   constructor(private auth: AuthService, router: Router) {
     auth.session$.subscribe(session => {
@@ -30,7 +30,7 @@ export class LabelPrintDraftService {
       const url = router.parseUrl(event.urlAfterRedirects);
       const path = url.root.children[PRIMARY_OUTLET]?.segments.map(segment => segment.path).join('/');
       if (url.queryParams['batch'] !== this.handoff.token ||
-          (path !== `price-labels/${this.handoff.draft.templateId}/edit` && path !== 'price-labels/print')) {
+          (path !== `price-labels/${this.handoff.editorTemplateId}/edit` && path !== 'price-labels/print')) {
         this.handoff = undefined;
       }
     });
@@ -40,18 +40,25 @@ export class LabelPrintDraftService {
     const session = this.auth.session;
     if (!session || this.auth.leavingSession || !draft.lines.length) return undefined;
     const token = String(++this.sequence);
-    this.handoff = { token, companyId: session.company_id, userId: session.user.id, draft: structuredClone(draft) };
+    this.handoff = { token, companyId: session.company_id, userId: session.user.id,
+      editorTemplateId: draft.templateId, draft: structuredClone(draft) };
     return token;
   }
 
   canResume(token: string | null, templateId: string | null): boolean {
     return !this.auth.leavingSession && token !== null && token === this.handoff?.token &&
-      templateId === this.handoff.draft.templateId;
+      templateId === this.handoff.editorTemplateId;
+  }
+
+  retarget(token: string, from: string, to: string): void {
+    if (this.handoff && this.canResume(token, from)) this.handoff.editorTemplateId = to;
   }
 
   take(token: string | null, templateId: string): LabelPrintDraft | undefined {
-    if (!this.canResume(token, templateId)) return undefined;
-    const draft = this.handoff?.draft;
+    const handoff = this.handoff;
+    if (!handoff || !this.canResume(token, handoff.editorTemplateId) ||
+        (templateId !== handoff.editorTemplateId && templateId !== handoff.draft.templateId)) return undefined;
+    const draft = handoff.draft;
     this.handoff = undefined;
     return draft;
   }

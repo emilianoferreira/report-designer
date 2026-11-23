@@ -30,19 +30,23 @@ describe('TemplateListComponent', () => {
   it('opens metadata editing',()=>{component.openEditForm(mold);expect(component.editingMold).toBe(mold);expect(component.showForm).toBeTrue();});
   it('closes the creation form only after a successful API save',async()=>{
     component.openNewForm();storage.create.and.resolveTo(mold);
-    await component.onFormSaved({name:'Reporte',documentType:'venta_contado',description:''});
-    expect(storage.create).toHaveBeenCalledWith('Reporte','venta_contado','');expect(component.showForm).toBeFalse();
+    const open = spyOn(component, 'openDesigner').and.resolveTo(true);
+    await component.onFormSaved({name:'Reporte',documentType:'venta_contado',description:'',startingPoint:'a4'});
+    expect(storage.create).toHaveBeenCalledWith('Reporte','venta_contado','','a4');
+    expect(open).toHaveBeenCalledWith(mold);
+    expect(component.showForm).toBeFalse();
   });
   it('keeps the form open when an unauthorized save fails',async()=>{
     component.openNewForm();storage.create.and.rejectWith({status:401});
-    await expectAsync(component.onFormSaved({name:'Reporte',documentType:'venta_contado',description:''})).toBeRejected();
+    await component.onFormSaved({name:'Reporte',documentType:'venta_contado',description:'',startingPoint:'a4'});
     expect(component.showForm).toBeTrue();
+    expect(component.catalogError).toBeTruthy();
   });
   it('keeps delete confirmation when the API rejects deletion',async()=>{
     component.requestDelete(mold);storage.delete.and.rejectWith({status:403});
     await expectAsync(component.confirmDelete()).toBeRejected();expect(component.confirmDeleteId).toBe(mold.id);
     component.cancelDelete();expect(component.confirmDeleteId).toBeNull();
   });
-  it('duplicates through the authenticated store',async()=>{storage.duplicate.and.resolveTo(mold);await component.duplicateMold(mold);expect(storage.duplicate).toHaveBeenCalledWith(mold.id);});
+  it('duplicates through the authenticated store',async()=>{storage.duplicate.and.resolveTo(mold);spyOn(component,'openDesigner').and.resolveTo(true);await component.duplicateMold(mold);expect(storage.duplicate).toHaveBeenCalledWith(mold.id);});
   it('formats document type labels and dates',()=>{expect(component.getDocTypeLabel('venta_contado')).toBe('Venta Contado');expect(component.formatDate(mold.createdAt)).toBeTruthy();});
 });

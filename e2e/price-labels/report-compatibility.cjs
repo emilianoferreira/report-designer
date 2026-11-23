@@ -27,6 +27,12 @@ const assert=require('node:assert/strict');
   if(format==='report-ticket-80')assert.ok(html.includes('size: auto;'));
   const download=page.waitForEvent('download');await page.getByRole('button',{name:'HTML z-code',exact:true}).first().click();
   const exported=fs.readFileSync(await (await download).path(),'utf8');assert.ok(exported.includes('z-code="true"'));
+  await page.getByRole('button',{name:'15 artículos',exact:true}).click();
+  const rows=preview.locator(format==='report-a4'?'.detail-table tbody tr':'.ticket-item');
+  await expect(rows).toHaveCount(15);
+  await expect(page.getByRole('button',{name:'1 artículo',exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'Volver a 1 artículo',exact:true}).click();
+  await expect(rows).toHaveCount(1);
   assert.deepEqual(errors,[]);await page.close();
  }
  console.log('PASS: A4 and 80 mm ticket preview, five articles and Zureo HTML export remain independent of label printing.');

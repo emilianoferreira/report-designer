@@ -53,7 +53,8 @@ describe('MoldFormComponent', () => {
     expect(emitted).toEqual({
       name: 'Test Name',
       documentType: 'remito',
-      description: 'Test Desc'
+      description: 'Test Desc',
+      startingPoint: 'a4'
     });
   });
 

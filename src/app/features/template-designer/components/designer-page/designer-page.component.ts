@@ -54,8 +54,10 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
   isDirty = false;
 
   /** Save feedback */
-  showSaveToast = false;
-  private saveToastTimer: any;
+  saving = false;
+  saveMessage = '';
+  private destroyed = false;
+  private saveToastTimer?: ReturnType<typeof setTimeout>;
 
   /** Panel collapse state */
   leftPanelCollapsed = false;
@@ -123,6 +125,7 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.templateSub?.unsubscribe();
     if (this.saveToastTimer) clearTimeout(this.saveToastTimer);
   }
@@ -130,12 +133,12 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
   // ─── Unsaved changes protection ───
 
   hasUnsavedChanges(): boolean {
-    return this.isDirty;
+    return !this.auth.leavingSession && (this.isDirty || this.saving);
   }
 
   @HostListener('window:beforeunload', ['$event'])
   onBeforeUnload(event: BeforeUnloadEvent): void {
-    if (this.isDirty && !this.auth.leavingSession) {
+    if (this.hasUnsavedChanges()) {
       event.preventDefault();
       // Modern browsers show a generic message, but returnValue is required
       event.returnValue = '';
@@ -145,22 +148,31 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
   // ─── Save ───
 
   async saveTemplate(): Promise<void> {
-    if (!this.currentMold) return;
-    const template = this.templateState.getCurrentTemplate();
-    const updated = await this.templateStorage.saveTemplate(this.currentMold.id, template).catch(() => undefined);
-    if (updated) {
+    if (!this.currentMold || this.saving || !this.isDirty) return;
+    const id = this.currentMold.id;
+    const sentJson = JSON.stringify(this.templateState.getCurrentTemplate());
+    this.saving = true;
+    clearTimeout(this.saveToastTimer);
+    this.saveMessage = '';
+    try {
+      const updated = await this.templateStorage.saveTemplate(id, JSON.parse(sentJson));
+      if (this.destroyed || this.currentMold?.id !== id) return;
+      if (updated?.id !== id) throw new Error('Unconfirmed report save');
       this.currentMold = updated;
-      this.initialTemplateJson = JSON.stringify(template);
-      this.isDirty = false;
-
-      // Show toast
-      this.showSaveToast = true;
-      this.cdr.markForCheck();
-      if (this.saveToastTimer) clearTimeout(this.saveToastTimer);
+      this.initialTemplateJson = sentJson;
+      this.isDirty = JSON.stringify(this.templateState.getCurrentTemplate()) !== sentJson;
+      this.saveMessage = this.isDirty ? 'Guardado. Hay cambios posteriores pendientes.' : 'Guardado correctamente';
       this.saveToastTimer = setTimeout(() => {
-        this.showSaveToast = false;
+        this.saveMessage = '';
         this.cdr.markForCheck();
       }, 2000);
+    } catch {
+      if (!this.destroyed && this.currentMold?.id === id) {
+        this.saveMessage = 'No se pudo guardar el molde. Tu edición se conserva.';
+      }
+    } finally {
+      this.saving = false;
+      if (!this.destroyed) this.cdr.markForCheck();
     }
   }
 

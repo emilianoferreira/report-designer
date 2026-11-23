@@ -6,7 +6,8 @@ import { AuthService } from './core/auth/auth.service';
 import { TemplateStorageService } from './features/template-designer/services/template-storage.service';
 
 const authenticated: CanActivateFn = () => inject(AuthService).session ? true : inject(Router).createUrlTree(['/login']);
-const reportLoaded: CanActivateFn = () => inject(TemplateStorageService).ready.then(() => true);
+const reportLoaded: CanActivateFn = route =>
+  inject(TemplateStorageService).readyForEditor(route.paramMap.get('id')!).then(() => true);
 const canOpenLabelDesigner: CanActivateFn = route => route.paramMap.has('id') || inject(AuthService).session?.role === 'editor' || inject(Router).createUrlTree(['/templates/labels']);
 const legacyCatalogFilter: CanActivateFn = route => route.queryParamMap.get('type') !== 'price-label' ||
   inject(Router).createUrlTree(['/templates/labels']);

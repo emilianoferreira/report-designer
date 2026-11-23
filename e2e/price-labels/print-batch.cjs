@@ -61,7 +61,9 @@ const fs = require('node:fs');
      return route.fulfill({status:201,json:copy});
    }
    if (method === 'PUT' && p.endsWith('/design')) {
-     assert.equal(route.request().headers()['if-match'], JSON.stringify(String(mold.version)));
+     if (route.request().headers()['if-match'] !== JSON.stringify(String(mold.version))) {
+       return route.fulfill({status:409,json:{}});
+     }
      const updated = { ...mold, ...route.request().postDataJSON(), version: mold.version + 1 };
      createdMolds.set(moldId, updated);
      return route.fulfill({json:updated});
@@ -475,5 +477,30 @@ const fs = require('node:fs');
    await expect(search).toBeFocused();
    console.log('PASS: guided setup to export by keyboard at ' + width + '×' + height + '.');
  }
+ page.once('dialog', dialog => dialog.accept());
+ await page.goto('http://review.test/price-labels/print?templateId=created-1');
+ await page.getByLabel('Lista de precios').selectOption('b');
+ await search.fill('CODE'); await search.press('Enter');
+ for (const code of ['CODE1', 'CODE2']) await page.getByRole('button', { name: 'Agregar ' + code, exact: true }).click();
+ const copies = page.getByLabel('Cantidad de Artículo 1', { exact: true });
+ await copies.fill('2'); await copies.press('Tab');
+ await expect(frame.locator('.label-cell')).toHaveCount(3);
+ await page.getByRole('button', { name: 'Abrir molde', exact: true }).click();
+ await expect(page.getByRole('button', { name: 'Volver al lote', exact: true })).toBeVisible();
+ createdMolds.get('created-1').version++;
+ await page.locator('.price-content').click();
+ await page.locator('app-price-label-properties').getByRole('button', { name: 'Datos', exact: true }).click();
+ await page.getByLabel('Prefijo', { exact: true }).fill('COPIA ');
+ await page.getByLabel('Prefijo', { exact: true }).press('Tab');
+ await page.getByRole('button', { name: 'Guardar y volver al lote', exact: true }).click();
+ await page.getByRole('button', { name: 'Guardar borrador como copia', exact: true }).click();
+ await expect(page).toHaveURL(/\/price-labels\/created-(?!1\/)[^/]+\/edit\?batch=\d+$/);
+ await page.getByRole('button', { name: 'Volver al lote', exact: true }).click();
+ await expect(page.getByLabel('Lista de precios')).toHaveValue('b');
+ await expect(copies).toHaveValue('2');
+ await expect(page.getByLabel('Cantidad de Artículo 2', { exact: true })).toHaveValue('1');
+ await expect(frame.locator('.label-cell')).toHaveCount(3);
+ await expect(frame.locator('.label-price').first()).toContainText('COPIA $ 80,50');
+ console.log('PASS: conflict copy retains the batch and previews the new saved mold.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

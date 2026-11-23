@@ -8,12 +8,18 @@ import { createReportStartingPoint, ReportStartingPoint } from '../data/blank-re
 
 @Injectable({ providedIn: 'root' })
 export class TemplateStorageService {
+  private readonly pendingDesignSaves = new Map<string, Promise<TemplateMold | undefined>>();
   private moldsSubject = new BehaviorSubject<TemplateMold[]>([]);
   readonly molds$ = this.moldsSubject.asObservable();
   readonly error$ = new BehaviorSubject('');
   readonly ready: Promise<void>;
   constructor(private http: HttpClient, private auth: AuthService) { this.ready = this.init(); }
   async refresh(): Promise<void> { await this.init(); }
+  async readyForEditor(id: string): Promise<void> {
+    await this.ready;
+    // On failure the cache still contains the last confirmed design.
+    await this.pendingDesignSaves.get(id)?.catch(() => undefined);
+  }
   private async init(): Promise<void> {
     try {
       const rows = await firstValueFrom(this.http.get<any[]>('/api/templates'));
@@ -44,11 +50,16 @@ export class TemplateStorageService {
   }
   async saveTemplate(id: string, template: ReportTemplate): Promise<TemplateMold | undefined> {
     const mold = this.getById(id);
-    if (!mold) return undefined;
-    const row = await firstValueFrom(this.http.put<any>('/api/templates/' + id + '/design', {
+    if (!mold || this.pendingDesignSaves.has(id)) return undefined;
+    const save = firstValueFrom(this.http.put<any>('/api/templates/' + id + '/design', {
       template_json: { documentType: mold.documentType, template }
-    }));
-    return this.replace(this.apiToMold(row));
+    })).then(row => row?.id === id ? this.replace(this.apiToMold(row)) : undefined);
+    this.pendingDesignSaves.set(id, save);
+    try {
+      return await save;
+    } finally {
+      this.pendingDesignSaves.delete(id);
+    }
   }
   async delete(id: string): Promise<boolean> {
     await firstValueFrom(this.http.delete('/api/templates/' + id));

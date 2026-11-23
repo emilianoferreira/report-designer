@@ -50,9 +50,10 @@
           [class.has-changes]="isDirty"
           (click)="saveTemplate()"
           [disabled]="!isDirty"
+          [attr.aria-busy]="saving"
           title="Guardar cambios en el molde"
         >
-          Guardar
+          {{ saving ? 'Guardando…' : 'Guardar' }}
         </button>
       }
       <button class="header-btn info-btn" (click)="toggleHelp()" title="Documentación y ayuda del diseñador">
@@ -335,7 +336,7 @@
   </div>
 
   <!-- Save toast notification -->
-  @if (showSaveToast) {
-    <div class="save-toast">Guardado correctamente</div>
+  @if (saveMessage) {
+    <div class="save-toast" role="status">{{ saveMessage }}</div>
   }
 </div>
