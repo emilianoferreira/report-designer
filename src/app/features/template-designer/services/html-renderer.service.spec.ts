@@ -279,6 +279,13 @@ describe('HtmlRendererService', () => {
       expect(html).toContain('Articulo 1');
     });
 
+    it('only wraps unbroken descriptions in resolved thermal reports', () => {
+      const wrapRule = /\.ticket-item-name\s*\{[^}]*overflow-wrap: anywhere;/;
+      expect(service.renderPreview(ticketTemplate, SAMPLE_INVOICE_DATA)).toMatch(wrapRule);
+      expect(service.renderPreview(template, SAMPLE_INVOICE_DATA)).not.toMatch(wrapRule);
+      expect(service.exportAsZureoTemplate(ticketTemplate)).not.toMatch(wrapRule);
+    });
+
     it('should render article date when available', () => {
       const html = service.renderPreview(ticketTemplate, SAMPLE_INVOICE_DATA);
       // Date rendering depends on timezone; just check for ticket-item-date class and year

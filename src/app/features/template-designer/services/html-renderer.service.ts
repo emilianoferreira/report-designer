@@ -309,7 +309,7 @@ ${footerHtml}
     }
     .ticket-item-name {
       font-size: ${defaultFont.size}pt;
-      line-height: 1.3;
+      line-height: 1.3;${opts.resolveData && this.isTicketFormat(template) ? '\n      overflow-wrap: anywhere;' : ''}
     }
     .ticket-item-date {
       font-size: ${Math.max(defaultFont.size - 1, 7)}pt;
