@@ -155,7 +155,8 @@ export class TemplateListComponent implements OnInit, OnDestroy {
         try {
           const latest = await this.storage.fetch(this.editingMold.id);
           this.metadataRevision = latest.revision;
-          this.catalogError += ' Versión actual: ' + latest.name + '. Descripción: ' +
+          this.catalogError += ' Versión actual: ' + latest.name + '. Tipo: ' +
+            this.getDocTypeLabel(latest.documentType) + '. Descripción: ' +
             (latest.description || '(vacía)') + '. Revisá tus cambios antes de volver a guardar.';
         } catch {
           this.catalogError += ' No se pudo consultar la versión actual.';
