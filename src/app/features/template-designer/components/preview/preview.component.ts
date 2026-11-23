@@ -58,9 +58,10 @@ export class PreviewComponent implements OnInit, OnDestroy {
   previewReady = false;
   private injectionVersion = 0;
   private preparation?: Promise<Document | undefined>;
+  private preparedDocument?: Document;
   paginationPending?: string;
   private preparedPages: Element[] = [];
-  paginatedHtml = '';
+  preparedHtml = '';
   @Output() readonly showDesign = new EventEmitter<void>();
   fiscalSample = false;
   renderedReport?: RenderedFiscalReport;
@@ -91,6 +92,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   currentPage = 1;
   sampleSize = 0;
   get pageCount(): number { return this.preparedPages.length; }
+  get outputReady(): boolean { return this.previewReady && !this.paginationPending; }
 
   showPage(index: number): void {
     const page = this.preparedPages[index - 1];
@@ -149,11 +151,13 @@ export class PreviewComponent implements OnInit, OnDestroy {
     this.preparedPages = [];
     this.currentPage = 1;
     this.previewReady = false;
+    this.paginationPending = undefined;
     this.renderedReport = undefined;
     this.feedback = undefined;
     this.fiscalContext = undefined;
     this.reportPending = true;
-    this.paginatedHtml = '';
+    this.preparedDocument = undefined;
+    this.preparedHtml = '';
     this.printMessage = '';
     this.cdr.markForCheck();
   }
@@ -163,14 +167,12 @@ export class PreviewComponent implements OnInit, OnDestroy {
   // ─────────────────────────────────────────────────────────────────
 
   /**
-   * Recompute all 4 output formats and (if in render mode) inject HTML
+   * Recompute the output formats and inject the resolved HTML
    * into the iframe. Called on init, on template change, and when the
    * sample data toggle flips.
    */
   renderPreview(): void {
     this.invalidateReport();
-    this.paginationPending = undefined;
-    this.paginatedHtml = '';
     this.printMessage = '';
     const template = this.templateState.getCurrentTemplate();
     const data = this.getActiveData();
@@ -189,10 +191,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
     this.templateHtml = this.renderer.exportAsZureoTemplate(template);
     this.templateJson = JSON.stringify(template, null, 2);
 
-    // Inject into iframe only if currently in render view
-    if (this.viewMode === 'render') {
-      this.injectIframe();
-    } else this.reportPending = false;
+    this.injectIframe();
 
     this.cdr.markForCheck();
   }
@@ -240,13 +239,16 @@ export class PreviewComponent implements OnInit, OnDestroy {
     this.paginationPending = prepared.paginationPending;
     this.preparedPages = Array.from(doc.querySelectorAll('body > .page'));
     this.pageHeightPx = measureRenderSurface(doc, mmToPx(template.page.height), template.page.dynamicHeight);
-    if (doc.querySelector('[data-render-page], [data-roll-paper-size]')) {
-      this.paginatedHtml = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+    if (this.outputReady) {
+      this.preparedDocument = doc;
+      this.preparedHtml = this.serializeDocument(doc);
+    } else if (!prepared.resourcesReady) {
+      this.printMessage = 'No se pudo preparar la salida. Revisá las fuentes e imágenes y volvé a intentarlo.';
     }
     this.renderedReport = prepared.report;
     this.feedback = buildValidationFeedback(context, prepared.report, snapshot, this.currentSnapshot());
     this.reportPending = false;
-    if (this.validation?.requestedPage) {
+    if (this.viewMode === 'render' && this.validation?.requestedPage) {
       this.showPage(this.validation.requestedPage);
       this.validation.requestedPage = undefined;
     }
@@ -254,21 +256,8 @@ export class PreviewComponent implements OnInit, OnDestroy {
     return doc;
   }
 
-  /**
-   * Switch the preview body between Render / HTML / JSON views.
-   * When returning to Render, re-inject the iframe (it was destroyed by *ngIf).
-   */
   setViewMode(mode: PreviewViewMode): void {
-    if (mode !== 'render') {
-      this.injectionVersion++;
-      this.preparedPages = [];
-      this.renderedReport = undefined; this.feedback = undefined;
-      this.reportPending = false; this.previewReady = false;
-    }
     this.viewMode = mode;
-    if (mode === 'render') {
-      this.injectIframe();
-    }
     this.cdr.markForCheck();
   }
 
@@ -312,6 +301,30 @@ export class PreviewComponent implements OnInit, OnDestroy {
     return JSON.stringify({ template: this.templateState.getCurrentTemplate(), data: this.getActiveData() });
   }
 
+  private currentPreparedDocument(): Document | undefined {
+    const doc = this.preparedDocument;
+    return this.outputReady && doc && doc === this.previewFrame?.nativeElement.contentDocument &&
+      this.renderInputSnapshot === this.currentSnapshot() &&
+      doc.fonts.status === 'loaded' &&
+      Array.from(doc.images).every(image => image.complete && image.naturalWidth > 0)
+      ? doc : undefined;
+  }
+
+  private serializeDocument(doc: Document): string {
+    return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+  }
+
+  private documentForHtmlOutput(): Document | undefined {
+    const doc = this.currentPreparedDocument();
+    if (!doc && !this.reportPending && !this.paginationPending) {
+      this.previewReady = false;
+      this.preparedHtml = '';
+      this.printMessage = 'Volvé a preparar la salida antes de descargar o copiar el HTML.';
+      this.cdr.markForCheck();
+    }
+    return doc;
+  }
+
   private refreshFiscalReport(doc: Document): RenderedFiscalReport | undefined {
     if (this.renderInputSnapshot !== this.currentSnapshot() || !this.renderEvidence || !this.fiscalContext) return undefined;
     const resourcesReady = this.previewReady && doc.fonts.status === 'loaded' &&
@@ -337,18 +350,28 @@ export class PreviewComponent implements OnInit, OnDestroy {
   }
 
   async printPreview(): Promise<void> {
-    if (this.printing) return;
+    if (this.printing || this.paginationPending) return;
     this.printing = true;
     this.printMessage = '';
     try {
       if (!this.fiscalContext || this.renderInputSnapshot !== this.currentSnapshot()) this.renderPreview();
-      if (this.viewMode !== 'render') this.setViewMode('render');
+      if (this.viewMode !== 'render') {
+        this.setViewMode('render');
+        this.cdr.detectChanges();
+      }
       const snapshot = this.renderInputSnapshot;
       const version = this.injectionVersion;
       const doc = await this.preparation;
       if (version !== this.injectionVersion || snapshot !== this.currentSnapshot() ||
           !doc || doc !== this.previewFrame?.nativeElement.contentDocument) {
         this.printMessage = 'La vista cambió mientras se preparaba. Volvé a imprimir desde la vista actual.';
+        return;
+      }
+      if (this.paginationPending) return;
+      if (doc !== this.currentPreparedDocument()) {
+        this.previewReady = false;
+        this.preparedHtml = '';
+        this.printMessage = 'No se pudo preparar la salida. Revisá las fuentes e imágenes y volvé a intentarlo.';
         return;
       }
       const report = this.refreshFiscalReport(doc);
@@ -378,7 +401,8 @@ export class PreviewComponent implements OnInit, OnDestroy {
   // ─────────────────────────────────────────────────────────────────
 
   exportHtmlRendered(): void {
-    this.downloadBlob(this.paginatedHtml || this.previewHtml, this.fileName('html'), 'text/html');
+    const doc = this.documentForHtmlOutput();
+    if (doc) this.downloadBlob(this.serializeDocument(doc), this.fileName('html'), 'text/html');
   }
 
   exportHtmlTemplate(): void {
@@ -409,8 +433,9 @@ export class PreviewComponent implements OnInit, OnDestroy {
   // Copy — to clipboard
   // ─────────────────────────────────────────────────────────────────
 
-  copyHtmlRendered(): Promise<void> {
-    return this.copyToClipboard(this.paginatedHtml || this.previewHtml);
+  async copyHtmlRendered(): Promise<void> {
+    const doc = this.documentForHtmlOutput();
+    if (doc) await this.copyToClipboard(this.serializeDocument(doc));
   }
 
   copyHtmlTemplate(): Promise<void> {
