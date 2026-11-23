@@ -371,6 +371,7 @@ export const DOCUMENT_TYPE_LABELS: Record<CompanyDocumentType, string> = {
 
 export interface TemplateMold {
   id: string;
+  revision?: number;
   name: string;
   documentType: CompanyDocumentType;
   description: string;

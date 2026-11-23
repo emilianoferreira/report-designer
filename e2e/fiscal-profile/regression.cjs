@@ -10,7 +10,7 @@ const assert = require('node:assert/strict');
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     page.on('dialog', dialog => dialog.accept());
-    let row = { ...JSON.parse(fs.readFileSync('e2e/stage0/fixtures/report-a4.json', 'utf8')), id: 'fiscal-review' };
+    let row = { ...JSON.parse(fs.readFileSync('e2e/stage0/fixtures/report-a4.json', 'utf8')), id: 'fiscal-review', version: 1 };
     const original = structuredClone(row.template_json.template);
     let saves = 0;
     let adviceRequests = 0;
@@ -40,7 +40,8 @@ const assert = require('node:assert/strict');
       }
       if (path === `/api/templates/${row.id}/design` && route.request().method() === 'PUT') {
         saves++;
-        row = { ...row, ...route.request().postDataJSON() };
+        assert.equal(route.request().headers()['if-match'], JSON.stringify(String(row.version)));
+        row = { ...row, ...route.request().postDataJSON(), version: row.version + 1 };
         return route.fulfill({ json: row });
       }
       return route.fulfill({ status: 404, json: { message: 'Unexpected review request' } });

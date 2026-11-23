@@ -49,7 +49,7 @@
           class="header-btn save-btn"
           [class.has-changes]="isDirty"
           (click)="saveTemplate()"
-          [disabled]="!isDirty"
+          [disabled]="!isDirty || conflict"
           [attr.aria-busy]="saving"
           title="Guardar cambios en el molde"
         >
@@ -61,6 +61,17 @@
       </button>
     </div>
   </header>
+
+  @if (conflict) {
+    <div>
+      <p role="alert">El molde cambió en el servidor o su revisión no está disponible. Tu borrador se conservó.</p>
+      <button type="button" [disabled]="saving" (click)="reloadTemplate()">Recargar versión del servidor</button>
+      <button type="button" [disabled]="saving" (click)="saveCopy()">Guardar borrador como copia</button>
+      @if (savedCopyId) {
+        <a [routerLink]="['/designer', savedCopyId]" target="_blank" rel="noopener">Abrir copia en otra pestaña</a>
+      }
+    </div>
+  }
 
   <!-- ─── Help Modal ─── -->
   @if (showHelp) {

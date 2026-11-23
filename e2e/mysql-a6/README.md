@@ -1,6 +1,6 @@
 # A6 — validación funcional MySQL
 
-Desde la raíz, compilar Angular y las herramientas .NET según A5 y ejecutar:
+Desde la raíz del checkout de la rama candidata, compilar Angular y las herramientas .NET según A5 y ejecutar:
 
 ```powershell
 node e2e/mysql-a6/run.mjs
@@ -17,9 +17,9 @@ API autenticada → InvoiceData → HtmlRendererService con datos reales y compa
 HTML/PNG/páginas PDF se ejecuta dentro de A5.
 
 No cambia configuración por defecto, snapshots, persistencia ni contratos.
-Los resultados y errores completos permanecen en e2e/test-results; sólo evidencia
-sintética y resultados sanitizados se copian a evidence. No versionar dumps,
-cookies, credenciales ni logs completos de API. El runner compartido verifica
-propiedad del contenedor antes de retirarlo y conserva el respaldo básico local.
+Cada ejecución guarda su resumen `a6-run.json` en el directorio único de A5 bajo
+`e2e/test-results`. El runner usa un contenedor MySQL nuevo publicado en loopback
+y comprueba su etiqueta de propiedad antes de usarlo y antes de retirarlo.
+El respaldo queda en el directorio local de resultados.
 No compilar mientras la API está ejecutándose. No iniciar los scripts de corte
 productivo ni limpiar recursos ajenos.

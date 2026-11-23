@@ -7,7 +7,7 @@ import { createDefaultTemplate } from '../data/default-template';
 describe('TemplateStorageService authenticated persistence', () => {
   let service: TemplateStorageService;
   let http: HttpTestingController;
-  const row = () => ({ id:'owned', company_id:'company-a', nombre:'Reporte', descripcion:'',
+  const row = () => ({ id:'owned', company_id:'company-a', nombre:'Reporte', descripcion:'', version:null,
     template_json:{documentType:'venta_contado',template:createDefaultTemplate()} });
   beforeEach(() => {
     localStorage.setItem('zureo_template_molds', JSON.stringify([{id:'private',name:'Private cache'}]));
@@ -19,9 +19,11 @@ describe('TemplateStorageService authenticated persistence', () => {
   it('round trips legacy JSON without injecting fiscal defaults', async () => {
     const original = row();
     http.expectOne('/api/templates').flush([original]); await service.ready;
-    const pending = service.saveTemplate('owned', service.getById('owned')!.template);
+    const mold = service.getById('owned')!;
+    const pending = service.saveTemplate(mold, mold.template);
     const request = http.expectOne('/api/templates/owned/design');
     expect(request.request.body.template_json).toEqual(original.template_json);
+    expect(request.request.headers.get('If-Match')).toBe('"0"');
     expect('compliance' in request.request.body.template_json.template).toBeFalse();
     request.flush(original); await pending;
   });
@@ -33,7 +35,8 @@ describe('TemplateStorageService authenticated persistence', () => {
     Object.assign(template.compliance, { futureOption: { keep: true } });
     Object.assign(template, { futureExtension: { keep: true } });
     http.expectOne('/api/templates').flush([original]); await service.ready;
-    const pending = service.saveTemplate('owned', service.getById('owned')!.template);
+    const mold = service.getById('owned')!;
+    const pending = service.saveTemplate(mold, mold.template);
     const request = http.expectOne('/api/templates/owned/design');
     expect(request.request.body.template_json.template).toEqual(template);
     expect(request.request.body.template_json.template.fiscal).toBeUndefined();
@@ -54,7 +57,7 @@ describe('TemplateStorageService authenticated persistence', () => {
   });
   it('preserves the in-memory document and the error when saving is unauthorized', async () => {
     const original=row();http.expectOne('/api/templates').flush([original]);await service.ready;
-    const pending=service.saveTemplate('owned',createDefaultTemplate());
+    const pending=service.saveTemplate(service.getById('owned')!,createDefaultTemplate());
     const rejected=expectAsync(pending).toBeRejected();
     http.expectOne('/api/templates/owned/design').flush({}, {status:401,statusText:'Unauthorized'});
     await rejected;expect(service.getById('owned')!.template).toEqual(original.template_json.template);
@@ -68,7 +71,7 @@ describe('TemplateStorageService authenticated persistence', () => {
   });
   it('does not remove a document from memory when deletion fails', async () => {
     http.expectOne('/api/templates').flush([row()]);await service.ready;
-    const pending=service.delete('owned');const rejected=expectAsync(pending).toBeRejected();
+    const pending=service.delete('owned',0);const rejected=expectAsync(pending).toBeRejected();
     http.expectOne('/api/templates/owned').flush({}, {status:403,statusText:'Forbidden'});
     await rejected;expect(service.getById('owned')).toBeDefined();
   });

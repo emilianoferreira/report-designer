@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
-import {mkdir,writeFile,readFile} from 'node:fs/promises';
+import {writeFile,readFile} from 'node:fs/promises';
+import path from 'node:path';
 import {runA5} from '../mysql-a5/run.mjs';
 import {checkBrowser} from '../mysql-a4/browser.mjs';
 import {login,call} from '../stage8/check-security.mjs';
 import {B} from '../stage8/check-security.mjs';
 import {expect} from '@playwright/test';
+import {checkReportSaveConflict} from '../report-save-conflicts.mjs';
 const root=process.cwd(),checks=[];
 const {directory,report}=await runA5({verify:async({mysql,directory})=>{
  const identity=await login(mysql.urls[0],mysql.users.alice),reportIds={};
@@ -48,13 +50,17 @@ const {directory,report}=await runA5({verify:async({mysql,directory})=>{
  const target=rows.find(x=>x.id===reportIds[key]);
  assert.ok(target,'report fixture available');await page.goto(origin+'/designer/'+target.id);await page.locator('app-design-canvas').waitFor();
  const count=await page.locator('.element-wrapper').count();assert.ok(count>0);await page.locator('.element-wrapper').first().click();await page.keyboard.press('Delete');
- pending=response('PUT','/design');await page.getByRole('button',{name:'Guardar',exact:true}).click();r=await pending;assert.equal(r.status(),200);assert.equal(await r.request().headerValue('if-match'),null,'report editor retains legacy write contract');
+ pending=response('PUT','/design');await page.getByRole('button',{name:'Guardar',exact:true}).click();r=await pending;assert.equal(r.status(),200);assert.equal(await r.request().headerValue('if-match'),JSON.stringify(String(target.version ?? 0)));
  await page.reload();await expect(page.locator('.element-wrapper')).toHaveCount(count-1);
  await page.getByRole('button',{name:'Vista Previa',exact:true}).click();await expect(page.getByText('Preparación de la vista previa · carga finalizada')).toBeVisible();await expect(page.frameLocator('iframe').locator('body')).toContainText(/\S/);await page.screenshot({path:directory+'/a6-'+key+'-web.png',fullPage:true});
  }
- checks.push('Angular A4 and ticket edit legacy save reload and sample preview; real invoice data renderer covered separately by A5');
+ checks.push('Angular A4 and ticket revision-checked save reload and sample preview');
+ const conflictFixture=JSON.parse(await readFile('e2e/stage0/fixtures/report-a4.json','utf8'));
+ const conflictReport=await call(mysql.urls[0],identity,'POST','/api/templates',conflictFixture,201);
+ await checkReportSaveConflict(page,origin,conflictReport);
+ checks.push('Angular two-tab stale report save, recovery copy, and reload on MySQL');
  assert.deepEqual(errors,[]);checks.push('no browser page errors');await page.goto(origin+'/templates');
  }});
 }});
-await mkdir('e2e/mysql-a6/evidence',{recursive:true});await writeFile('e2e/mysql-a6/evidence/run.json',JSON.stringify({passed:report.passed,directory,checks,functional:report.functional},null,2));
+await writeFile(path.join(directory,'a6-run.json'),JSON.stringify({passed:report.passed,directory,checks,functional:report.functional},null,2));
 console.log('A6 passed: '+directory);

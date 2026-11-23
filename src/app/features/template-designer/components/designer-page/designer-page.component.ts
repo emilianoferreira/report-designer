@@ -8,7 +8,8 @@ import { DesignValidationComponent } from '../design-validation/design-validatio
  */
 import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { DesignCanvasComponent } from '../design-canvas/design-canvas.component';
 import { ToolboxComponent } from '../toolbox/toolbox.component';
@@ -32,6 +33,7 @@ type ViewMode = 'design' | 'preview' | 'fiscal' | 'results';
   imports: [
     DesignValidationComponent,
     CommonModule,
+    RouterLink,
     DesignCanvasComponent,
     ToolboxComponent,
     PropertiesPanelComponent,
@@ -55,6 +57,8 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
 
   /** Save feedback */
   saving = false;
+  conflict = false;
+  savedCopyId?: string;
   saveMessage = '';
   private destroyed = false;
   private saveToastTimer?: ReturnType<typeof setTimeout>;
@@ -99,12 +103,7 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
     if (moldId) {
       const mold = this.templateStorage.getById(moldId);
       if (mold) {
-        this.currentMold = mold;
-        this.templateName = mold.name;
-        this.templateState.clearHistory();
-        this.templateState.setTemplate(mold.template);
-        this.templateState.clearHistory(); // clear the setTemplate push from undo stack
-        this.initialTemplateJson = JSON.stringify(mold.template);
+        this.loadMold(mold);
       } else {
         // Mold not found — redirect to list
         this.router.navigate(['/templates']);
@@ -122,6 +121,17 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
       this.templateName = this.currentMold?.name || template.metadata.name;
       this.cdr.markForCheck();
     });
+  }
+
+  private loadMold(mold: TemplateMold): void {
+    this.currentMold = mold;
+    this.templateName = mold.name;
+    this.initialTemplateJson = JSON.stringify(mold.template);
+    this.conflict = false;
+    this.savedCopyId = undefined;
+    this.selection.selectMultiple([], 'header');
+    this.templateState.setTemplate(mold.template);
+    this.templateState.clearHistory();
   }
 
   ngOnDestroy(): void {
@@ -148,16 +158,21 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
   // ─── Save ───
 
   async saveTemplate(): Promise<void> {
-    if (!this.currentMold || this.saving || !this.isDirty) return;
-    const id = this.currentMold.id;
+    const mold = this.currentMold;
+    if (!mold || this.saving || this.conflict || !this.isDirty) return;
+    if (mold.revision === undefined) {
+      this.saveMessage = 'No se pudo comprobar la revisión del molde. Recargá la página antes de guardar.';
+      this.conflict = true;
+      return;
+    }
     const sentJson = JSON.stringify(this.templateState.getCurrentTemplate());
     this.saving = true;
     clearTimeout(this.saveToastTimer);
     this.saveMessage = '';
     try {
-      const updated = await this.templateStorage.saveTemplate(id, JSON.parse(sentJson));
-      if (this.destroyed || this.currentMold?.id !== id) return;
-      if (updated?.id !== id) throw new Error('Unconfirmed report save');
+      const updated = await this.templateStorage.saveTemplate(mold, JSON.parse(sentJson));
+      if (this.destroyed || this.currentMold !== mold) return;
+      if (updated?.id !== mold.id) throw new Error('Unconfirmed report save');
       this.currentMold = updated;
       this.initialTemplateJson = sentJson;
       this.isDirty = JSON.stringify(this.templateState.getCurrentTemplate()) !== sentJson;
@@ -166,10 +181,53 @@ export class DesignerPageComponent implements OnInit, OnDestroy, HasUnsavedChang
         this.saveMessage = '';
         this.cdr.markForCheck();
       }, 2000);
-    } catch {
-      if (!this.destroyed && this.currentMold?.id === id) {
-        this.saveMessage = 'No se pudo guardar el molde. Tu edición se conserva.';
+    } catch (error) {
+      if (!this.destroyed && this.currentMold === mold) {
+        this.conflict = error instanceof HttpErrorResponse && error.status === 409;
+        if (!this.conflict) this.saveMessage = 'No se pudo guardar el molde. Tu edición se conserva.';
       }
+    } finally {
+      this.saving = false;
+      if (!this.destroyed) this.cdr.markForCheck();
+    }
+  }
+
+  async reloadTemplate(): Promise<void> {
+    const mold = this.currentMold;
+    if (!mold || this.saving || !confirm('¿Descartar el borrador y recargar la versión del servidor?')) return;
+    const draftJson = JSON.stringify(this.templateState.getCurrentTemplate());
+    this.saving = true;
+    this.saveMessage = '';
+    try {
+      const latest = await this.templateStorage.fetch(mold.id);
+      if (this.destroyed || this.currentMold !== mold) return;
+      if (JSON.stringify(this.templateState.getCurrentTemplate()) === draftJson) {
+        this.loadMold(latest);
+      } else {
+        this.saveMessage = 'Hay cambios nuevos. Tu borrador se conservó.';
+      }
+    } catch {
+      if (!this.destroyed) this.saveMessage = 'No se pudo recargar. Tu borrador se conservó.';
+    } finally {
+      this.saving = false;
+      if (!this.destroyed) this.cdr.markForCheck();
+    }
+  }
+
+  async saveCopy(): Promise<void> {
+    const mold = this.currentMold;
+    if (!mold || this.saving || !this.conflict) return;
+    const draftJson = JSON.stringify(this.templateState.getCurrentTemplate());
+    this.saving = true;
+    this.saveMessage = '';
+    try {
+      const copy = await this.templateStorage.saveCopy(mold, JSON.parse(draftJson));
+      if (this.destroyed || this.currentMold !== mold) return;
+      this.savedCopyId = copy.id;
+      this.saveMessage = JSON.stringify(this.templateState.getCurrentTemplate()) === draftJson
+        ? 'Copia guardada.' : 'Copia guardada. Hay cambios posteriores pendientes.';
+    } catch {
+      if (!this.destroyed) this.saveMessage = 'No se pudo guardar la copia. Tu borrador se conservó.';
     } finally {
       this.saving = false;
       if (!this.destroyed) this.cdr.markForCheck();

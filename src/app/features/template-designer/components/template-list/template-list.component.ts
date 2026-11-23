@@ -33,6 +33,8 @@ export class TemplateListComponent implements OnInit, OnDestroy {
   showForm = false;
   editingMold: TemplateMold | null = null;
   confirmDeleteId: string | null = null;
+  private reportToDelete?: TemplateMold;
+  private metadataRevision?: number;
   labelToDelete?: { name: string; revision: number };
   labelActionPending = false;
   labelActionError = '';
@@ -125,6 +127,7 @@ export class TemplateListComponent implements OnInit, OnDestroy {
   openEditForm(mold: TemplateMold): void {
     this.catalogError = '';
     this.editingMold = mold;
+    this.metadataRevision = mold.revision;
     this.showForm = true;
   }
 
@@ -134,19 +137,32 @@ export class TemplateListComponent implements OnInit, OnDestroy {
     this.catalogError = '';
     try {
       if (this.editingMold) {
-        await this.storage.updateMetadata(this.editingMold.id, {
+        const updated = await this.storage.updateMetadata(this.editingMold.id, {
           name: data.name,
           documentType: data.documentType,
           description: data.description
-        });
+        }, this.metadataRevision);
+        if (!updated) throw new Error('Report not available');
       } else {
         const mold = await this.storage.create(data.name, data.documentType, data.description, data.startingPoint);
         await this.openDesigner(mold);
       }
       this.showForm = false;
       this.editingMold = null;
-    } catch {
-      this.catalogError = 'No se pudo guardar el molde. Volvé a intentarlo.';
+    } catch (error) {
+      if (this.editingMold && (error as { status?: number })?.status === 409) {
+        this.catalogError = 'El molde cambió en el servidor. Los valores ingresados se conservaron.';
+        try {
+          const latest = await this.storage.fetch(this.editingMold.id);
+          this.metadataRevision = latest.revision;
+          this.catalogError += ' Versión actual: ' + latest.name + '. Descripción: ' +
+            (latest.description || '(vacía)') + '. Revisá tus cambios antes de volver a guardar.';
+        } catch {
+          this.catalogError += ' No se pudo consultar la versión actual.';
+        }
+      } else {
+        this.catalogError = 'No se pudo guardar el molde. Revisá la revisión del molde y volvé a intentarlo.';
+      }
     } finally {
       this.catalogPending = false;
       this.cdr.markForCheck();
@@ -179,6 +195,7 @@ export class TemplateListComponent implements OnInit, OnDestroy {
 
   requestDelete(mold: TemplateMold): void {
     this.labelToDelete = undefined;
+    this.reportToDelete = mold;
     this.confirmDeleteId = mold.id;
   }
 
@@ -202,6 +219,7 @@ export class TemplateListComponent implements OnInit, OnDestroy {
       return;
     }
     this.labelActionError = '';
+    this.reportToDelete = undefined;
     this.labelToDelete = { name: label.name, revision };
     this.confirmDeleteId = label.id;
   }
@@ -210,8 +228,22 @@ export class TemplateListComponent implements OnInit, OnDestroy {
     if (!this.canEdit || !this.confirmDeleteId || this.labelActionPending) return;
     const id = this.confirmDeleteId;
     if (!this.labelToDelete) {
-      await this.storage.delete(id);
-      this.cancelDelete();
+      this.labelActionPending = true;
+      this.catalogError = '';
+      try {
+        await this.storage.delete(id, this.reportToDelete?.revision);
+      } catch (error) {
+        if ((error as { status?: number })?.status === 409) {
+          this.catalogError = 'El molde cambió en el servidor. Revisá la versión actual antes de eliminarlo.';
+          await this.storage.refresh();
+        } else {
+          this.catalogError = 'No se pudo eliminar el molde.';
+        }
+      } finally {
+        this.labelActionPending = false;
+        this.cancelDelete();
+        this.cdr.markForCheck();
+      }
       return;
     }
     this.labelActionPending = true;
@@ -233,6 +265,7 @@ export class TemplateListComponent implements OnInit, OnDestroy {
   cancelDelete(): void {
     if (this.labelActionPending) return;
     this.confirmDeleteId = null;
+    this.reportToDelete = undefined;
     this.labelToDelete = undefined;
   }
 

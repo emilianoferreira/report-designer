@@ -1,6 +1,6 @@
 # A4 — pruebas aisladas de esquema y autenticación
 
-Requiere rama `codex/mysql-migration`, .NET 10, dependencias Node existentes,
+Requiere .NET 10, dependencias Node existentes,
 Chrome y Docker (en Windows se utiliza Docker por WSL). Desde la raíz:
 
 ```powershell
