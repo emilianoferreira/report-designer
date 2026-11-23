@@ -10,7 +10,7 @@ import { PriceLabelStorageService } from '../../../price-label-designer/services
 describe('TemplateListComponent', () => {
   let component:TemplateListComponent;let fixture:ComponentFixture<TemplateListComponent>;
   let storage:jasmine.SpyObj<TemplateStorageService>;let molds:BehaviorSubject<any[]>;
-  const mold={id:'owned',name:'Reporte',documentType:'venta_contado' as const,description:'',companyId:'a',
+  const mold={id:'owned',revision:1,name:'Reporte',documentType:'venta_contado' as const,description:'',companyId:'a',
     createdAt:'2024-01-15T10:30:00Z',updatedAt:'2024-01-15T10:30:00Z',template:createDefaultTemplate()};
   beforeEach(async () => {
     molds=new BehaviorSubject<any[]>([]);
@@ -42,10 +42,12 @@ describe('TemplateListComponent', () => {
     expect(component.showForm).toBeTrue();
     expect(component.catalogError).toBeTruthy();
   });
-  it('keeps delete confirmation when the API rejects deletion',async()=>{
+  it('reports a delete failure and sends the revision captured at confirmation',async()=>{
     component.requestDelete(mold);storage.delete.and.rejectWith({status:403});
-    await expectAsync(component.confirmDelete()).toBeRejected();expect(component.confirmDeleteId).toBe(mold.id);
-    component.cancelDelete();expect(component.confirmDeleteId).toBeNull();
+    await component.confirmDelete();
+    expect(storage.delete).toHaveBeenCalledWith(mold.id, 1);
+    expect(component.catalogError).toContain('No se pudo eliminar');
+    expect(component.confirmDeleteId).toBeNull();
   });
   it('duplicates through the authenticated store',async()=>{storage.duplicate.and.resolveTo(mold);spyOn(component,'openDesigner').and.resolveTo(true);await component.duplicateMold(mold);expect(storage.duplicate).toHaveBeenCalledWith(mold.id);});
   it('formats document type labels and dates',()=>{expect(component.getDocTypeLabel('venta_contado')).toBe('Venta Contado');expect(component.formatDate(mold.createdAt)).toBeTruthy();});

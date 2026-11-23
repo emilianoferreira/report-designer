@@ -12,7 +12,6 @@ import {checkBrowser} from './browser.mjs';
 export async function runMySql({verify}={}) {
 const root=fileURLToPath(new URL('../../',import.meta.url)),exec=promisify(execFile);
 const command=async(bin,args)=>(await exec(bin,args,{cwd:root,windowsHide:true,maxBuffer:8*1024*1024})).stdout.trim();
-assert.equal(await command('git',['branch','--show-current']),'codex/mysql-migration');
 const id=randomUUID().replaceAll('-',''),name='a4-'+id,database='a4_'+id,password=randomBytes(24).toString('hex');
 const directory=path.join(root,'e2e/test-results',name);await mkdir(directory,{recursive:true});console.log('A4 evidence: '+directory);
 const image='mysql:8.4.13@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902';
@@ -39,6 +38,11 @@ async function start(connection,extra={}) {
 }
 try {
     await docker('run','--detach','--name',name,'--label','a4.owner='+id,'--publish','127.0.0.1::3306','--env','MYSQL_ROOT_PASSWORD='+password,'--env','MYSQL_USER=probe','--env','MYSQL_PASSWORD='+password,'--env','MYSQL_DATABASE='+database,image,'--default-time-zone=+00:00','--require-secure-transport=ON','--max-allowed-packet=134217728');created=true;
+    const [container]=JSON.parse(await docker('inspect',name));
+    assert.equal(container.Config.Labels['a4.owner'],id,'MySQL container belongs to this run');
+    const [binding]=container.NetworkSettings.Ports['3306/tcp'];
+    assert.equal(binding.HostIp,'127.0.0.1','MySQL must be published only on loopback');
+    const port=binding.HostPort;
     let ready=false;for(let i=0;i<90;i++){try{await sql('SELECT 1');ready=true;break;}catch{}await new Promise(r=>setTimeout(r,1000));}assert.ok(ready,'MySQL ready');
     const schema=await readFile(path.join(root,'database/mysql/001-schema.sql'),'utf8');await sql(schema);
     report.schemaSha256=createHash('sha256').update(schema).digest('hex');report.server=await sql('SELECT VERSION()');
@@ -63,7 +67,6 @@ try {
     await assert.rejects(sql('CREATE TABLE forbidden(id int)','probe'),/ERROR 1142/);check(true,'application user cannot create schema');
     await sql(await readFile(path.join(root,'database/mysql/002-json-precision.sql'),'utf8'));
     await sql(`GRANT SELECT ON ${database}.* TO 'probe'@'%'; GRANT INSERT,UPDATE,DELETE ON ${database}.report_templates TO 'probe'@'%';`);
-    const inspect=JSON.parse(await docker('inspect',name))[0],port=inspect.NetworkSettings.Ports['3306/tcp'][0].HostPort;
     const ca=path.join(directory,'ca.pem');await writeFile(ca,await docker('exec',name,'cat','/var/lib/mysql/ca.pem'));
     const cs=`Server=127.0.0.1;Port=${port};Database=${database};User ID=probe;Password=${password};SslMode=VerifyCA;SslCa=${ca}`;
     await sql(`CREATE USER 'provisioner'@'%' IDENTIFIED BY '${password}'; GRANT SELECT ON ${database}.companies TO 'provisioner'@'%'; GRANT SELECT,INSERT,UPDATE,DELETE ON ${database}.auth_users TO 'provisioner'@'%'; GRANT SELECT,INSERT,UPDATE,DELETE ON ${database}.auth_memberships TO 'provisioner'@'%'; GRANT SELECT,INSERT,UPDATE,DELETE ON ${database}.auth_sessions TO 'provisioner'@'%';`);

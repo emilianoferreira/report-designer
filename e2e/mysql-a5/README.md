@@ -1,6 +1,6 @@
 # A5 — persistencia MySQL y comparación con PostgreSQL
 
-Ejecutar desde la raíz, en `codex/mysql-migration`. Requiere los prerrequisitos
+Ejecutar desde la raíz del checkout. Requiere los prerrequisitos
 A4 (Docker por WSL, Chrome, .NET 10 y dependencias Node) y PostgreSQL embebido
 utilizado por el harness de concurrencia existente.
 

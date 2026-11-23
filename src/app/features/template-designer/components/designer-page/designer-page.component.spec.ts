@@ -12,7 +12,7 @@ import { TemplateStorageService } from '../../services/template-storage.service'
 import { DesignerPageComponent } from './designer-page.component';
 
 describe('DesignerPageComponent report saves', () => {
-  const row = { id: 'report', nombre: 'Factura', template_json: {
+  const row = { id: 'report', nombre: 'Factura', version: 1, template_json: {
     documentType: 'venta_contado', template: JSON.parse(JSON.stringify(createDefaultTemplate())) as ReturnType<typeof createDefaultTemplate>
   } };
   const endpoint = '/api/templates/report/design';
@@ -53,7 +53,8 @@ describe('DesignerPageComponent report saves', () => {
     const first = http.expectOne({ url: endpoint, method: 'PUT' });
     edit('B');
     expect(first.request.body.template_json.template.metadata.name).toBe('A');
-    first.flush({ ...row, template_json: first.request.body.template_json });
+    expect(first.request.headers.get('If-Match')).toBe('"1"');
+    first.flush({ ...row, version: 2, template_json: first.request.body.template_json });
     await firstSave;
     expect(page.isDirty).toBeTrue();
     expect(page.hasUnsavedChanges()).toBeTrue();
@@ -64,6 +65,7 @@ describe('DesignerPageComponent report saves', () => {
     expect(page.isDirty).toBeTrue();
     const secondSave = page.saveTemplate();
     const second = http.expectOne({ url: endpoint, method: 'PUT' });
+    expect(second.request.headers.get('If-Match')).toBe('"2"');
     const original = row.template_json.template;
     expect(second.request.body).toEqual({ template_json: { ...row.template_json,
       template: { ...original, metadata: { ...original.metadata, name: 'B' } }
@@ -146,6 +148,35 @@ describe('DesignerPageComponent report saves', () => {
     second.flush({ ...row, template_json: second.request.body.template_json });
     await retry;
     expect(page.hasUnsavedChanges()).toBeFalse();
+  });
+
+  it('keeps edits made while recovering from a stale revision', async () => {
+    edit('B');
+    const staleSave = page.saveTemplate();
+    http.expectOne(endpoint).flush({}, { status: 409, statusText: 'Conflict' });
+    await staleSave;
+    expect(page.conflict).toBeTrue();
+    await page.saveTemplate();
+    http.expectNone(endpoint);
+
+    spyOn(window, 'confirm').and.returnValue(true);
+    const reload = page.reloadTemplate();
+    edit('B after reload started');
+    http.expectOne('/api/templates/report').flush({ ...row, version: 2 });
+    await reload;
+    expect(state.getCurrentTemplate().metadata.name).toBe('B after reload started');
+    expect(page.currentMold?.revision).toBe(1);
+    expect(page.conflict).toBeTrue();
+
+    const savingCopy = page.saveCopy();
+    const request = http.expectOne({ url: '/api/templates', method: 'POST' });
+    expect(request.request.body.template_json.template.metadata.name).toBe('B after reload started');
+    edit('B after copy started');
+    request.flush({ ...row, id: 'copy', template_json: request.request.body.template_json });
+    await savingCopy;
+    expect(page.savedCopyId).toBe('copy');
+    expect(page.hasUnsavedChanges()).toBeTrue();
+    expect(state.getCurrentTemplate().metadata.name).toBe('B after copy started');
   });
 
   it('protects exit during a pending save and isolates a reopened editor', async () => {

@@ -22,7 +22,8 @@ export async function checkBrowser({root,url,user,company,directory,exercise}) {
     let browser;
     try {
         browser=await chromium.launch({channel:'chrome',headless:true});
-        const page=await browser.newPage({viewport:{width:1200,height:850}});page.on('dialog',dialog=>dialog.accept());
+        const context=await browser.newContext({viewport:{width:1200,height:850}});
+        const page=await context.newPage();page.on('dialog',dialog=>dialog.accept());
         const origin='http://127.0.0.1:'+server.address().port;
         await page.goto(origin+'/login');
         await page.getByLabel('Correo electrónico').fill(user.email);await page.getByLabel('Contraseña').fill(user.password);
