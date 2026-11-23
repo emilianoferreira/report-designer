@@ -45,6 +45,58 @@ describe('TemplateStorageService authenticated persistence', () => {
     http.expectOne('/api/templates/owned/duplicate').flush({ ...original, id: 'copy' });
     expect((await duplicate)!.template).toEqual(template);
   });
+  it('updates the report type and metadata together, preserving the original design and JSON envelope', async () => {
+    const original = row();
+    http.expectOne('/api/templates').flush([original]); await service.ready;
+    const design = { ...original.template_json, extension: { keep: true } };
+    Object.assign(design.template, { futureExtension: { keep: true } });
+    const saving = service.updateMetadata('owned', {
+      name: 'Factura a crédito', description: 'Actualizada', documentType: 'venta_credito'
+    }, 0);
+    http.expectOne({ method: 'GET', url: '/api/templates/owned' }).flush({ ...original, template_json: design });
+    await Promise.resolve();
+    const request = http.expectOne({ method: 'PUT', url: '/api/templates/owned' });
+    const expected = { nombre: 'Factura a crédito', descripcion: 'Actualizada',
+      template_json: { ...design, documentType: 'venta_credito' } };
+    expect(request.request.body).toEqual(expected);
+    expect(request.request.headers.get('If-Match')).toBe('"0"');
+    request.flush({ ...original, ...expected, version: 2 });
+    expect((await saving)?.documentType).toBe('venta_credito');
+    expect(service.getById('owned')?.template).toEqual(design.template);
+  });
+
+  it('keeps the submitted revision even when the design read observes a newer revision', async () => {
+    const original = { ...row(), version: 3 };
+    http.expectOne('/api/templates').flush([original]); await service.ready;
+    const saving = service.updateMetadata('owned', { documentType: 'venta_credito' }, 3);
+    const rejected = expectAsync(saving).toBeRejectedWith(jasmine.objectContaining({ status: 409 }));
+    http.expectOne({ method: 'GET', url: '/api/templates/owned' }).flush({ ...original, version: 4 });
+    await Promise.resolve();
+    const request = http.expectOne({ method: 'PUT', url: '/api/templates/owned' });
+    expect(request.request.headers.get('If-Match')).toBe('"3"');
+    request.flush({}, { status: 409, statusText: 'Conflict' });
+    await rejected;
+    expect(service.getById('owned')?.documentType).toBe('venta_contado');
+  });
+
+  it('sends only row metadata when the report type is unchanged', async () => {
+    http.expectOne('/api/templates').flush([row()]); await service.ready;
+    const saving = service.updateMetadata('owned', { description: 'Nueva', documentType: 'venta_contado' }, 0);
+    const request = http.expectOne({ method: 'PUT', url: '/api/templates/owned' });
+    expect(request.request.body).toEqual({ nombre: 'Reporte', descripcion: 'Nueva' });
+    request.flush({ ...row(), descripcion: 'Nueva', version: 2 });
+    await saving;
+  });
+
+  it('does not write metadata when the original design cannot be loaded', async () => {
+    http.expectOne('/api/templates').flush([row()]); await service.ready;
+    const saving = service.updateMetadata('owned', { documentType: 'venta_credito' }, 0);
+    const rejected = expectAsync(saving).toBeRejected();
+    http.expectOne({ method: 'GET', url: '/api/templates/owned' }).flush({}, { status: 503, statusText: 'Unavailable' });
+    await rejected;
+    http.expectNone({ method: 'PUT', url: '/api/templates/owned' });
+    expect(service.getById('owned')?.documentType).toBe('venta_contado');
+  });
   for (const status of [0,401,403,500]) it('never reads cached documents on HTTP '+status, async () => {
     const request=http.expectOne('/api/templates');
     if (status===0) request.error(new ProgressEvent('error')); else request.flush({}, {status,statusText:'Unavailable'});

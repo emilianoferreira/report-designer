@@ -68,9 +68,23 @@ export class TemplateStorageService {
     revision: number | undefined): Promise<TemplateMold | undefined> {
     const mold = this.getById(id);
     if (!mold) return undefined;
-    const row = await firstValueFrom(this.http.put<any>('/api/templates/' + id, {
+    const options = this.revisionOptions(revision);
+    const url = '/api/templates/' + encodeURIComponent(id);
+    const metadata = {
       nombre: changes.name || mold.name, descripcion: changes.description ?? mold.description
-    }, this.revisionOptions(revision)));
+    };
+    let body: typeof metadata & { template_json?: Record<string, unknown> } = metadata;
+    if (changes.documentType !== undefined && changes.documentType !== mold.documentType) {
+      const latest = await firstValueFrom(this.http.get<any>(url, { context: options.context }));
+      const design = latest?.template_json;
+      if (latest?.id !== id || design?.type === 'price-label' ||
+          !design?.template || typeof design.template !== 'object' || Array.isArray(design.template)) {
+        throw new Error('Report design unavailable');
+      }
+      // The original If-Match still governs the write, even if the read saw a newer revision.
+      body = { ...metadata, template_json: { ...design, documentType: changes.documentType } };
+    }
+    const row = await firstValueFrom(this.http.put<any>(url, body, options));
     return this.replace(this.apiToMold(row));
   }
   async saveTemplate(mold: TemplateMold, template: ReportTemplate): Promise<TemplateMold | undefined> {
