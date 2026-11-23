@@ -35,7 +35,7 @@ describe('Content feedback and actual preview print boundary', () => {
     state.setTemplate(template);
     frame = document.createElement('iframe'); document.body.append(frame);
     component = TestBed.runInInjectionContext(() => new PreviewComponent(state, renderer,
-      { markForCheck: () => {} } as ChangeDetectorRef, TestBed.inject(SelectionService)));
+      jasmine.createSpyObj<ChangeDetectorRef>('change detector', ['markForCheck', 'detectChanges']), TestBed.inject(SelectionService)));
     component.previewFrame = new ElementRef(frame);
   });
   afterEach(() => { component.ngOnDestroy(); frame.remove(); });
@@ -104,6 +104,36 @@ describe('Content feedback and actual preview print boundary', () => {
     await prepared(); const print = spyOn(frame.contentWindow!, 'print');
     expect(component.renderedReport!.results.some(result => result.status === 'pending')).toBeTrue();
     await Promise.all([component.printPreview(), component.printPreview()]); expect(print).toHaveBeenCalledTimes(1);
+  });
+  it('uses the same prepared document for download, copy and printing from the code views', async () => {
+    await prepared();
+    const doc = frame.contentDocument!;
+    const html = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+    const download = spyOn(component as any, 'downloadBlob');
+    const copy = spyOn(component as any, 'copyToClipboard').and.resolveTo();
+    const print = spyOn(frame.contentWindow!, 'print');
+    component.setViewMode('html');
+    expect(component.preparedHtml).toBe(html);
+    component.exportHtmlRendered();
+    component.setViewMode('json');
+    await component.copyHtmlRendered();
+    await component.printPreview();
+    expect(download.calls.mostRecent().args[0]).toBe(html);
+    expect(copy).toHaveBeenCalledOnceWith(html);
+    expect(print).toHaveBeenCalledTimes(1);
+    expect(frame.contentDocument).toBe(doc);
+  });
+  it('does not export or copy an invalidated document during the render debounce', async () => {
+    await prepared();
+    const download = spyOn(component as any, 'downloadBlob');
+    const copy = spyOn(component as any, 'copyToClipboard').and.resolveTo();
+    state.setTemplate({ ...state.getCurrentTemplate(), metadata: { ...state.getCurrentTemplate().metadata, name: 'Revisión actual' } });
+    component.setViewMode('html');
+    component.exportHtmlRendered();
+    await component.copyHtmlRendered();
+    expect(component.preparedHtml).toBe('');
+    expect(download).not.toHaveBeenCalled();
+    expect(copy).not.toHaveBeenCalled();
   });
   it('cancels a debounced refresh on teardown instead of rendering a destroyed preview', fakeAsync(() => {
     const render = spyOn(renderer, 'renderWithEvidence').and.callThrough();

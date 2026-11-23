@@ -23,7 +23,7 @@
 
       <div class="toolbar-group">
         <button class="toolbar-btn" (click)="toggleFiscalSample()" [attr.aria-pressed]="fiscalSample">Ejemplo CFE</button>
-        <button class="toolbar-btn" (click)="printPreview()" [disabled]="printing">Imprimir</button>
+        <button class="toolbar-btn" (click)="printPreview()" [disabled]="printing || !!paginationPending">Imprimir</button>
       </div>
 
       <div class="toolbar-group">
@@ -35,14 +35,14 @@
 
       <div class="toolbar-group">
         <span class="toolbar-label">Exportar:</span>
-        <button class="toolbar-btn" (click)="exportHtmlRendered()" title="Descargar HTML con datos resueltos">HTML render</button>
+        <button class="toolbar-btn" (click)="exportHtmlRendered()" [disabled]="!outputReady" title="Descargar HTML con datos resueltos">HTML render</button>
         <button class="toolbar-btn" (click)="exportHtmlTemplate()" title="Exportar directivas. Los controles del navegador no validan la salida ejecutada por Zureo.">HTML z-code</button>
         <button class="toolbar-btn" (click)="exportJson()" title="Descargar la definición del template como JSON">JSON</button>
       </div>
 
       <div class="toolbar-group">
         <span class="toolbar-label">Copiar:</span>
-        <button class="toolbar-btn" (click)="copyHtmlRendered()" title="Copiar HTML con datos resueltos al portapapeles">HTML render</button>
+        <button class="toolbar-btn" (click)="copyHtmlRendered()" [disabled]="!outputReady" title="Copiar HTML con datos resueltos al portapapeles">HTML render</button>
         <button class="toolbar-btn" (click)="copyHtmlTemplate()" title="Copiar HTML z-code al portapapeles">HTML z-code</button>
         <button class="toolbar-btn" (click)="copyJson()" title="Copiar la definición del template (JSON) al portapapeles">JSON</button>
 
@@ -70,12 +70,14 @@
 
   <!-- Preview content — switches by viewMode -->
   @if (printMessage) { <p class="renderer-context" role="alert">{{ printMessage }}</p> }
-  @if (paginationPending && viewMode === 'render') {
+  @if (paginationPending) {
     <p class="renderer-context" role="status">Saltos de página pendientes. {{ paginationPending }}</p>
   }
   <p class="renderer-context">El informe corresponde a impresión desde el navegador. La salida de las directivas HTML z-code requiere validación en Zureo.</p>
-  @if (reportPending) { <p class="renderer-context" role="status">Actualizando validación; los resultados anteriores ya no están vigentes.</p> }
-  @if (!reportPending && viewMode !== 'render') { <p class="renderer-context">Volvé a Render para evaluar la salida de impresión.</p> }
+  @if (reportPending) { <p class="renderer-context" role="status">Preparando salida de impresión…</p> }
+  @if (!reportPending && !previewReady) {
+    <button class="toolbar-btn" type="button" (click)="renderPreview()">Reintentar preparación</button>
+  }
   @if (renderedReport; as report) {
     <details #printValidation class="renderer-context">
       <summary>Validación de impresión · {{ report.status === 'violations' ? 'Hallazgos detectados' : 'Cobertura incompleta' }}</summary>
@@ -138,30 +140,27 @@
     </details>
   }
   <div class="preview-body">
-    @switch (viewMode) {
-      @case ('render') {
-        <div
-          class="preview-frame-wrapper"
-          [style.width.px]="pageWidthPx"
-          [style.transform]="'scale(' + zoom + ')'"
-          [style.transform-origin]="'top center'"
-        >
-          <iframe
-            #previewFrame
-            class="preview-frame"
-            [style.width.px]="pageWidthPx"
-            [style.height.px]="pageHeightPx"
-            sandbox="allow-same-origin allow-modals"
-            title="Vista previa"
-          ></iframe>
-        </div>
-      }
-      @case ('html') {
-        <pre class="raw-block">{{ paginatedHtml || previewHtml }}</pre>
-      }
-      @case ('json') {
-        <pre class="raw-block">{{ templateJson }}</pre>
-      }
+    <div
+      class="preview-frame-wrapper"
+      [class.preview-frame-concealed]="viewMode !== 'render'"
+      [attr.inert]="viewMode !== 'render' ? '' : null"
+      [style.width.px]="pageWidthPx"
+      [style.transform]="'scale(' + zoom + ')'"
+      [style.transform-origin]="'top center'"
+    >
+      <iframe
+        #previewFrame
+        class="preview-frame"
+        [style.width.px]="pageWidthPx"
+        [style.height.px]="pageHeightPx"
+        sandbox="allow-same-origin allow-modals"
+        title="Vista previa"
+      ></iframe>
+    </div>
+    @if (viewMode === 'html' && preparedHtml) {
+      <pre class="raw-block">{{ preparedHtml }}</pre>
+    } @else if (viewMode === 'json') {
+      <pre class="raw-block">{{ templateJson }}</pre>
     }
   </div>
 </div>
