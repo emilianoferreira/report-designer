@@ -1,21 +1,21 @@
 import { AsyncPipe } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Output, inject } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { ValidationSessionService, ScenarioMode } from '../../services/validation-session.service';
+import { FormsModule } from '@angular/forms';
+import { ValidationSessionService, ScenarioMode, REPORT_SCENARIOS } from '../../services/validation-session.service';
 import { SelectionService } from '../../services/selection.service';
 import { RuleResult } from '../../utils/static-fiscal-rules';
 import { isContentValidationFinding } from '../../utils/print-validation-policy';
 import { ValidationFeedbackComponent } from '../validation-feedback/validation-feedback.component';
 
 @Component({
-  selector: 'app-design-validation', standalone: true, imports: [AsyncPipe, ValidationFeedbackComponent], changeDetection: ChangeDetectionStrategy.OnPush,
+  selector: 'app-design-validation', standalone: true, imports: [AsyncPipe, FormsModule, ValidationFeedbackComponent], changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <details open><summary>Validaciones del diseño</summary>
-      <label>Escenario <select aria-label="Escenario de validación" [value]="session.scenario$ | async" (change)="select($any($event.target).value)">
-        <option value="single">Ejemplo histórico: 1 artículo</option><option value="multi">Ejemplo histórico: 5 artículos</option>
-        <option value="fifteen">Ejemplo histórico: 15 artículos</option>
-        <option value="fiscal-single">CFE ficticio: 1 artículo</option><option value="fiscal-multi">CFE ficticio: 5 artículos</option>
-        <option value="json" [disabled]="!session.hasImportedScenario">JSON importado</option>
+      <label>Escenario <select aria-label="Escenario de validación" [ngModel]="session.scenario$ | async" (ngModelChange)="select($event)">
+        @for (scenario of scenarios; track scenario.mode) {
+          <option [value]="scenario.mode" [disabled]="scenario.mode === 'json' && !session.hasImportedScenario">{{ scenario.label }}</option>
+        }
       </select></label>
       <label>Cargar InvoiceData JSON <input type="file" accept=".json,application/json" (change)="importFile($event)" /></label>
       <p>Los datos se usan en memoria y también en Vista Previa. No se guardan en el molde.</p>
@@ -47,6 +47,7 @@ export class DesignValidationComponent {
   readonly isContentFinding = isContentValidationFinding;
   @Output() readonly showPreview = new EventEmitter<void>();
   readonly session = inject(ValidationSessionService);
+  readonly scenarios = REPORT_SCENARIOS;
   private selection = inject(SelectionService);
   private cdr = inject(ChangeDetectorRef);
   private document = inject(DOCUMENT);

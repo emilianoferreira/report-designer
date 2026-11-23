@@ -63,7 +63,7 @@ for (const fixtureName of ['report-a4', 'report-ticket-80']) {
       } else {
         await expect(preview.locator('.ticket-item')).toHaveCount(1);
       }
-      await reloaded.getByRole('button', { name: '1 artículo', exact: true }).click();
+      await reloaded.getByLabel('Escenario de impresión', { exact: true }).selectOption('multi');
       await expect(preview.locator(fixtureName === 'report-a4' ? '.detail-table tbody tr' : '.ticket-item')).toHaveCount(5);
       // Compare actual generated HTML, including geometry, bindings, formula, SVG and print CSS.
       const html = await preview.locator('html').evaluate(element => element.outerHTML);
@@ -91,6 +91,7 @@ for (const fixtureName of ['report-a4', 'report-ticket-80']) {
       const exported = JSON.parse(await reloaded.locator('pre.raw-block').innerText());
       expect(exported).toEqual(sent.template);
       expect(stableJson(exported)).toMatchSnapshot(`${fixtureName}-saved-design.json`);
+      await reloaded.getByText('Descargar o copiar', { exact: true }).click();
       const downloadEvent = reloaded.waitForEvent('download');
       await reloaded.getByRole('button', { name: 'HTML z-code', exact: true }).first().click();
       const download = await downloadEvent;

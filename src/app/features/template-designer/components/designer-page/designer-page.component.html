@@ -341,7 +341,7 @@
     } @else {
       <!-- Preview mode: Full-width preview -->
       <main class="panel panel-full">
-        <app-preview (showDesign)="setViewMode('design')" />
+        <app-preview [draft]="isDirty" (showDesign)="setViewMode('design')" />
       </main>
     }
   </div>

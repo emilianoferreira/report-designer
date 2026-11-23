@@ -32,6 +32,7 @@
 }
 
 .driver-settings { margin: 8px 12px; font-size: 13px; }
+.output-summary { flex: 1 1 22rem; margin: 0; font-size: 13px; overflow-wrap: anywhere; }
 .output-status:not(:empty) { padding: 4px 12px; }
 .editor-diagnostics { max-height: 12rem; overflow: auto; flex-shrink: 0; padding: 0 12px; }
 

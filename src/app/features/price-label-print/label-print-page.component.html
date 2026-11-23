@@ -60,9 +60,23 @@
 @if(state.notice){<p role="status">{{state.notice}}</p>}
 @if(state.snapshot){<p>Última consulta: {{state.snapshot.resolvedAt | date:'dd/MM/yyyy HH:mm:ss'}}. Los precios no se actualizan automáticamente al imprimir.</p>}
 </section>
-@if(template && state.articles.length){
+@if(template && (state.articles.length || (state.resolving && state.lines.length))){
   <section class="print-panel print-review" aria-labelledby="review-title">
     <h2 #reviewTitle id="review-title" tabindex="-1">Revisar e imprimir</h2>
-    <div class="preview"><app-price-label-preview [template]="template" [articles]="state.articles" [company]="state.company" [batchMode]="true" [batchProfile]="profile" [beforeOutput]="state.authorizeOutput" (diagnosticsChanged)="renderIssues=$event" /></div>
+    @if(state.resolving){
+      <p role="status">Actualizando los precios para imprimir…</p>
+    } @else {
+      @if(state.snapshot; as snapshot) {
+      <div class="preview">
+        <app-price-label-preview [template]="template" [articles]="state.articles" [company]="state.company" [batchMode]="true" [batchProfile]="profile" [beforeOutput]="state.authorizeOutput" (diagnosticsChanged)="renderIssues=$event">
+          <span printBatchContext>
+            {{ appliedListName(snapshot.priceListId) }} ·
+            {{ state.lines.length }} {{ state.lines.length === 1 ? 'artículo' : 'artículos' }} ·
+            {{ state.resolveError ? 'Última consulta válida' : 'Precios consultados' }} {{ snapshot.resolvedAt | date:'dd/MM/yyyy HH:mm:ss' }}
+          </span>
+        </app-price-label-preview>
+      </div>
+      }
+    }
   </section>
 }

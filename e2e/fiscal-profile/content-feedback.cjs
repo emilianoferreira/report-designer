@@ -67,8 +67,10 @@ const assert = require('node:assert/strict');
     await receiver.getByRole('button', { name: 'Ver página en Vista Previa', exact: true }).first().click();
     await expect(page.locator('.renderer-context summary').filter({ hasText: 'carga finalizada' })).toBeVisible();
     await page.getByText('Validación de impresión', { exact: false }).click();
-    const feedback = page.locator('app-preview app-validation-feedback'), print = page.getByRole('button', { name: 'Imprimir', exact: true });
+    const feedback = page.locator('app-preview app-validation-feedback'), print = page.getByRole('button', { name: 'Imprimir prueba', exact: true });
     const downloadZureo = async () => {
+      const options = page.locator('app-preview .output-options');
+      if (await options.getAttribute('open') === null) await options.locator('summary').click();
       const [file] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'HTML z-code', exact: true }).first().click()]);
       return fs.readFileSync(await file.path(), 'utf8');
     };

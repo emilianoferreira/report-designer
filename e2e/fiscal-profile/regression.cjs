@@ -126,7 +126,7 @@ const assert = require('node:assert/strict');
     assert.equal(await raw.textContent(), beforeHtml);
     await page.locator('.fiscal-context summary').click();
     await expect(page.locator('.fiscal-context')).toContainText('no es un CFE');
-    await expect(page.getByRole('button', { name: 'Imprimir', exact: true })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Imprimir prueba', exact: true })).toBeEnabled();
     await page.getByRole('button', { name: 'Render', exact: true }).click();
     const frame = page.frameLocator('iframe:not([aria-hidden="true"])');
     await expect(frame.locator('[data-render-element]').first()).toBeAttached();
@@ -146,7 +146,7 @@ const assert = require('node:assert/strict');
     const openFiscalPreview = async (expectQr = true) => {
       await page.reload();
       await page.getByRole('button', { name: 'Vista Previa', exact: true }).click();
-      await page.getByRole('button', { name: 'Ejemplo CFE', exact: true }).click();
+      await page.getByLabel('Escenario de impresión', { exact: true }).selectOption('fiscal-single');
       await expect(frame.locator('svg[data-qr-modules]')).toHaveCount(expectQr ? 1 : 0);
       await expect(page.getByText('Validación de impresión', { exact: false })).toBeVisible();
       await page.evaluate(() => {
@@ -155,7 +155,7 @@ const assert = require('node:assert/strict');
       });
     };
     await openFiscalPreview();
-    const print = page.getByRole('button', { name: 'Imprimir', exact: true });
+    const print = page.getByRole('button', { name: 'Imprimir prueba', exact: true });
     await print.click();
     await expect(page.getByRole('alert')).toContainText('QR-02');
     assert.equal(await page.evaluate(() => window.printCalls), 0);
@@ -179,8 +179,10 @@ const assert = require('node:assert/strict');
     await page.evaluate(() => {
       window.printCalls = 0;
       const buttons = Array.from(document.querySelectorAll('app-preview button'));
-      buttons.find(button => button.textContent.trim() === '1 artículo').click();
-      buttons.find(button => button.textContent.trim() === 'Imprimir').click();
+      const scenario = document.querySelector('#report-print-scenario');
+      scenario.value = 'fiscal-multi';
+      scenario.dispatchEvent(new Event('change', { bubbles: true }));
+      buttons.find(button => button.textContent.trim() === 'Imprimir prueba').click();
     });
     await expect(page.getByRole('alert')).toContainText('QR-01');
     assert.equal(await page.evaluate(() => window.printCalls), 0);
@@ -193,7 +195,7 @@ const assert = require('node:assert/strict');
     Object.assign(check.sections.footer, { height: 40, elements: [qr, footerText] });
     check.sections.detail.maxRowsPerPage = 2;
     await openFiscalPreview();
-    await page.getByRole('button', { name: '1 artículo', exact: true }).click();
+    await page.getByLabel('Escenario de impresión', { exact: true }).selectOption('fiscal-multi');
     const sheets = frame.locator('[data-render-page]');
     await expect(sheets).toHaveCount(3);
     await expect(frame.locator('[data-render-page-label]')).toHaveText(['Página 1 de 3', 'Página 2 de 3', 'Página 3 de 3']);
@@ -214,7 +216,7 @@ const assert = require('node:assert/strict');
     check.page.margins = { top: 5, bottom: 5, left: 5, right: 5 };
     check.sections.header.height = 30;
     await openFiscalPreview();
-    await page.getByRole('button', { name: '1 artículo', exact: true }).click();
+    await page.getByLabel('Escenario de impresión', { exact: true }).selectOption('fiscal-multi');
     await expect(sheets).toHaveCount(2);
     await expect(frame.locator('[data-render-source]')).toHaveCount(5);
 
@@ -265,7 +267,8 @@ const assert = require('node:assert/strict');
     assert.equal(await page.evaluate(() => window.printCalls), 0);
     // A browser finding never blocks export of unresolved Zureo directives.
     const [exportedZureo] = await Promise.all([page.waitForEvent('download'),
-      page.getByRole('button', { name: 'HTML z-code', exact: true }).first().click()]);
+      page.getByText('Descargar o copiar', { exact: true }).click()
+        .then(() => page.getByRole('button', { name: 'HTML z-code', exact: true }).first().click())]);
     assert.ok(exportedZureo.suggestedFilename().endsWith('template.html'));
     for (const fiscalState of [undefined, false]) {
       await page.getByRole('button', { name: 'Diseño', exact: true }).click();

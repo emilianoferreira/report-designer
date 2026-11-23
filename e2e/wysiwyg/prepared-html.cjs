@@ -54,6 +54,13 @@ async function openPreview(page, row, handleImage) {
 const button = (page, name) => page.getByRole('button', { name, exact: true });
 const viewButton = (page, name) => page.locator('.toolbar-group').filter({ hasText: 'Vista:' })
   .getByRole('button', { name, exact: true });
+const scenarioSelect = page => page.getByLabel('Escenario de impresión', { exact: true });
+const outputOptions = page => page.locator('app-preview .output-options');
+async function openOutputOptions(page) {
+  if (await outputOptions(page).getAttribute('open') === null) {
+    await outputOptions(page).locator('summary').click();
+  }
+}
 const downloadButton = page => page.getByTitle('Descargar HTML con datos resueltos', { exact: true });
 const copyButton = page => page.getByTitle('Copiar HTML con datos resueltos al portapapeles', { exact: true });
 
@@ -73,6 +80,8 @@ async function checkTicketDescriptions(page, browser, width) {
         invoiceLines: [{ Articulo: { Codigo: 'T01', Nombre: name }, Cantidad: 1, PrecioUnitario: 122, SubTotal: 122 }] }))
     });
     await button(page, 'Vista Previa').click();
+    await expect(scenarioSelect(page)).toHaveValue('json');
+    await expect(page.locator('#report-output-summary')).toContainText('JSON importado · 1 artículo');
     await expect(downloadButton(page)).toBeEnabled();
     const description = preview.locator('.ticket-item-name');
     await expect(description).toHaveText('(T01) ' + name);
@@ -112,6 +121,12 @@ async function compareOutputs(page, browser, width, view, articles) {
   const preview = page.frameLocator('iframe[title="Vista previa"]');
   const rows = width === 210 ? '.detail-table tbody tr' : '.ticket-item';
   await expect(preview.locator(rows)).toHaveCount(articles);
+  const summary = page.locator('#report-output-summary');
+  const pages = width === 210 && articles === 15 ? 2 : 1;
+  await expect(summary).toContainText(articles + (articles === 1 ? ' artículo' : ' artículos'));
+  await expect(summary).toContainText(width === 210 ? 'A4 210 × 297 mm' : 'Ticket ' + width + ' mm');
+  await expect(summary).toContainText(pages + (pages === 1 ? ' página' : ' páginas'));
+  await openOutputOptions(page);
   await expect(downloadButton(page)).toBeEnabled();
 
   const download = page.waitForEvent('download');
@@ -129,10 +144,9 @@ async function compareOutputs(page, browser, width, view, articles) {
     frameWindow.printedHtml = undefined;
     frameWindow.print = () => { frameWindow.printedHtml = '<!DOCTYPE html>\n' + node.outerHTML; };
   });
-  await button(page, 'Imprimir').click();
+  await button(page, 'Imprimir prueba').click();
   await expect.poll(() => preview.locator('html').evaluate(node => node.ownerDocument.defaultView.printedHtml))
     .toBe(downloaded);
-  const pages = width === 210 && articles === 15 ? 2 : 1;
   await expect(preview.locator('body > .page')).toHaveCount(pages);
   await expect(preview.locator('[data-render-element="closing-total"]')).toHaveCount(1);
   await expect(preview.locator('.page').last().locator('[data-render-element="closing-total"]'))
@@ -166,17 +180,34 @@ async function compareOutputs(page, browser, width, view, articles) {
     for (const width of [210, 58, 80]) {
       const page = await browser.newPage();
       await openPreview(page, fixture(width));
+      await expect(page.locator('#report-output-summary')).toContainText('Versión guardada');
+      await expect(scenarioSelect(page).locator('option[value="json"]')).toBeDisabled();
       await compareOutputs(page, browser, width, 'Render', 1);
       await viewButton(page, 'HTML').click();
-      await button(page, '15 artículos').click();
+      const scenarios = scenarioSelect(page);
+      await scenarios.focus();
+      await scenarios.press('ArrowDown');
+      await scenarios.press('ArrowDown');
+      await expect(scenarios).toHaveValue('fifteen');
       const longHeight = await compareOutputs(page, browser, width, 'HTML', 15);
       await viewButton(page, 'JSON').click();
-      await button(page, 'Volver a 1 artículo').click();
+      await scenarios.selectOption('single');
       const shortHeight = await compareOutputs(page, browser, width, 'JSON', 1);
       if (width !== 210) {
         assert.ok(longHeight > shortHeight);
         await checkTicketDescriptions(page, browser, width);
         console.log('PASS: short, long and unbroken descriptions fit ' + width + ' mm tickets.');
+      } else {
+        await scenarios.selectOption('fiscal-multi');
+        await expect(page.locator('#report-output-summary')).toContainText('CFE ficticio · 5 artículos');
+        await button(page, 'Diseño').click();
+        await expect(page.getByLabel('Escenario de validación')).toHaveValue('fiscal-multi');
+        const height = page.locator('#report-section-height');
+        await height.fill('19');
+        await height.press('Tab');
+        await button(page, 'Vista Previa').click();
+        await expect(scenarios).toHaveValue('fiscal-multi');
+        await expect(page.locator('#report-output-summary')).toContainText('Borrador con cambios sin guardar');
       }
       await page.close();
       console.log('PASS: print, download and clipboard HTML match; PDF verified for ' + width + ' mm.');
@@ -188,16 +219,16 @@ async function compareOutputs(page, browser, width, view, articles) {
     await openPreview(groupedPage, grouped);
     await compareOutputs(groupedPage, browser, 210, 'Render', 1);
     await viewButton(groupedPage, 'HTML').click();
-    await button(groupedPage, '15 artículos').click();
+    await scenarioSelect(groupedPage).selectOption('fifteen');
     await expect(groupedPage.getByText(/Saltos de página pendientes/)).toBeVisible();
     await expect(groupedPage.locator('.raw-block')).toHaveCount(0);
     for (const view of ['HTML', 'JSON', 'Render']) {
       await viewButton(groupedPage, view).click();
-      await expect(button(groupedPage, 'Imprimir')).toBeDisabled();
+      await expect(button(groupedPage, 'Imprimir prueba')).toBeDisabled();
       await expect(downloadButton(groupedPage)).toBeDisabled();
       await expect(copyButton(groupedPage)).toBeDisabled();
     }
-    await button(groupedPage, 'Volver a 1 artículo').click();
+    await scenarioSelect(groupedPage).selectOption('single');
     await compareOutputs(groupedPage, browser, 210, 'HTML', 1);
     await groupedPage.close();
     console.log('PASS: grouped A4 blocks print, download and copy while pagination is pending.');
@@ -212,8 +243,9 @@ async function compareOutputs(page, browser, width, view, articles) {
         { body: svg, contentType: 'image/svg+xml', headers: { 'Cache-Control': 'no-store' } });
     });
     await viewButton(page, 'HTML').click();
-    await button(page, '15 artículos').click();
-    await button(page, 'Volver a 1 artículo').click();
+    await scenarioSelect(page).selectOption('fifteen');
+    await scenarioSelect(page).selectOption('single');
+    await openOutputOptions(page);
     await expect(downloadButton(page)).toBeDisabled();
     await expect(copyButton(page)).toBeDisabled();
     releaseImage();

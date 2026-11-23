@@ -53,8 +53,16 @@
       <button [class.active]="mode === 'json'" [attr.aria-pressed]="mode === 'json'" (click)="setMode('json')">JSON</button>
     </div>
 
+    @if (batchMode) {
+      <p id="label-output-summary" class="output-summary" role="status">
+        {{ template.name }} · <ng-content select="[printBatchContext]" /> ·
+        {{ articles.length }} {{ articles.length === 1 ? 'etiqueta' : 'etiquetas' }} ·
+        {{ profile === 'thermal' ? 'Rollo térmico' : sheetName }} {{ outputDimensions }}
+        @if (pageCount) { · {{ pageCount }} {{ pageCount === 1 ? 'página' : 'páginas' }} }
+      </p>
+    }
     <div class="toolbar-group">
-      <button [disabled]="blocked && !busy" [attr.aria-disabled]="busy ? true : null" (click)="print()">Imprimir</button>
+      <button [disabled]="blocked && !busy" [attr.aria-disabled]="busy ? true : null" [attr.aria-describedby]="batchMode ? 'label-output-summary' : null" (click)="print()">Imprimir</button>
       <button [disabled]="blocked && !busy" [attr.aria-disabled]="busy ? true : null" (click)="exportHtml()">Exportar HTML</button>
       <button (click)="exportJson()">{{batchMode ? 'Exportar molde JSON' : 'Exportar JSON'}}</button>
       <button [disabled]="!html || busy || checking" (click)="revalidate()">Revalidar contenido</button>

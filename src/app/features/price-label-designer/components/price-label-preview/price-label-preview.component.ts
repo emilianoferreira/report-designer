@@ -43,6 +43,9 @@ export class PriceLabelPreviewComponent implements OnChanges, AfterViewInit, OnD
     return [...new Map(this.diagnostics.map(issue => [JSON.stringify([issue.elementId, issue.severity, issue.message]), issue])).values()];
   }
   get sheetName(): string { return labelSheetName(this.template); }
+  get outputDimensions(): string {
+    return this.layout ? `${this.layout.width} × ${this.layout.height} mm` : '';
+  }
   get pageWidthPx():number{return mmToPx(this.layout?.width ?? 0);}
   get pageHeightPx():number{return mmToPx(this.layout?.height ?? 0);}
   get blocked():boolean{return this.busy || this.checking || !this.html || this.errors.length>0;}
