@@ -14,6 +14,14 @@ import { buildValidationFeedback, ValidationFeedback } from '../utils/validation
 import { confirmedPrintFailures } from '../utils/print-validation-policy';
 
 export type ScenarioMode = 'single' | 'multi' | 'fifteen' | 'fiscal-single' | 'fiscal-multi' | 'json';
+export const REPORT_SCENARIOS: ReadonlyArray<{ mode: ScenarioMode; label: string }> = [
+  { mode: 'single', label: 'Ejemplo histórico · 1 artículo' },
+  { mode: 'multi', label: 'Ejemplo histórico · 5 artículos' },
+  { mode: 'fifteen', label: 'Ejemplo histórico · 15 artículos' },
+  { mode: 'fiscal-single', label: 'CFE ficticio · 1 artículo' },
+  { mode: 'fiscal-multi', label: 'CFE ficticio · 5 artículos' },
+  { mode: 'json', label: 'JSON importado' }
+];
 /** Scoped to one designer page. Data and results never enter the persisted template. */
 @Injectable()
 export class ValidationSessionService implements OnDestroy {

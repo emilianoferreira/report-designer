@@ -1,7 +1,6 @@
 <!-- Preview Component - Shows rendered HTML output + export/copy hub -->
 <div class="preview-container">
 
-  <!-- Toolbar — single row: zoom · datos · imprimir · vista · exportar · copiar -->
   <div class="preview-toolbar">
     <div class="toolbar-row">
       <div class="toolbar-group">
@@ -11,19 +10,12 @@
       </div>
 
       <div class="toolbar-group">
-        <button
-          class="toolbar-btn"
-          [class.active]="sampleDataMode === 'multi'"
-          (click)="toggleSampleData()"
-        >
-          {{ sampleDataMode === 'fifteen' ? 'Volver a 1 artículo' : sampleDataMode === 'multi' ? '5 artículos' : '1 artículo' }}
-        </button>
-        <button class="toolbar-btn" (click)="showFifteenArticles()" [attr.aria-pressed]="sampleDataMode === 'fifteen'">15 artículos</button>
-      </div>
-
-      <div class="toolbar-group">
-        <button class="toolbar-btn" (click)="toggleFiscalSample()" [attr.aria-pressed]="fiscalSample">Ejemplo CFE</button>
-        <button class="toolbar-btn" (click)="printPreview()" [disabled]="printing || !!paginationPending">Imprimir</button>
+        <label for="report-print-scenario">Escenario de impresión</label>
+        <select id="report-print-scenario" [ngModel]="scenario" (ngModelChange)="selectScenario($event)">
+          @for (option of scenarios; track option.mode) {
+            <option [value]="option.mode" [disabled]="option.mode === 'json' && !validation?.hasImportedScenario">{{ option.label }}</option>
+          }
+        </select>
       </div>
 
       <div class="toolbar-group">
@@ -33,34 +25,42 @@
         <button class="toolbar-btn" [class.active]="viewMode === 'json'"   (click)="setViewMode('json')">JSON</button>
       </div>
 
-      <div class="toolbar-group">
-        <span class="toolbar-label">Exportar:</span>
-        <button class="toolbar-btn" (click)="exportHtmlRendered()" [disabled]="!outputReady" title="Descargar HTML con datos resueltos">HTML render</button>
-        <button class="toolbar-btn" (click)="exportHtmlTemplate()" title="Exportar directivas. Los controles del navegador no validan la salida ejecutada por Zureo.">HTML z-code</button>
-        <button class="toolbar-btn" (click)="exportJson()" title="Descargar la definición del template como JSON">JSON</button>
-      </div>
-
-      <div class="toolbar-group">
-        <span class="toolbar-label">Copiar:</span>
-        <button class="toolbar-btn" (click)="copyHtmlRendered()" [disabled]="!outputReady" title="Copiar HTML con datos resueltos al portapapeles">HTML render</button>
-        <button class="toolbar-btn" (click)="copyHtmlTemplate()" title="Copiar HTML z-code al portapapeles">HTML z-code</button>
-        <button class="toolbar-btn" (click)="copyJson()" title="Copiar la definición del template (JSON) al portapapeles">JSON</button>
-
-        @if (copyStatus !== 'idle') {
-          <span
-            class="copy-toast"
-            [class.success]="copyStatus === 'success'"
-            [class.error]="copyStatus === 'error'"
-          >
-            {{ copyStatusMessage }}
-          </span>
-        }
-      </div>
+      <details class="output-options">
+        <summary class="toolbar-btn">Descargar o copiar</summary>
+        <div class="toolbar-group">
+          <span class="toolbar-label">Descargar</span>
+          <button class="toolbar-btn" (click)="exportHtmlRendered()" [disabled]="!outputReady" title="Descargar HTML con datos resueltos">HTML render</button>
+          <button class="toolbar-btn" (click)="exportHtmlTemplate()" title="Exportar directivas. Los controles del navegador no validan la salida ejecutada por Zureo.">HTML z-code</button>
+          <button class="toolbar-btn" (click)="exportJson()" title="Descargar la definición del template como JSON">JSON</button>
+        </div>
+        <div class="toolbar-group">
+          <span class="toolbar-label">Copiar</span>
+          <button class="toolbar-btn" (click)="copyHtmlRendered()" [disabled]="!outputReady" title="Copiar HTML con datos resueltos al portapapeles">HTML render</button>
+          <button class="toolbar-btn" (click)="copyHtmlTemplate()" title="Copiar HTML z-code al portapapeles">HTML z-code</button>
+          <button class="toolbar-btn" (click)="copyJson()" title="Copiar la definición del template (JSON) al portapapeles">JSON</button>
+        </div>
+      </details>
+      @if (copyStatus !== 'idle') {
+        <span class="copy-toast" role="status"
+          [class.success]="copyStatus === 'success'" [class.error]="copyStatus === 'error'">
+          {{ copyStatusMessage }}
+        </span>
+      }
     </div>
+  </div>
+  <div class="print-summary">
+    <p id="report-output-summary" role="status">
+      {{ scenario === 'json' ? 'JSON importado' : scenario.startsWith('fiscal') ? 'CFE ficticio' : 'Ejemplo histórico' }} ·
+      {{ sampleSize }} {{ sampleSize === 1 ? 'artículo' : 'artículos' }} ·
+      {{ draft ? 'Borrador con cambios sin guardar' : 'Versión guardada' }} · {{ paperSummary }}
+      @if (outputReady) { · {{ pageCount }} {{ pageCount === 1 ? 'página' : 'páginas' }} }
+    </p>
+    <button class="toolbar-btn primary" (click)="printPreview()" [disabled]="printing || !!paginationPending"
+      aria-describedby="report-output-summary">Imprimir prueba</button>
   </div>
   @if (viewMode === 'render' && pageCount > 0) {
     <nav class="renderer-context" aria-label="Páginas del comprobante">
-      <span role="status">{{ sampleSize }} {{ sampleSize === 1 ? 'artículo' : 'artículos' }} · Página {{ currentPage }} de {{ pageCount }}</span>
+      <span role="status">Página {{ currentPage }} de {{ pageCount }}</span>
       @if (pageCount > 1) {
         <button class="toolbar-btn" (click)="showPage(currentPage - 1)" [disabled]="currentPage === 1">Página anterior</button>
         <button class="toolbar-btn" (click)="showPage(currentPage + 1)" [disabled]="currentPage === pageCount">Página siguiente</button>

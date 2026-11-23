@@ -1,6 +1,6 @@
 import { measureRenderSurface } from '../../utils/measure-render-surface';
 import { inject } from '@angular/core';
-import { ValidationSessionService } from '../../services/validation-session.service';
+import { REPORT_SCENARIOS, ScenarioMode, ValidationSessionService } from '../../services/validation-session.service';
 /**
  * Preview Component
  * Renders the template + sample data as HTML in an iframe.
@@ -17,10 +17,12 @@ import {
   ElementRef,
   EventEmitter,
   Output,
+  Input,
   ChangeDetectionStrategy,
   ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil, debounceTime, skip, tap } from 'rxjs';
 import { TemplateStateService } from '../../services/template-state.service';
 import { HtmlRendererService } from '../../services/html-renderer.service';
@@ -46,7 +48,7 @@ export type PreviewViewMode = 'render' | 'html' | 'json';
 @Component({
   selector: 'app-preview',
   standalone: true,
-  imports: [CommonModule, FiscalAdviceComponent, ValidationFeedbackComponent],
+  imports: [CommonModule, FormsModule, FiscalAdviceComponent, ValidationFeedbackComponent],
   templateUrl: './preview.component.html',
   styleUrl: './preview.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -63,7 +65,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
   private preparedPages: Element[] = [];
   preparedHtml = '';
   @Output() readonly showDesign = new EventEmitter<void>();
-  fiscalSample = false;
+  @Input() draft = false;
   renderedReport?: RenderedFiscalReport;
   feedback?: ValidationFeedback;
   reportPending = true;
@@ -88,7 +90,9 @@ export class PreviewComponent implements OnInit, OnDestroy {
 
   // ─── View state ───
   viewMode: PreviewViewMode = 'render';
-  sampleDataMode: 'single' | 'multi' | 'fifteen' = 'single';
+  readonly scenarios = REPORT_SCENARIOS;
+  scenario: ScenarioMode = 'single';
+  paperSummary = '';
   currentPage = 1;
   sampleSize = 0;
   get pageCount(): number { return this.preparedPages.length; }
@@ -132,8 +136,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
       });
     if (this.validation) {
       this.validation.scenario$.pipe(takeUntil(this.destroy$)).subscribe(mode => {
-        this.fiscalSample = mode.startsWith('fiscal');
-        this.sampleDataMode = mode === 'fifteen' ? mode : mode.endsWith('multi') ? 'multi' : 'single';
+        this.scenario = mode;
         this.renderPreview();
       });
     } else this.renderPreview();
@@ -177,6 +180,10 @@ export class PreviewComponent implements OnInit, OnDestroy {
     const template = this.templateState.getCurrentTemplate();
     const data = this.getActiveData();
     this.sampleSize = data.invoiceLines?.length ?? 0;
+    const { paperType, width, height, dynamicHeight } = template.page;
+    this.paperSummary = dynamicHeight || paperType === 'ticket-58' || paperType === 'ticket-80'
+      ? `Ticket ${width} mm`
+      : `${!paperType || paperType === 'custom' ? 'Hoja' : paperType.toUpperCase()} ${width} × ${height} mm`;
     this.fiscalContext = buildValidationContext(template.compliance, data);
     this.showFiscalContext = template.compliance !== undefined || data.fiscal !== undefined;
 
@@ -262,35 +269,25 @@ export class PreviewComponent implements OnInit, OnDestroy {
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // Sample data toggle
+  // Simulation scenarios
   // ─────────────────────────────────────────────────────────────────
 
   private getActiveData(): InvoiceData {
     if (this.validation) return this.validation.data();
-    if (this.fiscalSample) return sampleFiscalInvoice(this.templateState.getCurrentTemplate().compliance, this.sampleDataMode === 'multi');
-    if (this.sampleDataMode === 'fifteen') return SAMPLE_INVOICE_FIFTEEN;
-    return this.sampleDataMode === 'single'
-      ? SAMPLE_INVOICE_DATA
-      : SAMPLE_INVOICE_MULTILINE;
+    if (this.scenario.startsWith('fiscal')) {
+      return sampleFiscalInvoice(this.templateState.getCurrentTemplate().compliance, this.scenario === 'fiscal-multi');
+    }
+    if (this.scenario === 'fifteen') return SAMPLE_INVOICE_FIFTEEN;
+    return this.scenario === 'multi' ? SAMPLE_INVOICE_MULTILINE : SAMPLE_INVOICE_DATA;
   }
 
-  toggleSampleData(): void {
-    this.sampleDataMode = this.sampleDataMode === 'single' ? 'multi' : 'single';
-    if (this.validation) this.validation.select(this.fiscalSample ? (this.sampleDataMode === 'multi' ? 'fiscal-multi' : 'fiscal-single') : this.sampleDataMode);
-    else this.renderPreview();
-  }
-
-  showFifteenArticles(): void {
-    this.sampleDataMode = 'fifteen';
-    this.fiscalSample = false;
-    if (this.validation) this.validation.select('fifteen');
-    else this.renderPreview();
-  }
-
-  toggleFiscalSample(): void {
-    this.fiscalSample = !this.fiscalSample;
-    if (this.validation) this.validation.select(this.fiscalSample ? (this.sampleDataMode === 'multi' ? 'fiscal-multi' : 'fiscal-single') : this.sampleDataMode);
-    else this.renderPreview();
+  selectScenario(mode: ScenarioMode): void {
+    if (this.validation) {
+      this.validation.select(mode);
+    } else if (mode !== 'json') {
+      this.scenario = mode;
+      this.renderPreview();
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────

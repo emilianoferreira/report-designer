@@ -80,6 +80,7 @@ async function geometry(frame) {
       await expect(page.locator('[data-print-preparation]')).toBeAttached();
       const printed = await geometry(preview);
       if (paper === 'fiscal-pages') assert.equal(printed.length,3);
+      await page.getByText('Descargar o copiar',{exact:true}).click();
       const downloadPromise = page.waitForEvent('download');
       await page.getByRole('button',{name:'HTML render',exact:true}).first().click();
       const resolved = fs.readFileSync(await (await downloadPromise).path(),'utf8');

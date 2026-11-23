@@ -35,6 +35,9 @@ export class LabelPrintPageComponent implements OnInit, AfterViewInit, OnDestroy
  private restoredProfile?: LabelPrintProfileId;
  resumedBatch = false;
  renderIssues:LabelDiagnostic[]=[];
+ appliedListName(id: string): string {
+   return this.state.lists.find(list => list.id === id)?.name ?? 'Lista de precios ' + id;
+ }
  rowDiagnostics(id:string):string[] {
    const row=this.state.row(id);
    if(!row)return ['Pendiente de consulta.'];

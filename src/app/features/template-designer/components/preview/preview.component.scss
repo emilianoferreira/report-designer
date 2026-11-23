@@ -48,6 +48,25 @@
   gap: 4px;
 }
 
+.print-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 6px 12px;
+  font-size: 13px;
+  background: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+
+  p { margin: 0; }
+}
+
+.output-options {
+  summary { display: list-item; width: fit-content; }
+  .toolbar-group { margin-top: 6px; border: 0; padding: 0; flex-wrap: wrap; }
+}
+
 // Separator between toolbar groups for visual grouping
 .toolbar-group + .toolbar-group {
   border-left: 1px solid #e0e0e0;
