@@ -4,6 +4,7 @@ import { companyId } from '../../auth/auth.module';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ReportTemplate } from '../../entities';
+import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class TemplatesService {
@@ -62,15 +63,19 @@ export class TemplatesService {
   /** Duplicate a template */
   async duplicate(id: string): Promise<ReportTemplate> {
     return this.change(id, async (repo, original) => {
-    const cloned = repo.create({
-      ...original,
-      id: undefined,
-      nombre: `${original.nombre} (copia)`,
-      version: 1,
-      created_at: undefined,
-      updated_at: undefined,
-    });
-    return repo.save(cloned);
+      const copyId = randomUUID();
+      const nameWithSuffix = (suffix: string) => Array.from(original.nombre).slice(0, 200 - suffix.length).join('') + suffix;
+      const name = nameWithSuffix(' (copia)');
+      const alreadyUsed = await repo.existsBy({ company_id: this.company, nombre: name });
+      const cloned = repo.create({
+        ...original,
+        id: copyId,
+        nombre: alreadyUsed ? nameWithSuffix(` (copia ${copyId.slice(0, 8)})`) : name,
+        version: 1,
+        created_at: undefined,
+        updated_at: undefined,
+      });
+      return repo.save(cloned);
     });
   }
 

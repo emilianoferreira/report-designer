@@ -230,7 +230,7 @@
           />
         </div>
 
-        <!-- Position -->
+        <p class="field-hint" id="report-position-origin">X e Y se miden desde la esquina superior izquierda de la sección.</p>
         <div class="field-row">
           <div class="field-group half">
             <label class="field-label" for="element-x">X (mm)</label>
@@ -238,6 +238,7 @@
               type="number"
               class="field-input"
               id="element-x" [disabled]="locked" [(ngModel)]="posX"
+              aria-describedby="report-position-origin"
               (blur)="onGeometryChange()"
               step="0.1"
             />
@@ -248,6 +249,7 @@
               type="number"
               class="field-input"
               id="element-y" [disabled]="locked" [(ngModel)]="posY"
+              aria-describedby="report-position-origin"
               (blur)="onGeometryChange()"
               step="0.1"
             />

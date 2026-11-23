@@ -28,7 +28,7 @@ import { TemplateStateService } from '../../services/template-state.service';
 import { HtmlRendererService } from '../../services/html-renderer.service';
 import { SAMPLE_INVOICE_DATA, SAMPLE_INVOICE_FIFTEEN, SAMPLE_INVOICE_MULTILINE } from '../../data/sample-invoice';
 import { InvoiceData } from '../../../../core/models/template.model';
-import { mmToPx } from '../../utils/coordinate-utils';
+import { mmToPx, reportPaperSummary } from '../../utils/coordinate-utils';
 import { ValidationContext } from '../../../../core/models/fiscal.model';
 import { buildValidationContext } from '../../utils/fiscal-context';
 import { RenderEvidence } from '../../services/render-evidence';
@@ -180,10 +180,7 @@ export class PreviewComponent implements OnInit, OnDestroy {
     const template = this.templateState.getCurrentTemplate();
     const data = this.getActiveData();
     this.sampleSize = data.invoiceLines?.length ?? 0;
-    const { paperType, width, height, dynamicHeight } = template.page;
-    this.paperSummary = dynamicHeight || paperType === 'ticket-58' || paperType === 'ticket-80'
-      ? `Ticket ${width} mm`
-      : `${!paperType || paperType === 'custom' ? 'Hoja' : paperType.toUpperCase()} ${width} × ${height} mm`;
+    this.paperSummary = reportPaperSummary(template.page);
     this.fiscalContext = buildValidationContext(template.compliance, data);
     this.showFiscalContext = template.compliance !== undefined || data.fiscal !== undefined;
 

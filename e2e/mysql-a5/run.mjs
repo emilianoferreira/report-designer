@@ -39,6 +39,21 @@ await runIsolatedApi({verify:async pg=>{
         const pb=await login(pg.urls[1],pg.users.bob);
         for(const invoice of invoices){const isA=invoice.company_id===A;const a=await call(pg.urls[1],isA?p:pb,'GET',`/api/invoices/${invoice.id}/data`);const b=await call(my.urls[0],isA?m:other,'GET',`/api/invoices/${invoice.id}/data`);assert.deepEqual(b,a);await writeFile(path.join(directory,invoice.id+'.json'),JSON.stringify({postgres:a,mysql:b},null,2));check(true,'InvoiceData parity '+invoice.id);}
         const fixture=JSON.parse(await readFile(path.join(root,'e2e/stage0/fixtures/report-a4.json'),'utf8'));
+        for (const url of pg.urls) {
+            const identity = await login(url, pg.users.alice);
+            const original = await call(url, identity, 'POST', '/api/templates', { ...fixture, nombre: 'Molde para duplicar' }, 201);
+            const route = '/api/templates/' + original.id + '/duplicate';
+            const first = await call(url, identity, 'POST', route, {}, 201);
+            const second = await call(url, identity, 'POST', route, {}, 201);
+            assert.equal(first.nombre, 'Molde para duplicar (copia)');
+            assert.equal(second.nombre, `Molde para duplicar (copia ${second.id.slice(0, 8)})`);
+            for (const copy of [first, second]) {
+                assert.deepEqual(copy.template_json, original.template_json);
+                await call(url, identity, 'DELETE', '/api/templates/' + copy.id, undefined, 200);
+            }
+            await call(url, identity, 'DELETE', '/api/templates/' + original.id, undefined, 200);
+        }
+        check(true, 'PostgreSQL copies have distinct names and unchanged designs in NestJS and .NET');
         for(const name of ['price-label','report-ticket-80']) {
             const item=JSON.parse(await readFile(path.join(root,'e2e/stage0/fixtures',name+'.json'),'utf8'));
             const stored=await call(my.urls[0],m,'POST','/api/templates',{nombre:name,template_json:item.template_json},201);

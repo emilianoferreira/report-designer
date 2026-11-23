@@ -13,8 +13,8 @@
       <button class="toolbar-btn" (click)="resetZoom()" title="Restaurar zoom al 100%">1:1</button>
       <button class="toolbar-btn" [class.active]="showRulers" [attr.aria-pressed]="showRulers" (click)="showRulers = !showRulers">Reglas</button>
       <button class="toolbar-btn" [class.active]="showGrid" [attr.aria-pressed]="showGrid" (click)="showGrid = !showGrid" title="Mostrar grilla de 5 mm">Grilla</button>
-      <button class="toolbar-btn" [class.active]="snapSettings.snapToGrid" [attr.aria-pressed]="snapSettings.snapToGrid" (click)="snapSettings.snapToGrid = !snapSettings.snapToGrid" title="Ajustar a la grilla de 5 mm">Snap</button>
-      <button class="toolbar-btn" [class.active]="snapSettings.snapToElement" [attr.aria-pressed]="snapSettings.snapToElement" (click)="snapSettings.snapToElement = !snapSettings.snapToElement" title="Ajustar a bordes y centros de otros elementos">Elem</button>
+      <button class="toolbar-btn" [class.active]="snapSettings.snapToGrid" [attr.aria-pressed]="snapSettings.snapToGrid" (click)="snapSettings.snapToGrid = !snapSettings.snapToGrid" title="Ajustar a la grilla de 5 mm">Ajustar a grilla</button>
+      <button class="toolbar-btn" [class.active]="snapSettings.snapToElement" [attr.aria-pressed]="snapSettings.snapToElement" (click)="snapSettings.snapToElement = !snapSettings.snapToElement" title="Ajustar a bordes y centros de otros elementos">Ajustar a elementos</button>
     </div>
     <div class="toolbar-readout">
       Etiqueta {{ template.label.width }} x {{ template.label.height }} mm

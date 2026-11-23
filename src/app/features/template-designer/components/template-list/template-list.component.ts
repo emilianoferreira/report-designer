@@ -14,6 +14,7 @@ import { LabelTemplate } from '../../../../core/models/price-label-template.mode
 import { PriceLabelStorageService } from '../../../price-label-designer/services/price-label-storage.service';
 import { isThermalCalibration, labelCalibrations } from '../../../price-label-designer/data/label-calibration';
 import { labelSheetName } from '../../../price-label-designer/utils/label-layout';
+import { reportPaperSummary } from '../../utils/coordinate-utils';
 
 @Component({
   selector: 'app-template-list',
@@ -30,6 +31,7 @@ export class TemplateListComponent implements OnInit, OnDestroy {
   catalogPending = false;
   catalogError = '';
   readonly calibrations = labelCalibrations;
+  readonly reportPaperSummary = reportPaperSummary;
   showForm = false;
   editingMold: TemplateMold | null = null;
   confirmDeleteId: string | null = null;

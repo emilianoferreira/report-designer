@@ -75,14 +75,20 @@ internal sealed class PostgresTemplateCommands(ReportDesignerDbContext db, ITemp
     public async Task<TemplateReadModel> DuplicateAsync(string id, CancellationToken cancellationToken)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        await Required(id, cancellationToken);
+        await LockRevision(id, null, cancellationToken);
         var copyId = Guid.NewGuid();
+        var shortId = copyId.ToString("N")[..8];
+        var suffix = $" (copia {shortId})";
         await db.Database.ExecuteSqlAsync($"""
             INSERT INTO report_templates (id, company_id, nombre, descripcion, version, autor,
                 tags, estado, template_json, based_on)
-            SELECT {copyId}, company_id, nombre || ' (copia)', descripcion, 1, autor,
-                tags, estado, template_json, based_on
-            FROM report_templates WHERE id = CAST({id} AS uuid) AND company_id = {company.CompanyId}
+            SELECT {copyId}, source.company_id,
+                CASE WHEN EXISTS (SELECT 1 FROM report_templates AS copies
+                    WHERE copies.company_id = source.company_id AND copies.nombre = LEFT(source.nombre, 192) || ' (copia)')
+                    THEN LEFT(source.nombre, 200 - {suffix.Length}) || {suffix}
+                    ELSE LEFT(source.nombre, 192) || ' (copia)' END,
+                source.descripcion, 1, source.autor, source.tags, source.estado, source.template_json, source.based_on
+            FROM report_templates AS source WHERE source.id = CAST({id} AS uuid) AND source.company_id = {company.CompanyId}
             """, cancellationToken);
         var result = await Required(copyId.ToString(), cancellationToken);
         await transaction.CommitAsync(cancellationToken);

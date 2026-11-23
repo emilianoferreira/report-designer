@@ -21,7 +21,7 @@
     <div class="header-left">
       <button class="back-btn" (click)="goToDocuments()" [attr.aria-label]="hasBatchToResume ? 'Salir del editor y volver al lote' : 'Volver a documentos'">←</button>
       <span class="app-logo">Diseñador</span><span class="header-separator">|</span>
-      <input class="template-name-input" aria-label="Nombre de la plantilla" [readOnly]="!canEdit" [ngModel]="template.name" (blur)="canEdit && updateName($any($event.target).value)" />
+      <input class="template-name-input" aria-label="Nombre del molde" [readOnly]="!canEdit" [ngModel]="template.name" (blur)="canEdit && updateName($any($event.target).value)" />
       @if (hasUnsavedChanges()) { <span class="dirty-indicator" title="Cambios sin guardar" aria-label="Cambios sin guardar">●</span> }
     </div>
     @if (canEdit) {
@@ -42,10 +42,10 @@
       }
       @if (canEdit) {
       <details class="template-menu" #templateMenu (keydown.escape)="templateMenu.open = false; templateSummary.focus()">
-        <summary #templateSummary>Plantilla <span aria-hidden="true">▾</span></summary>
+        <summary #templateSummary>Molde <span aria-hidden="true">▾</span></summary>
         <div class="menu-content">
           @if (legacyRoute) {
-          <label>Abrir plantilla
+          <label>Abrir molde
             <select class="template-select" [disabled]="saving" [ngModel]="template.id" (change)="openTemplate($any($event.target).value, $any($event.target)); templateMenu.open = false">
               <option [value]="template.id">Actual</option>
               @for (saved of savedTemplates; track saved.id) {
@@ -53,9 +53,9 @@
               }
             </select>
           </label>
-          <button [disabled]="saving" (click)="createNewTemplate(); templateMenu.open = false">Nueva plantilla</button>
+          <button [disabled]="saving" (click)="createNewTemplate(); templateMenu.open = false">Nuevo molde</button>
           }
-          <button class="danger" [disabled]="saving" (click)="deleteTemplate(); templateMenu.open = false">Eliminar plantilla</button>
+          <button class="danger" [disabled]="saving" (click)="deleteTemplate(); templateMenu.open = false">Eliminar molde</button>
         </div>
       </details>
       <button class="header-btn primary" [class.has-changes]="hasUnsavedChanges()" [disabled]="!!layoutError" [attr.aria-disabled]="saving ? true : null" (click)="saveTemplate()">{{ saving ? 'Guardando…' : 'Guardar' }}</button>
@@ -68,12 +68,14 @@
       <span class="document-kind">ETIQUETAS</span>
       <span>{{ template.label.width }} × {{ template.label.height }} mm</span>
       <span class="sheet-summary">
+        Soporte activo ·
         @if (startsWithThermal) { Rollo térmico }
         @else { {{ sheetName }} · {{ template.label.columns }} columnas · {{ template.label.rows }} filas }
       </span>
       <button [class.active]="settingsOpen" [attr.aria-expanded]="settingsOpen" aria-controls="print-settings" (click)="settingsOpen = !settingsOpen">Configuración de impresión</button>
     </div>
     <div id="print-settings" class="print-settings" [hidden]="!settingsOpen">
+        <ng-container [ngTemplateOutlet]="startsWithThermal ? thermalSettings : sheetSettings" />
         <section class="panel-section">
           <h2>Etiqueta y distribución (mm)</h2>
           <label>
@@ -138,8 +140,10 @@
           </div>
         </section>
 
+        <ng-container [ngTemplateOutlet]="startsWithThermal ? sheetSettings : thermalSettings" />
+        <ng-template #sheetSettings>
         <section class="panel-section">
-          <h2>Perfil de hoja</h2>
+          <h2>Perfil de hoja @if (!startsWithThermal) { · Activo }</h2>
           <label>Formato de hoja
             <select [ngModel]="sheetName === 'Hoja A4' ? (template.page.width === 210 ? 'portrait' : 'landscape') : 'custom'" (ngModelChange)="setA4Orientation($event)">
               @if (sheetName !== 'Hoja A4') {
@@ -170,8 +174,10 @@
           </div>
           @if (sheetError && !layoutError) { <p role="status">{{ sheetError }}</p> }
         </section>
+        </ng-template>
+        <ng-template #thermalSettings>
         <section class="panel-section">
-          <h2>Perfil térmico</h2>
+          <h2>Perfil térmico @if (startsWithThermal) { · Activo }</h2>
           @if (template.printProfiles?.thermal; as roll) {
             <div class="field-grid">
               @for (field of thermalFields; track field.key) {
@@ -194,6 +200,7 @@
             <button type="button" (click)="addThermalProfile()">Agregar perfil térmico</button>
           }
         </section>
+        </ng-template>
     </div>
     <div class="designer-body">
       <aside class="left-panel" [class.collapsed]="leftPanelCollapsed" aria-label="Herramientas">

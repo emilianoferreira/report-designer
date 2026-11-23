@@ -41,6 +41,7 @@
       <button
         class="toolbar-btn"
         [class.active]="showGrid"
+        [attr.aria-pressed]="showGrid"
         (click)="toggleGrid()"
         title="Mostrar u ocultar la grilla de referencia (cuadrícula de {{ gridSizeMm }}mm)"
       >
@@ -49,28 +50,30 @@
       <button
         class="toolbar-btn"
         [class.active]="snapSettings.snapToGrid"
+        [attr.aria-pressed]="snapSettings.snapToGrid"
         (click)="snapSettings.snapToGrid = !snapSettings.snapToGrid"
         title="Ajustar a la grilla de {{ gridSizeMm }}mm"
       >
-        Snap
+        Ajustar a grilla
       </button>
       <button
         class="toolbar-btn"
         [class.active]="snapSettings.snapToElement"
+        [attr.aria-pressed]="snapSettings.snapToElement"
         (click)="snapSettings.snapToElement = !snapSettings.snapToElement"
         title="Ajustar a otros elementos"
       >
-        Elem
+        Ajustar a elementos
       </button>
     </div>
     <div class="toolbar-separator"></div>
     <div class="toolbar-group paper-group">
-      <label class="toolbar-label" title="Tamaño de papel">Papel:</label>
+      <label class="toolbar-label" for="report-paper-format">Papel</label>
       <select
+        id="report-paper-format"
         class="toolbar-select"
         [(ngModel)]="selectedPaperType"
         (ngModelChange)="onPaperTypeChange()"
-        title="Seleccionar el tamaño de papel para la plantilla"
       >
         @for (preset of paperPresets; track preset.type) {
           <option [value]="preset.type">{{ preset.label }}</option>
