@@ -57,6 +57,56 @@ const viewButton = (page, name) => page.locator('.toolbar-group').filter({ hasTe
 const downloadButton = page => page.getByTitle('Descargar HTML con datos resueltos', { exact: true });
 const copyButton = page => page.getByTitle('Copiar HTML con datos resueltos al portapapeles', { exact: true });
 
+async function checkTicketDescriptions(page, browser, width) {
+  const cases = [
+    { name: 'Arroz', multiline: false },
+    { name: 'Artículo de prueba con descripción extensa y varias palabras para comprobar el ancho del papel '.repeat(3).trim(), multiline: true },
+    { name: 'ABCDEFGHIJ'.repeat(12), multiline: true }
+  ];
+  const preview = page.frameLocator('iframe[title="Vista previa"]');
+  let shortHeight;
+  for (const { name, multiline } of cases) {
+    await button(page, 'Diseño').click();
+    await page.locator('app-design-validation input[type="file"]').setInputFiles({
+      name: 'ticket-description.json', mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify({ invoice: {}, company: {}, Total: 122, isImpIncluidos: true,
+        invoiceLines: [{ Articulo: { Codigo: 'T01', Nombre: name }, Cantidad: 1, PrecioUnitario: 122, SubTotal: 122 }] }))
+    });
+    await button(page, 'Vista Previa').click();
+    await expect(downloadButton(page)).toBeEnabled();
+    const description = preview.locator('.ticket-item-name');
+    await expect(description).toHaveText('(T01) ' + name);
+    await expect(preview.locator('.ticket-item-subtotal')).toContainText('122');
+    const layout = await description.evaluate(node => {
+      function fragments(element) {
+        const range = element.ownerDocument.createRange();
+        range.selectNodeContents(element);
+        return [...range.getClientRects()];
+      }
+      const item = node.closest('.ticket-item');
+      const detail = item.closest('.section-detail').getBoundingClientRect();
+      const footer = item.closest('.page').querySelector('.section-footer').getBoundingClientRect();
+      const lines = fragments(node);
+      const amount = item.querySelector('.ticket-item-subtotal');
+      const withinDetail = rect => rect.left >= detail.left - 0.5 && rect.right <= detail.right + 0.5;
+      return {
+        lineCount: new Set(lines.map(rect => rect.top)).size,
+        descriptionFits: lines.length > 0 && lines.every(withinDetail),
+        amountFits: fragments(amount).every(withinDetail),
+        amountBelowDescription: amount.getBoundingClientRect().top >= node.getBoundingClientRect().bottom - 0.5,
+        footerBelowItem: footer.top >= item.getBoundingClientRect().bottom - 0.5
+      };
+    });
+    assert.equal(layout.descriptionFits, true, 'Description fits the printable width at ' + width + ' mm');
+    assert.equal(layout.lineCount > 1, multiline);
+    assert.ok(layout.amountFits && layout.amountBelowDescription, 'The amount fits below the description');
+    assert.ok(layout.footerBelowItem, 'The footer follows the expanded item');
+    const height = await compareOutputs(page, browser, width, 'HTML', 1);
+    if (multiline) assert.ok(height > shortHeight, 'Roll height grows with the description');
+    else shortHeight = height;
+  }
+}
+
 async function compareOutputs(page, browser, width, view, articles) {
   await viewButton(page, view).click();
   const preview = page.frameLocator('iframe[title="Vista previa"]');
@@ -123,7 +173,11 @@ async function compareOutputs(page, browser, width, view, articles) {
       await viewButton(page, 'JSON').click();
       await button(page, 'Volver a 1 artículo').click();
       const shortHeight = await compareOutputs(page, browser, width, 'JSON', 1);
-      if (width !== 210) assert.ok(longHeight > shortHeight);
+      if (width !== 210) {
+        assert.ok(longHeight > shortHeight);
+        await checkTicketDescriptions(page, browser, width);
+        console.log('PASS: short, long and unbroken descriptions fit ' + width + ' mm tickets.');
+      }
       await page.close();
       console.log('PASS: print, download and clipboard HTML match; PDF verified for ' + width + ' mm.');
     }
