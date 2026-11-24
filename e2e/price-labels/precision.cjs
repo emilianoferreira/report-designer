@@ -29,7 +29,7 @@ module.exports = async function precisionTests(page, newTemplate, openSettings) 
   await newTemplate();
   await page.waitForFunction(() => document.querySelectorAll('.label-element').length === 4);
   assert.equal(await button('Deshacer').isDisabled(), true);
-  await toggle('Snap', false); await toggle('Elem', false);
+  await toggle('Ajustar a grilla', false); await toggle('Ajustar a elementos', false);
   await barcode.click();
   const original = await geometry();
   await drag(23, 0);
@@ -60,13 +60,13 @@ module.exports = async function precisionTests(page, newTemplate, openSettings) 
 
   await newTemplate();
   await barcode.click();
-  await toggle('Snap', true); await toggle('Elem', false);
+  await toggle('Ajustar a grilla', true); await toggle('Ajustar a elementos', false);
   await toggle('Grilla', false); // snapping must work even with hidden grid
   const zoom = 3, mm = 96 / 25.4 * zoom;
   await drag(2 * mm, 0);
   await waitGeometry({ x: 10 * mm, y: 20 * mm });
   await button('Deshacer').click(); await waitGeometry(original);
-  await toggle('Snap', false); await toggle('Elem', true);
+  await toggle('Ajustar a grilla', false); await toggle('Ajustar a elementos', true);
   await drag(0.8 * mm, 0, false);
   await page.locator('.alignment-guide').first().waitFor();
   await page.screenshot({ path: 'tmp/labels-alignment.png' });

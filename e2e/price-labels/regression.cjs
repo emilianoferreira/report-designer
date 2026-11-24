@@ -67,7 +67,7 @@ const assert = require('node:assert/strict');
       if (!(await templateMenu.evaluate(el => el.open))) await templateMenu.locator('summary').click();
     }
     async function selectSavedTemplate() { await openTemplateMenu(); await page.locator('.template-select').selectOption(row.id); }
-    async function newTemplate() { await openTemplateMenu(); await page.getByRole('button', { name: 'Nueva plantilla', exact: true }).click(); }
+    async function newTemplate() { await openTemplateMenu(); await page.getByRole('button', { name: 'Nuevo molde', exact: true }).click(); }
     async function openSettings() {
       const toggle = page.getByRole('button', { name: 'Configuración de impresión', exact: true });
       if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
@@ -85,6 +85,7 @@ const assert = require('node:assert/strict');
     await page.screenshot({ path: 'tmp/labels-notebook.png' });
     assert.ok((await page.locator('.designer-status').boundingBox()).y < 800);
     await openSettings();
+    await expect(page.locator('#print-settings h2').first()).toHaveText('Perfil de hoja · Activo');
     await page.screenshot({ path: 'tmp/labels-settings.png' });
     await page.getByRole('button', { name: 'Configuración de impresión', exact: true }).click();
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
@@ -231,9 +232,10 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(() => document.querySelectorAll('.barcode-content svg').length === 1);
     await page.locator('.barcode-content').click();
     await page.locator('app-price-label-properties').getByRole('button', { name: 'General', exact: true }).click();
-    await page.getByRole('button', { name: 'Snap', exact: true }).click();
-    await page.getByRole('button', { name: 'Elem', exact: true }).click();
-    const x = page.getByLabel('X mm', { exact: true });
+    await page.getByRole('button', { name: 'Ajustar a grilla', exact: true }).click();
+    await page.getByRole('button', { name: 'Ajustar a elementos', exact: true }).click();
+    const x = page.getByLabel('X (mm)', { exact: true });
+    await expect(x).toHaveAccessibleDescription('X e Y se miden desde la esquina superior izquierda de la etiqueta.');
     const beforeX = Number(await x.inputValue());
     const bar = await page.locator('.barcode-content').boundingBox();
     await page.mouse.move(bar.x + bar.width / 2, bar.y + bar.height / 2);
@@ -265,18 +267,18 @@ const assert = require('node:assert/strict');
     await page.getByRole('button',{name:'Recargar versión del servidor',exact:true}).click();
     await page.waitForFunction(() => document.querySelector('.template-name-input').value==='Versión remota');
     acceptDialog=false;
-    await openTemplateMenu(); await page.getByRole('button',{name:'Eliminar plantilla',exact:true}).click();
+    await openTemplateMenu(); await page.getByRole('button',{name:'Eliminar molde',exact:true}).click();
     assert.equal(deletions,0); assert.equal(await name.inputValue(),'Versión remota');
     acceptDialog=true; failSave=true;
-    await openTemplateMenu(); await page.getByRole('button',{name:'Eliminar plantilla',exact:true}).click();
+    await openTemplateMenu(); await page.getByRole('button',{name:'Eliminar molde',exact:true}).click();
     await page.waitForFunction(() => document.querySelector('.save-status').textContent.includes('No se pudo eliminar'));
     assert.equal(await name.inputValue(),'Versión remota'); assert.equal(deletions,0);
     failSave=false;
     row={...row,version:row.version+1};
-    await openTemplateMenu(); await page.getByRole('button',{name:'Eliminar plantilla',exact:true}).click();
+    await openTemplateMenu(); await page.getByRole('button',{name:'Eliminar molde',exact:true}).click();
     await page.getByRole('button',{name:'Recargar versión del servidor',exact:true}).click();
     await page.waitForFunction(() => document.querySelector('button.primary:not(:disabled):not([aria-disabled=true])'));
-    await openTemplateMenu(); await page.getByRole('button',{name:'Eliminar plantilla',exact:true}).click();
+    await openTemplateMenu(); await page.getByRole('button',{name:'Eliminar molde',exact:true}).click();
     await page.waitForFunction(() => document.querySelector('.save-status').textContent==='Eliminado');
     assert.equal(deletions,1);
     failList=true; await page.reload(); await page.getByRole('button',{name:'Reintentar carga',exact:true}).waitFor();

@@ -72,6 +72,9 @@
               </div> }
             </div>
             <h3 class="card-name">{{ mold.name }}</h3>
+            @if (mold.template.page; as page) {
+              <p class="card-description">{{ reportPaperSummary(page) }}</p>
+            }
             @if (mold.description) {
               <p class="card-description">{{ mold.description }}</p>
             }

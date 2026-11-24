@@ -24,14 +24,15 @@
         <input type="text" [(ngModel)]="name" (blur)="applyChanges()" />
       </label>
 
+      <p id="label-position-origin">X e Y se miden desde la esquina superior izquierda de la etiqueta.</p>
       <div class="field-grid">
         <label>
-          X mm
-          <input type="number" [(ngModel)]="x" (blur)="applyChanges()" step="0.5" />
+          X (mm)
+          <input type="number" [(ngModel)]="x" (blur)="applyChanges()" step="0.5" aria-describedby="label-position-origin" />
         </label>
         <label>
-          Y mm
-          <input type="number" [(ngModel)]="y" (blur)="applyChanges()" step="0.5" />
+          Y (mm)
+          <input type="number" [(ngModel)]="y" (blur)="applyChanges()" step="0.5" aria-describedby="label-position-origin" />
         </label>
         <label>
           Ancho

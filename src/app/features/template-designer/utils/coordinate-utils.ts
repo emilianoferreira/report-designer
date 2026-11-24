@@ -1,3 +1,5 @@
+import { PageSettings } from '../../../core/models/template.model';
+
 /**
  * Coordinate Conversion Utilities
  * Handles conversion between different measurement units used in the template designer
@@ -9,6 +11,14 @@
  * Standard DPI for CSS/web rendering
  */
 const CSS_DPI = 96;
+
+export function reportPaperSummary(page: PageSettings): string {
+  const { paperType, width, height, dynamicHeight } = page;
+  if (dynamicHeight || paperType === 'ticket-58' || paperType === 'ticket-80') return `Ticket ${width} mm`;
+  const preset = paperType || PAPER_PRESETS.find(p => p.width === width && p.height === height && !p.dynamicHeight)?.type;
+  const format = !preset || preset === 'custom' ? 'Hoja' : preset.toUpperCase();
+  return `${format} ${width} × ${height} mm`;
+}
 
 /**
  * Conversion factor: millimeters to pixels at 96 DPI

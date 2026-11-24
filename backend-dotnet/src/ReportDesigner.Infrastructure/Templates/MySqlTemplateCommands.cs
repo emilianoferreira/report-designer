@@ -70,11 +70,18 @@ internal sealed class MySqlTemplateCommands(MySqlReportDesignerDbContext db, ITe
     public async Task<TemplateReadModel> DuplicateAsync(string id, CancellationToken ct)
     {
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
-        await Lock(id, null, ct); var copy = Guid.NewGuid().ToString();
+        await Lock(id, null, ct);
+        var copy = Guid.NewGuid().ToString();
+        var suffix = $" (copia {copy[..8]})";
         await db.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO report_templates(id,company_id,nombre,descripcion,version,autor,tags,estado,template_json,based_on,created_at,updated_at)
-            SELECT {copy},company_id,CONCAT(nombre,' (copia)'),descripcion,1,autor,tags,estado,template_json,based_on,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6)
-            FROM report_templates WHERE id={Guid.Parse(id).ToString()} AND company_id={company.CompanyId.ToString()}
+            SELECT {copy},source.company_id,
+                CASE WHEN EXISTS (SELECT 1 FROM report_templates AS copies
+                    WHERE copies.company_id = source.company_id AND copies.nombre = CONCAT(LEFT(source.nombre, 192), ' (copia)'))
+                    THEN CONCAT(LEFT(source.nombre, 200 - {suffix.Length}), {suffix})
+                    ELSE CONCAT(LEFT(source.nombre, 192), ' (copia)') END,
+                source.descripcion,1,source.autor,source.tags,source.estado,source.template_json,source.based_on,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6)
+            FROM report_templates AS source WHERE source.id={Guid.Parse(id).ToString()} AND source.company_id={company.CompanyId.ToString()}
             """, ct);
         var result = await Required(copy, ct); await tx.CommitAsync(ct); return result;
     }

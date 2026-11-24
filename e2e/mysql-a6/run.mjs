@@ -48,6 +48,17 @@ const {directory,report}=await runA5({verify:async({mysql,directory})=>{
  await expect(page).toHaveURL(origin+'/templates');
  await page.reload();card=page.locator('.mold-card').filter({has:page.getByRole('heading',{name:'A6 web real',exact:true})});await expect(card).toContainText('Persistido desde Angular');
  await expect(card).toContainText('Venta Crédito');
+ pending=response('POST','/duplicate');await card.getByTitle('Duplicar',{exact:true}).click();
+ r=await pending;assert.equal(r.status(),201);const secondDuplicate=await r.json();
+ assert.notEqual(secondDuplicate.nombre,duplicate.nombre);
+ assert.deepEqual(secondDuplicate.template_json,duplicate.template_json);
+ await expect(page).toHaveURL(origin+'/designer/'+secondDuplicate.id);
+ await page.getByTitle('Volver a la lista de moldes').click();
+ for(const copy of [duplicate,secondDuplicate]){
+   const copyCard=page.locator('.mold-card').filter({has:page.getByRole('heading',{name:copy.nombre,exact:true})});
+   await expect(copyCard).toContainText('A4 210 × 297 mm');
+ }
+ checks.push('Angular catalog distinguishes repeated copies and displays report paper format');
  await card.getByTitle('Editar metadatos').click();
  await expect(type).toHaveValue('venta_credito');
  await type.selectOption('nota_credito');
@@ -83,7 +94,7 @@ const {directory,report}=await runA5({verify:async({mysql,directory})=>{
  await card.getByTitle('Eliminar',{exact:true}).click();pending=response('DELETE',created.id);await page.getByRole('button',{name:'Eliminar',exact:true}).click();assert.equal((await pending).status(),200);
  checks.push('Angular real: create metadata edit duplicate reload delete on MySQL');
  await page.goto(origin+'/price-labels');
- const name=page.getByLabel('Nombre de la plantilla');await name.fill('A6 etiqueta real');await name.press('Tab');
+ const name=page.getByLabel('Nombre del molde');await name.fill('A6 etiqueta real');await name.press('Tab');
  pending=response('POST','/api/templates');await page.getByRole('button',{name:'Guardar',exact:true}).click();r=await pending;assert.equal(r.status(),201);const label=await r.json();await expect(page.getByRole('button',{name:'Guardar',exact:true})).toBeEnabled();await expect(page.locator('.template-select')).toHaveValue(label.id);
  await name.fill('A6 etiqueta editada');await name.press('Tab');pending=response('PUT',label.id);await page.getByRole('button',{name:'Guardar',exact:true}).click();r=await pending;assert.equal(r.status(),200);assert.ok(await r.request().headerValue('if-match'),'If-Match must be sent by '+r.url());
  await page.reload();await page.locator('.template-menu summary').click();await page.locator('.template-select').selectOption(label.id);await expect(name).toHaveValue('A6 etiqueta editada');

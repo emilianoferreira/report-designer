@@ -24,7 +24,7 @@
           class="toggle-btn"
           [class.active]="viewMode === 'design'"
           (click)="setViewMode('design')"
-          title="Editar la plantilla: posicionar y configurar elementos"
+          title="Editar el molde y sus elementos"
         >
           Diseño
         </button>
@@ -96,7 +96,7 @@
 
           @if (helpSection === 'intro') {
             <h2>Zureo Report Designer</h2>
-            <p>Bienvenido al diseñador de plantillas de comprobantes. Esta herramienta permite crear y personalizar el formato de impresión de facturas, tickets y otros documentos comerciales.</p>
+            <p>El diseñador de moldes permite configurar el formato de impresión de facturas, tickets y otros documentos comerciales.</p>
             <h3>Estructura del diseñador</h3>
             <p>La interfaz se divide en tres paneles:</p>
             <ul>
@@ -106,7 +106,7 @@
             </ul>
             <p>Los paneles laterales se pueden colapsar usando las flechas en sus bordes para ganar espacio de trabajo.</p>
             <h3>Secciones del comprobante</h3>
-            <p>Cada plantilla tiene tres secciones:</p>
+            <p>Cada molde tiene tres secciones:</p>
             <ul>
               <li><strong>Encabezado:</strong> datos de la empresa, tipo de comprobante, datos del cliente.</li>
               <li><strong>Detalle:</strong> líneas de productos/servicios (se repite por cada ítem).</li>
@@ -189,14 +189,14 @@
             <h3>Grilla</h3>
             <p>Muestra u oculta la cuadrícula de referencia (puntos cada 5mm) sobre el lienzo. <strong>No afecta</strong> cómo se mueven los elementos — es solo una guía visual para medir a ojo.</p>
 
-            <h3>Snap (ajustar a la grilla)</h3>
+            <h3>Ajustar a grilla</h3>
             <p>Cuando está activo, al arrastrar o redimensionar un elemento sus bordes saltan a la cuadrícula más cercana (paso de 5mm). Útil para alinear elementos sin pensar en coordenadas exactas. Se puede usar con o sin la grilla visual.</p>
 
-            <h3>Elem (ajustar a otros elementos)</h3>
+            <h3>Ajustar a elementos</h3>
             <p>Cuando está activo, al arrastrar un elemento aparecen líneas de alineación inteligente con los otros elementos cercanos: sus bordes izquierdo/derecho/superior/inferior y sus centros. El elemento se "pega" a esas líneas cuando pasa cerca. Es la forma más rápida de alinear dos textos sin usar coordenadas.</p>
 
             <h3>Combinarlos</h3>
-            <p>Los dos tipos de snap (<strong>Snap</strong> y <strong>Elem</strong>) se pueden usar juntos. El motor de ajuste evalúa ambas fuentes y elige el objetivo más cercano dentro del umbral.</p>
+            <p>Podés activar ambos ajustes a la vez. El diseñador elige el punto de ajuste más cercano dentro del umbral.</p>
           }
 
           @if (helpSection === 'properties') {

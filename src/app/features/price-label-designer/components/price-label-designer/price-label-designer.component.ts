@@ -372,7 +372,7 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
       if (unchanged && openSaved && !this.legacyRoute && this.route.snapshot.paramMap.get('id') !== saved.id) savedId = saved.id;
     } catch (error: any) {
       this.conflict = error.status === 409;
-      this.showSaveStatus(this.conflict ? 'La plantilla cambió en el servidor. Tu borrador se conservó.' : 'No se pudo guardar. Los cambios se conservaron.');
+      this.showSaveStatus(this.conflict ? 'El molde cambió en el servidor. Tu borrador se conservó.' : 'No se pudo guardar. Los cambios se conservaron.');
     } finally {
       this.saving = false;
     }
@@ -406,7 +406,7 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
   }
 
   async deleteTemplate(): Promise<void> {
-    if (!this.canEdit || this.saving || !confirm('¿Eliminar la plantilla "' + this.template.name + '"? Esta acción no se puede deshacer y descarta los cambios locales.')) return;
+    if (!this.canEdit || this.saving || !confirm('¿Eliminar el molde "' + this.template.name + '"? Esta acción no se puede deshacer y descarta los cambios locales.')) return;
     this.saving = true;
     try {
       if (this.storage.getById(this.template.id)) await this.storage.delete(this.template.id, this.serverVersion);
@@ -415,7 +415,7 @@ export class PriceLabelDesignerComponent implements OnInit, OnDestroy {
       this.showSaveStatus('Eliminado');
     } catch (error: any) {
       this.conflict = error.status === 409;
-      this.showSaveStatus(this.conflict ? 'La plantilla cambió en el servidor. No se eliminó.' : 'No se pudo eliminar. Tu borrador se conservó.');
+      this.showSaveStatus(this.conflict ? 'El molde cambió en el servidor. No se eliminó.' : 'No se pudo eliminar. Tu borrador se conservó.');
     } finally { this.saving = false; }
     if (!this.legacyRoute && this.serverVersion === undefined) this.goToDocuments();
   }
